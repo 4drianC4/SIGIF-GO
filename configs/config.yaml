@@ -1,0 +1,89 @@
+app:
+  name: "sigif-go"
+  env: "development"
+  port: 8080
+  host: "0.0.0.0"
+  read_timeout: 10
+  write_timeout: 10
+  idle_timeout: 120
+
+database:
+  host: "localhost"
+  port: 5432
+  user: "sigif"
+  password: "sigif"
+  name: "sigif"
+  ssl_mode: "disable"
+  max_open_conns: 25
+  max_idle_conns: 10
+  conn_max_lifetime: 300
+  log_level: "silent"
+
+redis:
+  host: "localhost"
+  port: 6379
+  password: ""
+  db: 0
+  pool_size: 10
+  min_idle_conns: 5
+
+jwt:
+  secret: "your-super-secret-jwt-key-change-in-production"
+  access_token_expiry: 15
+  refresh_token_expiry: 10080
+  issuer: "sigif-go"
+
+cors:
+  allow_origins:
+    - "http://localhost:3000"
+    - "http://localhost:5173"
+  allow_methods:
+    - "GET"
+    - "POST"
+    - "PUT"
+    - "PATCH"
+    - "DELETE"
+    - "OPTIONS"
+  allow_headers:
+    - "Origin"
+    - "Content-Type"
+    - "Accept"
+    - "Authorization"
+    - "X-Request-ID"
+    - "X-Tenant-ID"
+  allow_credentials: true
+  expose_headers:
+    - "X-Request-ID"
+
+rate_limit:
+  enabled: true
+  max_requests: 100
+  window_seconds: 60
+
+pagination:
+  default_limit: 20
+  max_limit: 100
+
+logging:
+  level: "debug"
+  format: "console"
+  output: "stdout"
+
+modules:
+  enabled:
+    - "tenant"
+    - "company"
+    - "user"
+    - "auth"
+    - "product"
+    - "inventory"
+    - "sales"
+    - "dashboard"
+    - "pharmacy"
+    - "minimarket"
+    - "hardware"
+
+business_types:
+  - "minimarket"
+  - "hardware"
+  - "pharmacy"

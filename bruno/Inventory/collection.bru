@@ -1,0 +1,114 @@
+{
+  "name": "Inventory",
+  "requests": [
+    {
+      "name": "Create Warehouse",
+      "method": "POST",
+      "url": "{{baseUrl}}/api/v1/warehouses",
+      "headers": [
+        { "name": "Content-Type", "value": "application/json" },
+        { "name": "X-Tenant-ID", "value": "{{tenantId}}" },
+        { "name": "Authorization", "value": "Bearer {{accessToken}}" }
+      ],
+      "body": {
+        "type": "json",
+        "content": "{\n  \"name\": \"Bodega Principal\",\n  \"code\": \"WH001\",\n  \"address\": \"Calle 50 # 20-30\",\n  \"city\": \"Bogotá\",\n  \"state\": \"Cundinamarca\",\n  \"country\": \"Colombia\",\n  \"postal_code\": \"110311\",\n  \"is_default\": true,\n  \"settings\": {\n    \"allow_negative_stock\": false,\n    \"require_batch\": true,\n    \"require_serial\": false\n  }\n      }"
+      },
+      "scripts": {
+        "post": "if (res.status === 201) {\n  bru.setVar('warehouseId', res.body.data.id);\n}"
+      }
+    },
+    {
+      "name": "List Warehouses",
+      "method": "GET",
+      "url": "{{baseUrl}}/api/v1/warehouses?page=1&limit=20",
+      "headers": [
+        { "name": "X-Tenant-ID", "value": "{{tenantId}}" },
+        { "name": "Authorization", "value": "Bearer {{accessToken}}" }
+      ]
+    },
+    {
+      "name": "Create Batch",
+      "method": "POST",
+      "url": "{{baseUrl}}/api/v1/batches",
+      "headers": [
+        { "name": "Content-Type", "value": "application/json" },
+        { "name": "X-Tenant-ID", "value": "{{tenantId}}" },
+        { "name": "Authorization", "value": "Bearer {{accessToken}}" }
+      ],
+      "body": {
+        "type": "json",
+        "content": "{\n  \"product_id\": \"{{productId}}\",\n  \"warehouse_id\": \"{{warehouseId}}\",\n  \"batch_number\": \"BAT-2024001\",\n  \"manufacture_date\": \"2024-01-15\",\n  \"expiry_date\": \"2025-01-15\",\n  \"quantity\": 100,\n  \"unit_cost\": 1500,\n  \"notes\": \"Lote inicial\"\n      }"
+      }
+    },
+    {
+      "name": "List Batches",
+      "method": "GET",
+      "url": "{{baseUrl}}/api/v1/batches?page=1&limit=20",
+      "headers": [
+        { "name": "X-Tenant-ID", "value": "{{tenantId}}" },
+        { "name": "Authorization", "value": "Bearer {{accessToken}}" }
+      ]
+    },
+    {
+      "name": "Create Supplier",
+      "method": "POST",
+      "url": "{{baseUrl}}/api/v1/suppliers",
+      "headers": [
+        { "name": "Content-Type", "value": "application/json" },
+        { "name": "X-Tenant-ID", "value": "{{tenantId}}" },
+        { "name": "Authorization", "value": "Bearer {{accessToken}}" }
+      ],
+      "body": {
+        "type": "json",
+        "content": "{\n  \"name\": \"Distribuidora Coca-Cola\",\n  \"contact_name\": \"Carlos Rodríguez\",\n  \"email\": \"ventas@cocacola.com\",\n  \"phone\": \"+57 1 400 5000\",\n  \"address\": \"Zona Industrial, Calle 80 # 50-10\",\n  \"city\": \"Bogotá\",\n  \"state\": \"Cundinamarca\",\n  \"country\": \"Colombia\",\n  \"postal_code\": \"110711\",\n  \"tax_id\": \"800123456-7\",\n  \"payment_terms\": \"30 días\"\n      }"
+      }
+    },
+    {
+      "name": "List Suppliers",
+      "method": "GET",
+      "url": "{{baseUrl}}/api/v1/suppliers?page=1&limit=20",
+      "headers": [
+        { "name": "X-Tenant-ID", "value": "{{tenantId}}" },
+        { "name": "Authorization", "value": "Bearer {{accessToken}}" }
+      ]
+    },
+    {
+      "name": "Create Purchase Order",
+      "method": "POST",
+      "url": "{{baseUrl}}/api/v1/purchase-orders",
+      "headers": [
+        { "name": "Content-Type", "value": "application/json" },
+        { "name": "X-Tenant-ID", "value": "{{tenantId}}" },
+        { "name": "Authorization", "value": "Bearer {{accessToken}}" }
+      ],
+      "body": {
+        "type": "json",
+        "content": "{\n  \"supplier_id\": \"\",\n  \"warehouse_id\": \"{{warehouseId}}\",\n  \"order_number\": \"PO-2024-001\",\n  \"order_date\": \"2024-01-15\",\n  \"expected_date\": \"2024-01-22\",\n  \"notes\": \"Pedido mensual bebidas\",\n  \"items\": [\n    {\n      \"product_id\": \"{{productId}}\",\n      \"quantity\": 200,\n      \"unit_cost\": 1400,\n      \"tax_rate\": 19,\n      \"discount_rate\": 5\n    }\n  ]\n      }"
+      }
+    },
+    {
+      "name": "List Purchase Orders",
+      "method": "GET",
+      "url": "{{baseUrl}}/api/v1/purchase-orders?page=1&limit=20",
+      "headers": [
+        { "name": "X-Tenant-ID", "value": "{{tenantId}}" },
+        { "name": "Authorization", "value": "Bearer {{accessToken}}" }
+      ]
+    },
+    {
+      "name": "Receive Purchase Order",
+      "method": "POST",
+      "url": "{{baseUrl}}/api/v1/purchase-orders/{{purchaseOrderId}}/receive",
+      "headers": [
+        { "name": "Content-Type", "value": "application/json" },
+        { "name": "X-Tenant-ID", "value": "{{tenantId}}" },
+        { "name": "Authorization", "value": "Bearer {{accessToken}}" }
+      ],
+      "body": {
+        "type": "json",
+        "content": "{\n  \"items\": [\n    {\n      \"item_id\": \"\",\n      \"received_quantity\": 200,\n      \"batch_number\": \"BAT-2024001\",\n      \"manufacture_date\": \"2024-01-15\",\n      \"expiry_date\": \"2025-01-15\"\n    }\n  ]\n      }"
+      }
+    }
+  ]
+}

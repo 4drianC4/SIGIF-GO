@@ -1,0 +1,116 @@
+{
+  "name": "Minimarket",
+  "requests": [
+    {
+      "name": "Create Promotion",
+      "method": "POST",
+      "url": "{{baseUrl}}/api/v1/promotions",
+      "headers": [
+        { "name": "Content-Type", "value": "application/json" },
+        { "name": "X-Tenant-ID", "value": "{{tenantId}}" },
+        { "name": "Authorization", "value": "Bearer {{accessToken}}" }
+      ],
+      "body": {
+        "type": "json",
+        "content": "{\n  \"name\": \"2x1 en Bebidas\",\n  \"description\": \"Lleva 2 bebidas y paga 1\",\n  \"type\": \"bogo\",\n  \"code\": \"2X1BEBIDAS\",\n  \"value\": 100,\n  \"min_amount\": 0,\n  \"max_discount\": 5000,\n  \"start_date\": \"2024-01-15T00:00:00Z\",\n  \"end_date\": \"2024-01-31T23:59:59Z\",\n  \"usage_limit\": 100,\n  \"per_customer_limit\": 2,\n  \"applicable_products\": [],\n  \"applicable_categories\": [\"\"],\n  \"applicable_customers\": []\n      }"
+      }
+    },
+    {
+      "name": "List Promotions",
+      "method": "GET",
+      "url": "{{baseUrl}}/api/v1/promotions?page=1&limit=20",
+      "headers": [
+        { "name": "X-Tenant-ID", "value": "{{tenantId}}" },
+        { "name": "Authorization", "value": "Bearer {{accessToken}}" }
+      ]
+    },
+    {
+      "name": "Validate Promotion",
+      "method": "POST",
+      "url": "{{baseUrl}}/api/v1/promotions/validate",
+      "headers": [
+        { "name": "Content-Type", "value": "application/json" },
+        { "name": "X-Tenant-ID", "value": "{{tenantId}}" },
+        { "name": "Authorization", "value": "Bearer {{accessToken}}" }
+      ],
+      "body": {
+        "type": "json",
+        "content": "{\n  \"code\": \"2X1BEBIDAS\",\n  \"customer_id\": \"{{customerId}}\",\n  \"items\": [\n    {\n      \"product_id\": \"{{productId}}\",\n      \"quantity\": 2,\n      \"unit_price\": 3500\n    }\n  ]\n      }"
+      }
+    },
+    {
+      "name": "Create Loyalty Program",
+      "method": "POST",
+      "url": "{{baseUrl}}/api/v1/loyalty/programs",
+      "headers": [
+        { "name": "Content-Type", "value": "application/json" },
+        { "name": "X-Tenant-ID", "value": "{{tenantId}}" },
+        { "name": "Authorization", "value": "Bearer {{accessToken}}" }
+      ],
+      "body": {
+        "type": "json",
+        "content": "{\n  \"name\": \"Puntos SIGIF\",\n  \"description\": \"Acumula puntos por cada compra\",\n  \"points_per_amount\": 1,\n  \"points_value\": 0.01,\n  \"min_points_redeem\": 100,\n  \"points_expiry_days\": 365,\n  \"tiers\": [\n    {\"name\": \"Bronce\", \"min_points\": 0, \"multiplier\": 1},\n    {\"name\": \"Plata\", \"min_points\": 1000, \"multiplier\": 1.2},\n    {\"name\": \"Oro\", \"min_points\": 5000, \"multiplier\": 1.5}\n  ]\n      }"
+      }
+    },
+    {
+      "name": "List Loyalty Programs",
+      "method": "GET",
+      "url": "{{baseUrl}}/api/v1/loyalty/programs?page=1&limit=20",
+      "headers": [
+        { "name": "X-Tenant-ID", "value": "{{tenantId}}" },
+        { "name": "Authorization", "value": "Bearer {{accessToken}}" }
+      ]
+    },
+    {
+      "name": "Enroll Customer in Loyalty",
+      "method": "POST",
+      "url": "{{baseUrl}}/api/v1/loyalty/customers",
+      "headers": [
+        { "name": "Content-Type", "value": "application/json" },
+        { "name": "X-Tenant-ID", "value": "{{tenantId}}" },
+        { "name": "Authorization", "value": "Bearer {{accessToken}}" }
+      ],
+      "body": {
+        "type": "json",
+        "content": "{\n  \"customer_id\": \"{{customerId}}\",\n  \"program_id\": \"\"\n      }"
+      }
+    },
+    {
+      "name": "Get Customer Loyalty",
+      "method": "GET",
+      "url": "{{baseUrl}}/api/v1/loyalty/customers/{{customerId}}",
+      "headers": [
+        { "name": "X-Tenant-ID", "value": "{{tenantId}}" },
+        { "name": "Authorization", "value": "Bearer {{accessToken}}" }
+      ]
+    },
+    {
+      "name": "Add Loyalty Points",
+      "method": "POST",
+      "url": "{{baseUrl}}/api/v1/loyalty/customers/{{customerId}}/points",
+      "headers": [
+        { "name": "Content-Type", "value": "application/json" },
+        { "name": "X-Tenant-ID", "value": "{{tenantId}}" },
+        { "name": "Authorization", "value": "Bearer {{accessToken}}" }
+      ],
+      "body": {
+        "type": "json",
+        "content": "{\n  \"points\": 200,\n  \"description\": \"Compra venta #SALE-001\",\n  \"sale_id\": \"{{saleId}}\"\n      }"
+      }
+    },
+    {
+      "name": "Redeem Loyalty Points",
+      "method": "POST",
+      "url": "{{baseUrl}}/api/v1/loyalty/customers/{{customerId}}/redeem",
+      "headers": [
+        { "name": "Content-Type", "value": "application/json" },
+        { "name": "X-Tenant-ID", "value": "{{tenantId}}" },
+        { "name": "Authorization", "value": "Bearer {{accessToken}}" }
+      ],
+      "body": {
+        "type": "json",
+        "content": "{\n  \"points\": 100,\n  \"description\": \"Canje por descuento $1.000\"\n      }"
+      }
+    }
+  ]
+}

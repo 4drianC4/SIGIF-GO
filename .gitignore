@@ -1,0 +1,57 @@
+# Binaries
+bin/
+sigif-server
+sigif-migrate
+
+# Dependencies
+vendor/
+
+# Build artifacts
+*.exe
+*.dll
+*.so
+*.dylib
+
+# Test coverage
+coverage.out
+coverage.html
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# Environment files
+.env
+.env.local
+.env.*.local
+
+# Logs
+*.log
+logs/
+
+# Database
+*.db
+*.sqlite
+*.sqlite3
+
+# Docker
+.docker/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+
+# Migration files
+migrations/*.sql
+
+# Generated files
+docs/api/swagger.json
+docs/api/swagger.yaml

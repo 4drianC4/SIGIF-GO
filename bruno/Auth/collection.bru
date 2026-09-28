@@ -1,0 +1,65 @@
+{
+  "name": "Auth",
+  "requests": [
+    {
+      "name": "Login",
+      "method": "POST",
+      "url": "{{baseUrl}}/api/v1/auth/login",
+      "headers": [
+        { "name": "Content-Type", "value": "application/json" },
+        { "name": "X-Tenant-ID", "value": "{{tenantId}}" }
+      ],
+      "body": {
+        "type": "json",
+        "content": "{\n  \"email\": \"admin@sigif.com\",\n  \"password\": \"password123\"\n}"
+      },
+      "scripts": {
+        "post": "if (res.status === 200) {\n  bru.setVar('accessToken', res.body.data.tokenPair.accessToken);\n  bru.setVar('refreshToken', res.body.data.tokenPair.refreshToken);\n  bru.setVar('userId', res.body.data.user.id);\n  bru.setVar('tenantId', res.body.data.user.tenantId);\n  bru.setVar('companyId', res.body.data.user.companyId || '');\n}"
+      }
+    },
+    {
+      "name": "Refresh Token",
+      "method": "POST",
+      "url": "{{baseUrl}}/api/v1/auth/refresh",
+      "headers": [
+        { "name": "Content-Type", "value": "application/json" },
+        { "name": "X-Tenant-ID", "value": "{{tenantId}}" }
+      ],
+      "body": {
+        "type": "json",
+        "content": "{\n  \"refresh_token\": \"{{refreshToken}}\"\n}"
+      },
+      "scripts": {
+        "post": "if (res.status === 200) {\n  bru.setVar('accessToken', res.body.data.accessToken);\n  bru.setVar('refreshToken', res.body.data.refreshToken);\n}"
+      }
+    },
+    {
+      "name": "Logout",
+      "method": "POST",
+      "url": "{{baseUrl}}/api/v1/auth/logout",
+      "headers": [
+        { "name": "Content-Type", "value": "application/json" },
+        { "name": "X-Tenant-ID", "value": "{{tenantId}}" },
+        { "name": "Authorization", "value": "Bearer {{accessToken}}" }
+      ],
+      "body": {
+        "type": "json",
+        "content": "{\n  \"refresh_token\": \"{{refreshToken}}\"\n}"
+      }
+    },
+    {
+      "name": "Logout All Devices",
+      "method": "POST",
+      "url": "{{baseUrl}}/api/v1/auth/logout-all",
+      "headers": [
+        { "name": "Content-Type", "value": "application/json" },
+        { "name": "X-Tenant-ID", "value": "{{tenantId}}" },
+        { "name": "Authorization", "value": "Bearer {{accessToken}}" }
+      ],
+      "body": {
+        "type": "json",
+        "content": "{\n  \"user_id\": \"{{userId}}\"\n}"
+      }
+    }
+  ]
+}

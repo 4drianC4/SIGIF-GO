@@ -1,0 +1,109 @@
+{
+  "name": "Dashboard",
+  "requests": [
+    {
+      "name": "Get Dashboard Metrics",
+      "method": "GET",
+      "url": "{{baseUrl}}/api/v1/dashboard/metrics?period_start=2024-01-01&period_end=2024-01-31",
+      "headers": [
+        { "name": "X-Tenant-ID", "value": "{{tenantId}}" },
+        { "name": "Authorization", "value": "Bearer {{accessToken}}" }
+      ]
+    },
+    {
+      "name": "Get Sales Analytics",
+      "method": "GET",
+      "url": "{{baseUrl}}/api/v1/dashboard/sales?period_start=2024-01-01&period_end=2024-01-31",
+      "headers": [
+        { "name": "X-Tenant-ID", "value": "{{tenantId}}" },
+        { "name": "Authorization", "value": "Bearer {{accessToken}}" }
+      ]
+    },
+    {
+      "name": "Get Inventory Analytics",
+      "method": "GET",
+      "url": "{{baseUrl}}/api/v1/dashboard/inventory?period_start=2024-01-01&period_end=2024-01-31",
+      "headers": [
+        { "name": "X-Tenant-ID", "value": "{{tenantId}}" },
+        { "name": "Authorization", "value": "Bearer {{accessToken}}" }
+      ]
+    },
+    {
+      "name": "Create Report",
+      "method": "POST",
+      "url": "{{baseUrl}}/api/v1/reports",
+      "headers": [
+        { "name": "Content-Type", "value": "application/json" },
+        { "name": "X-Tenant-ID", "value": "{{tenantId}}" },
+        { "name": "Authorization", "value": "Bearer {{accessToken}}" }
+      ],
+      "body": {
+        "type": "json",
+        "content": "{\n  \"name\": \"Ventas Diarias Enero\",\n  \"type\": \"sales\",\n  \"description\": \"Reporte de ventas diarias del mes de enero\",\n  \"query\": \"SELECT DATE(sale_date) as date, COUNT(*) as orders, SUM(total_amount) as revenue FROM sales WHERE tenant_id = $1 AND sale_date BETWEEN $2 AND $3 GROUP BY DATE(sale_date) ORDER BY date\",\n  \"parameters\": {\n    \"period_start\": \"2024-01-01\",\n    \"period_end\": \"2024-01-31\"\n  },\n  \"schedule\": \"0 8 * * *\",\n  \"format\": \"excel\",\n  \"recipients\": [\"admin@sigif.com\", \"manager@sigif.com\"]\n      }"
+      }
+    },
+    {
+      "name": "List Reports",
+      "method": "GET",
+      "url": "{{baseUrl}}/api/v1/reports?page=1&limit=20",
+      "headers": [
+        { "name": "X-Tenant-ID", "value": "{{tenantId}}" },
+        { "name": "Authorization", "value": "Bearer {{accessToken}}" }
+      ]
+    },
+    {
+      "name": "Execute Report",
+      "method": "POST",
+      "url": "{{baseUrl}}/api/v1/reports/{{reportId}}/execute",
+      "headers": [
+        { "name": "X-Tenant-ID", "value": "{{tenantId}}" },
+        { "name": "Authorization", "value": "Bearer {{accessToken}}" }
+      ]
+    },
+    {
+      "name": "List Report Executions",
+      "method": "GET",
+      "url": "{{baseUrl}}/api/v1/reports/{{reportId}}/executions?page=1&limit=20",
+      "headers": [
+        { "name": "X-Tenant-ID", "value": "{{tenantId}}" },
+        { "name": "Authorization", "value": "Bearer {{accessToken}}" }
+      ]
+    },
+    {
+      "name": "Get Top Products",
+      "method": "GET",
+      "url": "{{baseUrl}}/api/v1/dashboard/top-products?period_start=2024-01-01&period_end=2024-01-31&limit=10",
+      "headers": [
+        { "name": "X-Tenant-ID", "value": "{{tenantId}}" },
+        { "name": "Authorization", "value": "Bearer {{accessToken}}" }
+      ]
+    },
+    {
+      "name": "Get Top Categories",
+      "method": "GET",
+      "url": "{{baseUrl}}/api/v1/dashboard/top-categories?period_start=2024-01-01&period_end=2024-01-31&limit=10",
+      "headers": [
+        { "name": "X-Tenant-ID", "value": "{{tenantId}}" },
+        { "name": "Authorization", "value": "Bearer {{accessToken}}" }
+      ]
+    },
+    {
+      "name": "Get Sales by Payment Method",
+      "method": "GET",
+      "url": "{{baseUrl}}/api/v1/dashboard/sales-by-payment-method?period_start=2024-01-01&period_end=2024-01-31",
+      "headers": [
+        { "name": "X-Tenant-ID", "value": "{{tenantId}}" },
+        { "name": "Authorization", "value": "Bearer {{accessToken}}" }
+      ]
+    },
+    {
+      "name": "Get Hourly Sales",
+      "method": "GET",
+      "url": "{{baseUrl}}/api/v1/dashboard/hourly-sales?period_start=2024-01-01&period_end=2024-01-31",
+      "headers": [
+        { "name": "X-Tenant-ID", "value": "{{tenantId}}" },
+        { "name": "Authorization", "value": "Bearer {{accessToken}}" }
+      ]
+    }
+  ]
+}

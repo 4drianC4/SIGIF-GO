@@ -1,0 +1,84 @@
+{
+  "name": "Tenants",
+  "requests": [
+    {
+      "name": "Create Tenant",
+      "method": "POST",
+      "url": "{{baseUrl}}/api/v1/tenants",
+      "headers": [
+        { "name": "Content-Type", "value": "application/json" },
+        { "name": "X-Tenant-ID", "value": "{{tenantId}}" },
+        { "name": "Authorization", "value": "Bearer {{accessToken}}" }
+      ],
+      "body": {
+        "type": "json",
+        "content": "{\n  \"name\": \"Mi Minimarket\",\n  \"slug\": \"mi-minimarket\",\n  \"business_type\": \"minimarket\"\n}"
+      },
+      "scripts": {
+        "post": "if (res.status === 201) {\n  bru.setVar('tenantId', res.body.data.id);\n}"
+      }
+    },
+    {
+      "name": "List Tenants",
+      "method": "GET",
+      "url": "{{baseUrl}}/api/v1/tenants?page=1&limit=20",
+      "headers": [
+        { "name": "Authorization", "value": "Bearer {{accessToken}}" }
+      ]
+    },
+    {
+      "name": "Get Tenant by ID",
+      "method": "GET",
+      "url": "{{baseUrl}}/api/v1/tenants/{{tenantId}}",
+      "headers": [
+        { "name": "Authorization", "value": "Bearer {{accessToken}}" }
+      ]
+    },
+    {
+      "name": "Get Tenant by Slug",
+      "method": "GET",
+      "url": "{{baseUrl}}/api/v1/tenants/slug/mi-minimarket",
+      "headers": [
+        { "name": "Authorization", "value": "Bearer {{accessToken}}" }
+      ]
+    },
+    {
+      "name": "Update Tenant",
+      "method": "PUT",
+      "url": "{{baseUrl}}/api/v1/tenants/{{tenantId}}",
+      "headers": [
+        { "name": "Content-Type", "value": "application/json" },
+        { "name": "X-Tenant-ID", "value": "{{tenantId}}" },
+        { "name": "Authorization", "value": "Bearer {{accessToken}}" }
+      ],
+      "body": {
+        "type": "json",
+        "content": "{\n  \"name\": \"Mi Minimarket Actualizado\",\n  \"settings\": {\n    \"currency\": \"USD\",\n    \"timezone\": \"America/Bogota\",\n    \"language\": \"es\",\n    \"tax_rate\": 19,\n    \"require_prescription\": false,\n    \"enable_batch_tracking\": true,\n    \"enable_serial_tracking\": false\n  }\n}"
+      }
+    },
+    {
+      "name": "Activate Tenant",
+      "method": "POST",
+      "url": "{{baseUrl}}/api/v1/tenants/{{tenantId}}/activate",
+      "headers": [
+        { "name": "Authorization", "value": "Bearer {{accessToken}}" }
+      ]
+    },
+    {
+      "name": "Deactivate Tenant",
+      "method": "POST",
+      "url": "{{baseUrl}}/api/v1/tenants/{{tenantId}}/deactivate",
+      "headers": [
+        { "name": "Authorization", "value": "Bearer {{accessToken}}" }
+      ]
+    },
+    {
+      "name": "Delete Tenant",
+      "method": "DELETE",
+      "url": "{{baseUrl}}/api/v1/tenants/{{tenantId}}",
+      "headers": [
+        { "name": "Authorization", "value": "Bearer {{accessToken}}" }
+      ]
+    }
+  ]
+}

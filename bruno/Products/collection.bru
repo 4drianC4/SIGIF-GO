@@ -1,0 +1,192 @@
+{
+  "name": "Products",
+  "requests": [
+    {
+      "name": "Create Category",
+      "method": "POST",
+      "url": "{{baseUrl}}/api/v1/categories",
+      "headers": [
+        { "name": "Content-Type", "value": "application/json" },
+        { "name": "X-Tenant-ID", "value": "{{tenantId}}" },
+        { "name": "Authorization", "value": "Bearer {{accessToken}}" }
+      ],
+      "body": {
+        "type": "json",
+        "content": "{\n  \"name\": \"Bebidas\",\n  \"slug\": \"bebidas\",\n  \"description\": \"Bebidas y refrescos\"\n      }"
+      }
+    },
+    {
+      "name": "Create Brand",
+      "method": "POST",
+      "url": "{{baseUrl}}/api/v1/brands",
+      "headers": [
+        { "name": "Content-Type", "value": "application/json" },
+        { "name": "X-Tenant-ID", "value": "{{tenantId}}" },
+        { "name": "Authorization", "value": "Bearer {{accessToken}}" }
+      ],
+      "body": {
+        "type": "json",
+        "content": "{\n  \"name\": \"Coca-Cola\",\n  \"slug\": \"coca-cola\",\n  \"description\": \"The Coca-Cola Company\"\n      }"
+      }
+    },
+    {
+      "name": "Create Unit",
+      "method": "POST",
+      "url": "{{baseUrl}}/api/v1/units",
+      "headers": [
+        { "name": "Content-Type", "value": "application/json" },
+        { "name": "X-Tenant-ID", "value": "{{tenantId}}" },
+        { "name": "Authorization", "value": "Bearer {{accessToken}}" }
+      ],
+      "body": {
+        "type": "json",
+        "content": "{\n  \"name\": \"Unidad\",\n  \"symbol\": \"und\",\n  \"description\": \"Unidad individual\",\n  \"is_base\": true\n      }"
+      }
+    },
+    {
+      "name": "Create Tax",
+      "method": "POST",
+      "url": "{{baseUrl}}/api/v1/taxes",
+      "headers": [
+        { "name": "Content-Type", "value": "application/json" },
+        { "name": "X-Tenant-ID", "value": "{{tenantId}}" },
+        { "name": "Authorization", "value": "Bearer {{accessToken}}" }
+      ],
+      "body": {
+        "type": "json",
+        "content": "{\n  \"name\": \"IVA 19%\",\n  \"rate\": 19,\n  \"type\": \"percentage\",\n  \"description\": \"Impuesto al valor agregado 19%\"\n      }"
+      }
+    },
+    {
+      "name": "Create Product",
+      "method": "POST",
+      "url": "{{baseUrl}}/api/v1/products",
+      "headers": [
+        { "name": "Content-Type", "value": "application/json" },
+        { "name": "X-Tenant-ID", "value": "{{tenantId}}" },
+        { "name": "Authorization", "value": "Bearer {{accessToken}}" }
+      ],
+      "body": {
+        "type": "json",
+        "content": "{\n  \"sku\": \"COC-600ML\",\n  \"barcode\": \"7501055378901\",\n  \"name\": \"Coca Cola 600ml\",\n  \"description\": \"Refresco de cola 600ml\",\n  \"type\": \"simple\",\n  \"category_id\": \"\",\n  \"brand_id\": \"\",\n  \"unit_id\": \"\",\n  \"tax_id\": \"\",\n  \"cost_price\": 1500,\n  \"sale_price\": 3500,\n  \"wholesale_price\": 3000,\n  \"min_price\": 3000,\n  \"max_price\": 4000,\n  \"min_stock\": 10,\n  \"max_stock\": 500,\n  \"weight\": 0.6,\n  \"dimensions\": \"6.5x6.5x23\",\n  \"settings\": {\n    \"track_stock\": true,\n    \"allow_backorder\": false,\n    \"require_serial\": false,\n    \"require_batch\": false,\n    \"require_expiry\": true,\n    \"is_prescription\": false,\n    \"controlled_substance\": false\n  }\n}"
+      },
+      "scripts": {
+        "post": "if (res.status === 201) {\n  bru.setVar('productId', res.body.data.id);\n}"
+      }
+    },
+    {
+      "name": "List Products",
+      "method": "GET",
+      "url": "{{baseUrl}}/api/v1/products?page=1&limit=20",
+      "headers": [
+        { "name": "X-Tenant-ID", "value": "{{tenantId}}" },
+        { "name": "Authorization", "value": "Bearer {{accessToken}}" }
+      ]
+    },
+    {
+      "name": "Get Product by ID",
+      "method": "GET",
+      "url": "{{baseUrl}}/api/v1/products/{{productId}}",
+      "headers": [
+        { "name": "X-Tenant-ID", "value": "{{tenantId}}" },
+        { "name": "Authorization", "value": "Bearer {{accessToken}}" }
+      ]
+    },
+    {
+      "name": "Get Product by SKU",
+      "method": "GET",
+      "url": "{{baseUrl}}/api/v1/products/sku/COC-600ML",
+      "headers": [
+        { "name": "X-Tenant-ID", "value": "{{tenantId}}" },
+        { "name": "Authorization", "value": "Bearer {{accessToken}}" }
+      ]
+    },
+    {
+      "name": "Get Product by Barcode",
+      "method": "GET",
+      "url": "{{baseUrl}}/api/v1/products/barcode/7501055378901",
+      "headers": [
+        { "name": "X-Tenant-ID", "value": "{{tenantId}}" },
+        { "name": "Authorization", "value": "Bearer {{accessToken}}" }
+      ]
+    },
+    {
+      "name": "Update Product",
+      "method": "PUT",
+      "url": "{{baseUrl}}/api/v1/products/{{productId}}",
+      "headers": [
+        { "name": "Content-Type", "value": "application/json" },
+        { "name": "X-Tenant-ID", "value": "{{tenantId}}" },
+        { "name": "Authorization", "value": "Bearer {{accessToken}}" }
+      ],
+      "body": {
+        "type": "json",
+        "content": "{\n  \"sku\": \"COC-600ML\",\n  \"name\": \"Coca Cola 600ml Botella\",\n  \"description\": \"Refresco de cola 600ml botella retornable\",\n  \"sale_price\": 3800,\n  \"wholesale_price\": 3200\n      }"
+      }
+    },
+    {
+      "name": "Activate Product",
+      "method": "POST",
+      "url": "{{baseUrl}}/api/v1/products/{{productId}}/activate",
+      "headers": [
+        { "name": "X-Tenant-ID", "value": "{{tenantId}}" },
+        { "name": "Authorization", "value": "Bearer {{accessToken}}" }
+      ]
+    },
+    {
+      "name": "Deactivate Product",
+      "method": "POST",
+      "url": "{{baseUrl}}/api/v1/products/{{productId}}/deactivate",
+      "headers": [
+        { "name": "X-Tenant-ID", "value": "{{tenantId}}" },
+        { "name": "Authorization", "value": "Bearer {{accessToken}}" }
+      ]
+    },
+    {
+      "name": "Adjust Stock",
+      "method": "POST",
+      "url": "{{baseUrl}}/api/v1/products/{{productId}}/stock/adjust",
+      "headers": [
+        { "name": "Content-Type", "value": "application/json" },
+        { "name": "X-Tenant-ID", "value": "{{tenantId}}" },
+        { "name": "Authorization", "value": "Bearer {{accessToken}}" }
+      ],
+      "body": {
+        "type": "json",
+        "content": "{\n  \"quantity\": 50\n      }"
+      }
+    },
+    {
+      "name": "Set Stock",
+      "method": "POST",
+      "url": "{{baseUrl}}/api/v1/products/{{productId}}/stock/set",
+      "headers": [
+        { "name": "Content-Type", "value": "application/json" },
+        { "name": "X-Tenant-ID", "value": "{{tenantId}}" },
+        { "name": "Authorization", "value": "Bearer {{accessToken}}" }
+      ],
+      "body": {
+        "type": "json",
+        "content": "{\n  \"quantity\": 100\n      }"
+      }
+    },
+    {
+      "name": "Get Low Stock Products",
+      "method": "GET",
+      "url": "{{baseUrl}}/api/v1/products/low-stock",
+      "headers": [
+        { "name": "X-Tenant-ID", "value": "{{tenantId}}" },
+        { "name": "Authorization", "value": "Bearer {{accessToken}}" }
+      ]
+    },
+    {
+      "name": "Delete Product",
+      "method": "DELETE",
+      "url": "{{baseUrl}}/api/v1/products/{{productId}}",
+      "headers": [
+        { "name": "X-Tenant-ID", "value": "{{tenantId}}" },
+        { "name": "Authorization", "value": "Bearer {{accessToken}}" }
+      ]
+    }
+  ]
+}

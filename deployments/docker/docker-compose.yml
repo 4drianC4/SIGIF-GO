@@ -1,0 +1,92 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: sigif-postgres
+    environment:
+      POSTGRES_USER: sigif
+      POSTGRES_PASSWORD: sigif
+      POSTGRES_DB: sigif
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./deployments/docker/init-db:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U sigif -d sigif"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - sigif-network
+
+  redis:
+    image: redis:7-alpine
+    container_name: sigif-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - sigif-network
+
+  app:
+    build:
+      context: .
+      dockerfile: deployments/docker/Dockerfile
+    container_name: sigif-app
+    environment:
+      - APP_ENV=development
+      - APP_PORT=8080
+      - DATABASE_HOST=postgres
+      - DATABASE_PORT=5432
+      - DATABASE_USER=sigif
+      - DATABASE_PASSWORD=sigif
+      - DATABASE_NAME=sigif
+      - DATABASE_SSL_MODE=disable
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - JWT_SECRET=your-super-secret-jwt-key-change-in-production
+    ports:
+      - "8080:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - sigif-network
+    volumes:
+      - ./configs:/app/configs
+
+  migrate:
+    build:
+      context: .
+      dockerfile: deployments/docker/Dockerfile.migrate
+    container_name: sigif-migrate
+    environment:
+      - DATABASE_HOST=postgres
+      - DATABASE_PORT=5432
+      - DATABASE_USER=sigif
+      - DATABASE_PASSWORD=sigif
+      - DATABASE_NAME=sigif
+      - DATABASE_SSL_MODE=disable
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - sigif-network
+
+volumes:
+  postgres_data:
+  redis_data:
+
+networks:
+  sigif-network:
+    driver: bridge
