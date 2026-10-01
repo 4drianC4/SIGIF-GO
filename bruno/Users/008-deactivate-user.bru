@@ -1,0 +1,16 @@
+meta {
+  name: Deactivate User
+  type: http
+  seq: 8
+}
+
+post {
+  url: {{baseUrl}}/api/v1/users/{{userId}}/deactivate
+  body: none
+  auth: none
+}
+
+headers {
+  X-Tenant-ID: {{tenantId}}
+  Authorization: Bearer {{accessToken}}
+}

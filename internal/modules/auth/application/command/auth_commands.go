@@ -1,10 +1,10 @@
 package command
 
 type LoginCommand struct {
-	Email      string
-	Password   string
-	UserAgent  string
-	IPAddress  string
+	Email     string
+	Password  string
+	UserAgent string
+	IPAddress string
 }
 
 type RefreshCommand struct {

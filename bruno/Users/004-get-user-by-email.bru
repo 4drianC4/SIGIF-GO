@@ -1,0 +1,16 @@
+meta {
+  name: Get User by Email
+  type: http
+  seq: 4
+}
+
+get {
+  url: {{baseUrl}}/api/v1/users/by-email?email=cajero@sigif.com
+  body: none
+  auth: none
+}
+
+headers {
+  X-Tenant-ID: {{tenantId}}
+  Authorization: Bearer {{accessToken}}
+}

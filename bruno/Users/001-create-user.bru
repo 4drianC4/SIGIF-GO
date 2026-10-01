@@ -1,0 +1,31 @@
+meta {
+  name: Create User
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{baseUrl}}/api/v1/users
+  body: json
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+  X-Tenant-ID: {{tenantId}}
+  Authorization: Bearer {{accessToken}}
+}
+
+body:json {
+  "email": "cajero@sigif.com",
+  "password": "password123",
+  "first_name": "Juan",
+  "last_name": "Pérez",
+  "phone": "+57 300 123 4567",
+  "roles": ["cashier"],
+  "company_id": "{{companyId}}"
+}
+
+script:post-response {
+bru.setVar('userId', res.body && res.body.data ? res.body.data.id : '');
+}

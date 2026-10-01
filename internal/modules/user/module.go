@@ -3,6 +3,7 @@ package user
 import (
 	"github.com/gofiber/fiber/v2"
 	"go.uber.org/fx"
+
 	"github.com/sigif/sigif-go/internal/modules/user/application/handler"
 	"github.com/sigif/sigif-go/internal/modules/user/application/port"
 	"github.com/sigif/sigif-go/internal/modules/user/domain/repository"
@@ -14,7 +15,7 @@ import (
 
 var Module = fx.Options(
 	fx.Provide(
-		gorm.NewUserGormRepository,
+		fx.Annotate(gorm.NewUserGormRepository, fx.As(new(repository.UserRepository))),
 		service.NewUserService,
 		handler.NewUserCommandHandler,
 		handler.NewUserQueryHandler,
@@ -23,10 +24,7 @@ var Module = fx.Options(
 	fx.Invoke(registerRoutes),
 )
 
-func registerRoutes(
-	app *fiber.App,
-	h *httpHandler.UserHTTPHandler,
-) {
+func registerRoutes(app *fiber.App, h *httpHandler.UserHTTPHandler) {
 	router.RegisterUserRoutes(app, h)
 }
 

@@ -2,88 +2,54 @@ package entity
 
 import (
 	"time"
+
 	"github.com/google/uuid"
+
 	"github.com/sigif/sigif-go/internal/shared/clock"
-	"github.com/sigif/sigif-go/internal/shared/security"
-)
-
-type UserRole string
-
-const (
-	RoleSuperAdmin   UserRole = "super_admin"
-	RoleTenantAdmin  UserRole = "tenant_admin"
-	RoleCompanyAdmin UserRole = "company_admin"
-	RoleManager      UserRole = "manager"
-	RoleCashier      UserRole = "cashier"
-	RoleInventory    UserRole = "inventory"
-	RoleSales        UserRole = "sales"
-	RoleViewer       UserRole = "viewer"
-)
-
-type UserStatus string
-
-const (
-	UserStatusActive    UserStatus = "active"
-	UserStatusInactive  UserStatus = "inactive"
-	UserStatusPending   UserStatus = "pending"
-	UserStatusSuspended UserStatus = "suspended"
 )
 
 type User struct {
-	ID           uuid.UUID  `json:"id" gorm:"type:uuid;primary_key;default:gen_random_uuid()"`
-	TenantID     uuid.UUID  `json:"tenant_id" gorm:"type:uuid;not null;index"`
-	CompanyID    *uuid.UUID `json:"company_id" gorm:"type:uuid;index"`
-	Email        string     `json:"email" gorm:"type:varchar(255);uniqueIndex;not null"`
-	PasswordHash string     `json:"-" gorm:"type:varchar(255);not null"`
-	FirstName    string     `json:"first_name" gorm:"type:varchar(100);not null"`
-	LastName     string     `json:"last_name" gorm:"type:varchar(100);not null"`
-	Phone        string     `json:"phone" gorm:"type:varchar(50)"`
-	AvatarURL    string     `json:"avatar_url" gorm:"type:varchar(500)"`
-	Roles        []UserRole `json:"roles" gorm:"type:jsonb;not null"`
-	Status       UserStatus `json:"status" gorm:"type:varchar(20);default:'pending'"`
-	LastLoginAt  *time.Time `json:"last_login_at" gorm:"index"`
-	Settings     UserSettings `json:"settings" gorm:"type:jsonb"`
-	CreatedAt    time.Time  `json:"created_at" gorm:"autoCreateTime"`
-	UpdatedAt    time.Time  `json:"updated_at" gorm:"autoUpdateTime"`
-	DeletedAt    *time.Time `json:"deleted_at,omitempty" gorm:"index"`
+	ID           uuid.UUID
+	TenantID     uuid.UUID
+	Email        string
+	PasswordHash string
+	FirstName    string
+	LastName     string
+	Phone        string
+	AvatarURL    string
+	Roles        []UserRole
+	Status       UserStatus
+	LastLoginAt  *time.Time
+	Settings     UserSettings
+	CreatedAt    time.Time
+	UpdatedAt    time.Time
+	DeletedAt    *time.Time
 }
 
-type UserSettings struct {
-	Language    string `json:"language" gorm:"default:'es'"`
-	Timezone    string `json:"timezone" gorm:"default:'UTC'"`
-	Theme       string `json:"theme" gorm:"default:'light'"`
-	Notifications bool  `json:"notifications" gorm:"default:true"`
-}
-
-func NewUser(clock clock.Clock, tenantID, companyID *uuid.UUID, email, password, firstName, lastName string, roles []UserRole) (*User, error) {
-	hash, err := security.HashPassword(password)
-	if err != nil {
-		return nil, err
-	}
-
+func NewUser(clock clock.Clock, tenantID uuid.UUID, email, passwordHash, firstName, lastName string, roles []UserRole) *User {
 	now := clock.NowUTC()
 	if len(roles) == 0 {
 		roles = []UserRole{RoleViewer}
 	}
 
 	return &User{
-		TenantID:     *tenantID,
-		CompanyID:    companyID,
+		ID:           uuid.New(),
+		TenantID:     tenantID,
 		Email:        email,
-		PasswordHash: hash,
+		PasswordHash: passwordHash,
 		FirstName:    firstName,
 		LastName:     lastName,
 		Roles:        roles,
 		Status:       UserStatusPending,
 		Settings: UserSettings{
-			Language:     "es",
-			Timezone:     "UTC",
-			Theme:        "light",
+			Language:      "es",
+			Timezone:      "UTC",
+			Theme:         "light",
 			Notifications: true,
 		},
 		CreatedAt: now,
 		UpdatedAt: now,
-	}, nil
+	}
 }
 
 func (u *User) FullName() string {
@@ -100,27 +66,12 @@ func (u *User) HasRole(role UserRole) bool {
 }
 
 func (u *User) HasAnyRole(roles []UserRole) bool {
-	for _, r := range u.Roles {
-		for _, check := range roles {
-			if r == check {
-				return true
-			}
+	for _, r := range roles {
+		if u.HasRole(r) {
+			return true
 		}
 	}
 	return false
-}
-
-func (u *User) CheckPassword(password string) error {
-	return security.VerifyPassword(password, u.PasswordHash)
-}
-
-func (u *User) ChangePassword(newPassword string) error {
-	hash, err := security.HashPassword(newPassword)
-	if err != nil {
-		return err
-	}
-	u.PasswordHash = hash
-	return nil
 }
 
 func (u *User) Update(firstName, lastName, phone, avatarURL string, roles []UserRole, settings UserSettings, clock clock.Clock) {
@@ -156,6 +107,11 @@ func (u *User) RecordLogin(clock clock.Clock) {
 	u.UpdatedAt = now
 }
 
+func (u *User) ChangePassword(passwordHash string, clock clock.Clock) {
+	u.PasswordHash = passwordHash
+	u.UpdatedAt = clock.NowUTC()
+}
+
 func (u *User) SoftDelete(clock clock.Clock) {
 	now := clock.NowUTC()
 	u.DeletedAt = &now
@@ -165,8 +121,4 @@ func (u *User) SoftDelete(clock clock.Clock) {
 
 func (u *User) IsDeleted() bool {
 	return u.DeletedAt != nil
-}
-
-func (User) TableName() string {
-	return "users"
 }

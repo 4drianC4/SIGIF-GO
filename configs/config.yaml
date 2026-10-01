@@ -71,17 +71,8 @@ logging:
 
 modules:
   enabled:
-    - "tenant"
-    - "company"
     - "user"
     - "auth"
-    - "product"
-    - "inventory"
-    - "sales"
-    - "dashboard"
-    - "pharmacy"
-    - "minimarket"
-    - "hardware"
 
 business_types:
   - "minimarket"

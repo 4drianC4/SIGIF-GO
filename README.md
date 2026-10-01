@@ -79,7 +79,7 @@ A multi-tenant inventory and sales management system built with Go, Fiber, and G
 
 ### Prerequisites
 
-- Go 1.23+
+- Go 1.26+
 - Docker & Docker Compose
 - Bruno (for API testing)
 
@@ -147,7 +147,8 @@ Key environment variables:
 
 ```bash
 # Development
-make run              # Run server locally
+make run              # Run server locally on port 8080
+make run PORT=3000    # Run server locally on port 3000
 make build            # Build binaries to bin/
 make test             # Run tests with coverage
 make lint             # Run golangci-lint

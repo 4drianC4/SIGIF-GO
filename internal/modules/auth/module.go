@@ -3,9 +3,11 @@ package auth
 import (
 	"github.com/gofiber/fiber/v2"
 	"go.uber.org/fx"
+
+	"github.com/sigif/sigif-go/internal/modules/auth/application/adapter"
 	"github.com/sigif/sigif-go/internal/modules/auth/application/handler"
 	"github.com/sigif/sigif-go/internal/modules/auth/domain/repository"
-	"github.com/sigif/sigif-go/internal/modules/auth/domain/service"
+	authService "github.com/sigif/sigif-go/internal/modules/auth/domain/service"
 	"github.com/sigif/sigif-go/internal/modules/auth/infrastructure/persistence/gorm"
 	httpHandler "github.com/sigif/sigif-go/internal/modules/auth/interfaces/http/handler"
 	"github.com/sigif/sigif-go/internal/modules/auth/interfaces/http/router"
@@ -13,18 +15,16 @@ import (
 
 var Module = fx.Options(
 	fx.Provide(
-		gorm.NewRefreshTokenGormRepository,
-		service.NewAuthService,
+		fx.Annotate(gorm.NewRefreshTokenGormRepository, fx.As(new(repository.RefreshTokenRepository))),
+		adapter.NewUserRepoAdapter,
+		authService.NewAuthService,
 		handler.NewAuthCommandHandler,
 		httpHandler.NewAuthHTTPHandler,
 	),
 	fx.Invoke(registerRoutes),
 )
 
-func registerRoutes(
-	app *fiber.App,
-	h *httpHandler.AuthHTTPHandler,
-) {
+func registerRoutes(app *fiber.App, h *httpHandler.AuthHTTPHandler) {
 	router.RegisterAuthRoutes(app, h)
 }
 

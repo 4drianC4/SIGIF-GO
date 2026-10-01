@@ -1,6 +1,8 @@
 package config
 
 import (
+	"strconv"
+
 	"github.com/spf13/viper"
 	"go.uber.org/fx"
 )
@@ -42,7 +44,7 @@ type DatabaseConfig struct {
 }
 
 func (d DatabaseConfig) DSN() string {
-	return "host=" + d.Host + " port=" + string(rune(d.Port)) + " user=" + d.User + " password=" + d.Password + " dbname=" + d.Name + " sslmode=" + d.SSLMode
+	return "host=" + d.Host + " port=" + strconv.Itoa(d.Port) + " user=" + d.User + " password=" + d.Password + " dbname=" + d.Name + " sslmode=" + d.SSLMode
 }
 
 type RedisConfig struct {
@@ -55,7 +57,7 @@ type RedisConfig struct {
 }
 
 func (r RedisConfig) Addr() string {
-	return r.Host + ":" + string(rune(r.Port))
+	return r.Host + ":" + strconv.Itoa(r.Port)
 }
 
 type JWTConfig struct {
@@ -105,9 +107,29 @@ func NewConfig() (*Config, error) {
 	viper.AutomaticEnv()
 	viper.SetEnvPrefix("SIGIF")
 
-	if err := viper.ReadInConfig(); err != nil {
-		return nil, err
-	}
+	// Explicitly bind env vars for critical settings
+	_ = viper.BindEnv("database.host", "SIGIF_DATABASE_HOST")
+	_ = viper.BindEnv("database.port", "SIGIF_DATABASE_PORT")
+	_ = viper.BindEnv("database.user", "SIGIF_DATABASE_USER")
+	_ = viper.BindEnv("database.password", "SIGIF_DATABASE_PASSWORD")
+	_ = viper.BindEnv("database.name", "SIGIF_DATABASE_NAME")
+	_ = viper.BindEnv("database.ssl_mode", "SIGIF_DATABASE_SSL_MODE")
+	_ = viper.BindEnv("redis.host", "SIGIF_REDIS_HOST")
+	_ = viper.BindEnv("redis.port", "SIGIF_REDIS_PORT")
+	_ = viper.BindEnv("redis.password", "SIGIF_REDIS_PASSWORD")
+	_ = viper.BindEnv("redis.db", "SIGIF_REDIS_DB")
+	_ = viper.BindEnv("redis.pool_size", "SIGIF_REDIS_POOL_SIZE")
+	_ = viper.BindEnv("redis.min_idle_conns", "SIGIF_REDIS_MIN_IDLE_CONNS")
+	_ = viper.BindEnv("jwt.secret", "SIGIF_JWT_SECRET")
+	_ = viper.BindEnv("jwt.access_token_expiry", "SIGIF_JWT_ACCESS_TOKEN_EXPIRY")
+	_ = viper.BindEnv("jwt.refresh_token_expiry", "SIGIF_JWT_REFRESH_TOKEN_EXPIRY")
+	_ = viper.BindEnv("jwt.issuer", "SIGIF_JWT_ISSUER")
+	_ = viper.BindEnv("app.env", "SIGIF_APP_ENV")
+	_ = viper.BindEnv("app.port", "SIGIF_APP_PORT")
+	_ = viper.BindEnv("app.host", "SIGIF_APP_HOST")
+
+	// Config file is optional
+	_ = viper.ReadInConfig()
 
 	var cfg Config
 	if err := viper.Unmarshal(&cfg); err != nil {

@@ -6,9 +6,10 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
+	"strings"
+
 	"golang.org/x/crypto/argon2"
 	"golang.org/x/crypto/bcrypt"
-	"strings"
 )
 
 const (
@@ -33,7 +34,7 @@ func HashPassword(password string) (string, error) {
 	b64Salt := base64.RawStdEncoding.EncodeToString(salt)
 	b64Hash := base64.RawStdEncoding.EncodeToString(hash)
 
-	return "$argon2id$v=19$m=" + string(rune(argon2Memory)) + ",t=" + string(rune(argon2Time)) + ",p=" + string(rune(argon2Threads)) + "$" + b64Salt + "$" + b64Hash, nil
+	return fmt.Sprintf("$argon2id$v=19$m=%d,t=%d,p=%d$%s$%s", argon2Memory, argon2Time, argon2Threads, b64Salt, b64Hash), nil
 }
 
 func VerifyPassword(password, encodedHash string) error {

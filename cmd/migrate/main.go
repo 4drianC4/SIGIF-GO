@@ -9,20 +9,11 @@ import (
 	"go.uber.org/zap"
 	"gorm.io/gorm"
 
-	tenantEntity "github.com/sigif/sigif-go/internal/modules/tenant/domain/entity"
-	companyEntity "github.com/sigif/sigif-go/internal/modules/company/domain/entity"
-	userEntity "github.com/sigif/sigif-go/internal/modules/user/domain/entity"
-	authEntity "github.com/sigif/sigif-go/internal/modules/auth/domain/entity"
-	productEntity "github.com/sigif/sigif-go/internal/modules/product/domain/entity"
-	inventoryEntity "github.com/sigif/sigif-go/internal/modules/inventory/domain/entity"
-	salesEntity "github.com/sigif/sigif-go/internal/modules/sales/domain/entity"
-	pharmacyEntity "github.com/sigif/sigif-go/internal/modules/pharmacy/domain/entity"
-	minimarketEntity "github.com/sigif/sigif-go/internal/modules/minimarket/domain/entity"
-	hardwareEntity "github.com/sigif/sigif-go/internal/modules/hardware/domain/entity"
-	dashboardEntity "github.com/sigif/sigif-go/internal/modules/dashboard/domain/entity"
+	userModel "github.com/sigif/sigif-go/internal/modules/user/infrastructure/persistence/model"
+	authModel "github.com/sigif/sigif-go/internal/modules/auth/infrastructure/persistence/model"
 	"github.com/sigif/sigif-go/internal/shared/config"
 	"github.com/sigif/sigif-go/internal/shared/database"
-	"github.com/sigif/sigif-go/internal/shared/logger"
+	sharedLogger "github.com/sigif/sigif-go/internal/shared/logger"
 )
 
 var rootCmd = &cobra.Command{
@@ -32,7 +23,7 @@ var rootCmd = &cobra.Command{
 		app := fx.New(
 			fx.Provide(
 				config.NewConfig,
-				logger.NewLogger,
+				sharedLogger.NewLogger,
 				database.NewDatabase,
 			),
 			fx.Invoke(runMigrations),
@@ -59,40 +50,8 @@ func runMigrations(lc fx.Lifecycle, cfg *config.Config, log *zap.Logger, db *dat
 
 func autoMigrate(db *gorm.DB) error {
 	return db.AutoMigrate(
-		&tenantEntity.Tenant{},
-		&companyEntity.Company{},
-		&userEntity.User{},
-		&authEntity.RefreshToken{},
-		&productEntity.Product{},
-		&productEntity.Category{},
-		&productEntity.Brand{},
-		&productEntity.Unit{},
-		&productEntity.Tax{},
-		&inventoryEntity.StockMovement{},
-		&inventoryEntity.Warehouse{},
-		&inventoryEntity.Batch{},
-		&inventoryEntity.Supplier{},
-		&inventoryEntity.PurchaseOrder{},
-		&inventoryEntity.PurchaseOrderItem{},
-		&salesEntity.Sale{},
-		&salesEntity.SaleItem{},
-		&salesEntity.Customer{},
-		&salesEntity.Payment{},
-		&salesEntity.Return{},
-		&salesEntity.ReturnItem{},
-		&pharmacyEntity.Prescription{},
-		&pharmacyEntity.PrescriptionItem{},
-		&pharmacyEntity.Doctor{},
-		&pharmacyEntity.ControlledSubstanceLog{},
-		&minimarketEntity.Promotion{},
-		&minimarketEntity.LoyaltyProgram{},
-		&minimarketEntity.CustomerLoyalty{},
-		&minimarketEntity.LoyaltyTransaction{},
-		&hardwareEntity.SerialNumber{},
-		&hardwareEntity.WarrantyClaim{},
-		&hardwareEntity.ServiceOrder{},
-		&dashboardEntity.Report{},
-		&dashboardEntity.ReportExecution{},
+		&userModel.UserModel{},
+		&authModel.RefreshTokenModel{},
 	)
 }
 

@@ -1,0 +1,16 @@
+meta {
+  name: Activate User
+  type: http
+  seq: 7
+}
+
+post {
+  url: {{baseUrl}}/api/v1/users/{{userId}}/activate
+  body: none
+  auth: none
+}
+
+headers {
+  X-Tenant-ID: {{tenantId}}
+  Authorization: Bearer {{accessToken}}
+}

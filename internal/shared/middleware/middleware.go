@@ -1,6 +1,7 @@
 package middleware
 
 import (
+	"github.com/google/uuid"
 	"github.com/sigif/sigif-go/internal/shared/errors"
 	"github.com/sigif/sigif-go/internal/shared/logger"
 	"github.com/sigif/sigif-go/internal/shared/response"
@@ -50,7 +51,9 @@ func TenantContext() fiber.Handler {
 	return func(c *fiber.Ctx) error {
 		tenantID := c.Get("X-Tenant-ID")
 		if tenantID != "" {
-			c.Locals("tenant_id", tenantID)
+			if parsed, err := uuid.Parse(tenantID); err == nil {
+				c.Locals("tenant_id", parsed)
+			}
 		}
 		return c.Next()
 	}
