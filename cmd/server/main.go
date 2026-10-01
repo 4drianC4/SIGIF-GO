@@ -117,14 +117,16 @@ func registerHooks(lc fx.Lifecycle, log *zap.Logger) {
 	})
 }
 
-func startServer(lc fx.Lifecycle, cfg *config.Config, log *zap.Logger, app *fiber.App) {
+func startServer(lc fx.Lifecycle, cfg *config.Config, app *fiber.App, log *zap.Logger) {
 	lc.Append(fx.Hook{
 		OnStart: func(ctx context.Context) error {
 			addr := cfg.App.Host + ":" + strconv.Itoa(cfg.App.Port)
 			log.Info("Starting HTTP server", zap.String("address", addr))
+
 			go func() {
 				if err := app.Listen(addr); err != nil {
-					log.Fatal("HTTP server error", zap.Error(err))
+					log.Error("HTTP server error", zap.Error(err))
+					_ = app.ShutdownWithContext(ctx)
 				}
 			}()
 			return nil
