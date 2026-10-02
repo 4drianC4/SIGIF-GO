@@ -7,6 +7,7 @@ import (
 	"github.com/sigif/sigif-go/internal/modules/user/application/command"
 	"github.com/sigif/sigif-go/internal/modules/user/interfaces/http/dtos"
 	"github.com/sigif/sigif-go/internal/shared/response"
+	sharedValidator "github.com/sigif/sigif-go/internal/shared/validator"
 )
 
 func (h *UserHTTPHandler) Update(c *fiber.Ctx) error {
@@ -17,6 +18,9 @@ func (h *UserHTTPHandler) Update(c *fiber.Ctx) error {
 
 	var req dtos.UpdateUserRequest
 	if err := c.BodyParser(&req); err != nil {
+		return response.Error(c, fiber.StatusBadRequest, err)
+	}
+	if err := sharedValidator.New().Validate(&req); err != nil {
 		return response.Error(c, fiber.StatusBadRequest, err)
 	}
 
@@ -46,6 +50,9 @@ func (h *UserHTTPHandler) ChangePassword(c *fiber.Ctx) error {
 
 	var req dtos.ChangePasswordRequest
 	if err := c.BodyParser(&req); err != nil {
+		return response.Error(c, fiber.StatusBadRequest, err)
+	}
+	if err := sharedValidator.New().Validate(&req); err != nil {
 		return response.Error(c, fiber.StatusBadRequest, err)
 	}
 

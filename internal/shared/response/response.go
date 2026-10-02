@@ -1,15 +1,17 @@
 package response
 
 import (
+	stderrors "errors"
+
 	"github.com/gofiber/fiber/v2"
 	"github.com/sigif/sigif-go/internal/shared/errors"
 	"github.com/sigif/sigif-go/internal/shared/pagination"
 )
 
 type APIResponse struct {
-	Success bool        `json:"success"`
-	Data    any         `json:"data,omitempty"`
-	Meta    any         `json:"meta,omitempty"`
+	Success bool         `json:"success"`
+	Data    any          `json:"data,omitempty"`
+	Meta    any          `json:"meta,omitempty"`
 	Error   *ErrorDetail `json:"error,omitempty"`
 }
 
@@ -52,10 +54,16 @@ func NoContent(c *fiber.Ctx) error {
 
 func Error(c *fiber.Ctx, statusCode int, err error) error {
 	var appErr *errors.AppError
-	if e, ok := err.(*errors.AppError); ok {
-		appErr = e
+	if err != nil {
+		if stderrors.As(err, &appErr) {
+			if appErr.StatusCode > 0 {
+				statusCode = appErr.StatusCode
+			}
+		} else {
+			appErr = mapStatusCodeToAppError(statusCode)
+		}
 	} else {
-		appErr = errors.ErrInternal
+		appErr = mapStatusCodeToAppError(statusCode)
 	}
 
 	resp := APIResponse{
@@ -67,6 +75,27 @@ func Error(c *fiber.Ctx, statusCode int, err error) error {
 		},
 	}
 	return c.Status(statusCode).JSON(resp)
+}
+
+func mapStatusCodeToAppError(statusCode int) *errors.AppError {
+	switch statusCode {
+	case fiber.StatusBadRequest:
+		return errors.ErrBadRequest
+	case fiber.StatusUnauthorized:
+		return errors.ErrUnauthorized
+	case fiber.StatusForbidden:
+		return errors.ErrForbidden
+	case fiber.StatusNotFound:
+		return errors.ErrNotFound
+	case fiber.StatusConflict:
+		return errors.ErrConflict
+	case fiber.StatusTooManyRequests:
+		return errors.ErrTooManyRequests
+	case fiber.StatusServiceUnavailable:
+		return errors.ErrServiceUnavailable
+	default:
+		return errors.ErrInternal
+	}
 }
 
 func ValidationError(c *fiber.Ctx, details map[string]string) error {

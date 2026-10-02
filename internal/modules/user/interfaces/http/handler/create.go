@@ -2,12 +2,15 @@ package handler
 
 import (
 	"github.com/gofiber/fiber/v2"
+	"github.com/google/uuid"
 
 	"github.com/sigif/sigif-go/internal/modules/user/application/command"
 	querypkg "github.com/sigif/sigif-go/internal/modules/user/application/query"
 	"github.com/sigif/sigif-go/internal/modules/user/interfaces/http/dtos"
+	sharedErrors "github.com/sigif/sigif-go/internal/shared/errors"
 	"github.com/sigif/sigif-go/internal/shared/pagination"
 	"github.com/sigif/sigif-go/internal/shared/response"
+	sharedValidator "github.com/sigif/sigif-go/internal/shared/validator"
 )
 
 func (h *UserHTTPHandler) Create(c *fiber.Ctx) error {
@@ -15,8 +18,14 @@ func (h *UserHTTPHandler) Create(c *fiber.Ctx) error {
 	if err := c.BodyParser(&req); err != nil {
 		return response.Error(c, fiber.StatusBadRequest, err)
 	}
+	if err := sharedValidator.New().Validate(&req); err != nil {
+		return response.Error(c, fiber.StatusBadRequest, err)
+	}
 
 	tenantID := dtos.TenantIDFromContext(c)
+	if tenantID == uuid.Nil {
+		return response.Error(c, fiber.StatusBadRequest, sharedErrors.ErrTenantRequired)
+	}
 	cmd := command.CreateUser{
 		TenantID:  tenantID,
 		Email:     req.Email,

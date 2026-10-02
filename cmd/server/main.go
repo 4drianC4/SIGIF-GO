@@ -3,11 +3,8 @@ package main
 import (
 	"context"
 	"encoding/json"
-	"os"
-	"os/signal"
 	"strconv"
 	"strings"
-	"syscall"
 	"time"
 
 	"github.com/gofiber/fiber/v2"
@@ -52,7 +49,7 @@ func main() {
 	app.Run()
 }
 
-func newFiberApp(cfg *config.Config) *fiber.App {
+func newFiberApp(cfg *config.Config, jwtManager *jwt.JWTManager) *fiber.App {
 	app := fiber.New(fiber.Config{
 		AppName:      cfg.App.Name,
 		ReadTimeout:  time.Duration(cfg.App.ReadTimeout) * time.Second,
@@ -92,6 +89,7 @@ func newFiberApp(cfg *config.Config) *fiber.App {
 
 	app.Use(middleware.RequestID())
 	app.Use(middleware.TenantContext())
+	app.Use(middleware.AuthRequired(jwtManager))
 
 	app.Get("/health", func(c *fiber.Ctx) error {
 		return c.JSON(fiber.Map{
@@ -136,11 +134,4 @@ func startServer(lc fx.Lifecycle, cfg *config.Config, app *fiber.App, log *zap.L
 			return app.ShutdownWithContext(ctx)
 		},
 	})
-
-	quit := make(chan os.Signal, 1)
-	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
-	<-quit
-
-	log.Info("Shutting down server...")
-	_ = app.ShutdownWithContext(context.Background())
 }

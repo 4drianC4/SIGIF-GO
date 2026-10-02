@@ -1,10 +1,20 @@
 package jwt
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"errors"
 	"time"
+
 	"github.com/golang-jwt/jwt/v5"
+	"github.com/google/uuid"
+
 	"github.com/sigif/sigif-go/internal/shared/config"
+)
+
+const (
+	AccessTokenType  = "access"
+	RefreshTokenType = "refresh"
 )
 
 var (
@@ -13,10 +23,11 @@ var (
 )
 
 type Claims struct {
-	UserID   string `json:"user_id"`
-	TenantID string `json:"tenant_id"`
-	Email    string `json:"email"`
-	Roles    []string `json:"roles"`
+	UserID    string   `json:"user_id"`
+	TenantID  string   `json:"tenant_id"`
+	Email     string   `json:"email"`
+	Roles     []string `json:"roles"`
+	TokenType string   `json:"typ"`
 	jwt.RegisteredClaims
 }
 
@@ -46,10 +57,11 @@ func NewManager(cfg *config.Config) *JWTManager {
 func (m *JWTManager) GeneratePair(userID, tenantID, email string, roles []string) (*TokenPair, error) {
 	now := time.Now()
 	accessClaims := Claims{
-		UserID:   userID,
-		TenantID: tenantID,
-		Email:    email,
-		Roles:    roles,
+		UserID:    userID,
+		TenantID:  tenantID,
+		Email:     email,
+		Roles:     roles,
+		TokenType: AccessTokenType,
 		RegisteredClaims: jwt.RegisteredClaims{
 			Issuer:    m.issuer,
 			Subject:   userID,
@@ -62,10 +74,11 @@ func (m *JWTManager) GeneratePair(userID, tenantID, email string, roles []string
 	}
 
 	refreshClaims := Claims{
-		UserID:   userID,
-		TenantID: tenantID,
-		Email:    email,
-		Roles:    roles,
+		UserID:    userID,
+		TenantID:  tenantID,
+		Email:     email,
+		Roles:     roles,
+		TokenType: RefreshTokenType,
 		RegisteredClaims: jwt.RegisteredClaims{
 			Issuer:    m.issuer,
 			Subject:   userID,
@@ -98,6 +111,18 @@ func (m *JWTManager) GeneratePair(userID, tenantID, email string, roles []string
 }
 
 func (m *JWTManager) Validate(tokenString string) (*Claims, error) {
+	return m.validateToken(tokenString, "")
+}
+
+func (m *JWTManager) ValidateAccessToken(tokenString string) (*Claims, error) {
+	return m.validateToken(tokenString, AccessTokenType)
+}
+
+func (m *JWTManager) ValidateRefreshToken(tokenString string) (*Claims, error) {
+	return m.validateToken(tokenString, RefreshTokenType)
+}
+
+func (m *JWTManager) validateToken(tokenString, expectedType string) (*Claims, error) {
 	token, err := jwt.ParseWithClaims(tokenString, &Claims{}, func(token *jwt.Token) (interface{}, error) {
 		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
 			return nil, ErrInvalidToken
@@ -116,12 +141,18 @@ func (m *JWTManager) Validate(tokenString string) (*Claims, error) {
 	if !ok || !token.Valid {
 		return nil, ErrInvalidToken
 	}
+	if expectedType != "" && claims.TokenType != expectedType {
+		return nil, ErrInvalidToken
+	}
+	if claims.TokenType == "" {
+		return nil, ErrInvalidToken
+	}
 
 	return claims, nil
 }
 
 func (m *JWTManager) Refresh(refreshTokenString string) (*TokenPair, error) {
-	claims, err := m.Validate(refreshTokenString)
+	claims, err := m.ValidateRefreshToken(refreshTokenString)
 	if err != nil {
 		return nil, err
 	}
@@ -130,7 +161,12 @@ func (m *JWTManager) Refresh(refreshTokenString string) (*TokenPair, error) {
 }
 
 func generateID() string {
-	return jwt.NewNumericDate(time.Now()).String()
+	return uuid.NewString()
+}
+
+func HashToken(token string) string {
+	sum := sha256.Sum256([]byte(token))
+	return hex.EncodeToString(sum[:])
 }
 
 func (m *JWTManager) GetRefreshTokenExpiry() time.Duration {

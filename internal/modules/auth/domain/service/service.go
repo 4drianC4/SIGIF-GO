@@ -12,6 +12,7 @@ import (
 	"github.com/sigif/sigif-go/internal/shared/clock"
 	"github.com/sigif/sigif-go/internal/shared/errors"
 	"github.com/sigif/sigif-go/internal/shared/jwt"
+	sharedMiddleware "github.com/sigif/sigif-go/internal/shared/middleware"
 	"github.com/sigif/sigif-go/internal/shared/security"
 )
 
@@ -83,7 +84,7 @@ func (s *AuthService) Login(ctx context.Context, params LoginParams) (*LoginResu
 	refreshTokenEntity := authEntity.NewRefreshToken(
 		s.clock,
 		user.ID,
-		tokenPair.RefreshToken,
+		jwt.HashToken(tokenPair.RefreshToken),
 		params.UserAgent,
 		params.IPAddress,
 		s.jwtManager.GetRefreshTokenExpiry(),
@@ -107,12 +108,12 @@ func (s *AuthService) Login(ctx context.Context, params LoginParams) (*LoginResu
 }
 
 func (s *AuthService) Refresh(ctx context.Context, refreshToken string) (*RefreshResult, error) {
-	claims, err := s.jwtManager.Validate(refreshToken)
+	claims, err := s.jwtManager.ValidateRefreshToken(refreshToken)
 	if err != nil {
 		return nil, errors.New(errors.CodeUnauthorized, "invalid refresh token", 401)
 	}
 
-	storedToken, err := s.tokenRepo.GetByTokenHash(ctx, refreshToken)
+	storedToken, err := s.tokenRepo.GetByTokenHash(ctx, jwt.HashToken(refreshToken))
 	if err != nil {
 		return nil, err
 	}
@@ -123,6 +124,9 @@ func (s *AuthService) Refresh(ctx context.Context, refreshToken string) (*Refres
 	userID, err := uuid.Parse(claims.UserID)
 	if err != nil {
 		return nil, err
+	}
+	if tenantID, err := uuid.Parse(claims.TenantID); err == nil {
+		ctx = sharedMiddleware.WithTenantID(ctx, tenantID)
 	}
 
 	user, err := s.userRepo.GetByID(ctx, userID)
@@ -150,7 +154,7 @@ func (s *AuthService) Refresh(ctx context.Context, refreshToken string) (*Refres
 	newTokenEntity := authEntity.NewRefreshToken(
 		s.clock,
 		user.ID,
-		tokenPair.RefreshToken,
+		jwt.HashToken(tokenPair.RefreshToken),
 		"",
 		"",
 		s.jwtManager.GetRefreshTokenExpiry(),
@@ -169,12 +173,12 @@ func (s *AuthService) Refresh(ctx context.Context, refreshToken string) (*Refres
 }
 
 func (s *AuthService) Logout(ctx context.Context, refreshToken string) error {
-	_, err := s.jwtManager.Validate(refreshToken)
+	_, err := s.jwtManager.ValidateRefreshToken(refreshToken)
 	if err != nil {
 		return nil
 	}
 
-	storedToken, err := s.tokenRepo.GetByTokenHash(ctx, refreshToken)
+	storedToken, err := s.tokenRepo.GetByTokenHash(ctx, jwt.HashToken(refreshToken))
 	if err != nil {
 		return err
 	}
@@ -189,7 +193,7 @@ func (s *AuthService) LogoutAll(ctx context.Context, userID uuid.UUID) error {
 }
 
 func (s *AuthService) ValidateToken(accessToken string) (*jwt.Claims, error) {
-	return s.jwtManager.Validate(accessToken)
+	return s.jwtManager.ValidateAccessToken(accessToken)
 }
 
 func userRolesToStrings(roles []userEntity.UserRole) []string {

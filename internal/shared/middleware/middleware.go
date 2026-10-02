@@ -1,13 +1,45 @@
 package middleware
 
 import (
+	"context"
+	"strings"
+
+	"github.com/gofiber/fiber/v2"
 	"github.com/google/uuid"
+	"go.uber.org/zap"
+
 	"github.com/sigif/sigif-go/internal/shared/errors"
+	"github.com/sigif/sigif-go/internal/shared/jwt"
 	"github.com/sigif/sigif-go/internal/shared/logger"
 	"github.com/sigif/sigif-go/internal/shared/response"
-	"github.com/gofiber/fiber/v2"
-	"go.uber.org/zap"
 )
+
+const (
+	contextKeyTenantID = "tenant_id"
+	contextKeyUserID   = "user_id"
+	contextKeyEmail    = "email"
+	contextKeyRoles    = "roles"
+)
+
+func WithTenantID(ctx context.Context, tenantID uuid.UUID) context.Context {
+	return context.WithValue(ctx, contextKeyTenantID, tenantID)
+}
+
+func WithUserID(ctx context.Context, userID uuid.UUID) context.Context {
+	return context.WithValue(ctx, contextKeyUserID, userID)
+}
+
+func TenantIDFromContext(ctx context.Context) (uuid.UUID, bool) {
+	value := ctx.Value(contextKeyTenantID)
+	if value == nil {
+		return uuid.Nil, false
+	}
+	tenantID, ok := value.(uuid.UUID)
+	if !ok || tenantID == uuid.Nil {
+		return uuid.Nil, false
+	}
+	return tenantID, true
+}
 
 func ErrorHandler() fiber.ErrorHandler {
 	return func(c *fiber.Ctx, err error) error {
@@ -50,11 +82,65 @@ func RequestID() fiber.Handler {
 func TenantContext() fiber.Handler {
 	return func(c *fiber.Ctx) error {
 		tenantID := c.Get("X-Tenant-ID")
-		if tenantID != "" {
-			if parsed, err := uuid.Parse(tenantID); err == nil {
-				c.Locals("tenant_id", parsed)
-			}
+		if tenantID == "" {
+			return c.Next()
 		}
+
+		if parsed, err := uuid.Parse(tenantID); err == nil {
+			c.Locals("tenant_id", parsed)
+			c.SetUserContext(WithTenantID(c.UserContext(), parsed))
+			return c.Next()
+		}
+
+		c.Locals("tenant_id", uuid.Nil)
+		c.Locals("tenant_error", errors.ErrInvalidTenant)
+		return c.Next()
+	}
+}
+
+func AuthRequired(jwtManager *jwt.JWTManager) fiber.Handler {
+	return func(c *fiber.Ctx) error {
+		path := c.Path()
+		if path == "/health" || path == "/auth/login" || path == "/auth/refresh" {
+			return c.Next()
+		}
+
+		authorization := c.Get("Authorization")
+		if authorization == "" {
+			return response.Error(c, fiber.StatusUnauthorized, errors.ErrUnauthorized)
+		}
+
+		parts := strings.SplitN(authorization, " ", 2)
+		if len(parts) != 2 || !strings.EqualFold(parts[0], "Bearer") {
+			return response.Error(c, fiber.StatusUnauthorized, errors.ErrUnauthorized)
+		}
+
+		claims, err := jwtManager.ValidateAccessToken(parts[1])
+		if err != nil {
+			return response.Error(c, fiber.StatusUnauthorized, errors.ErrUnauthorized)
+		}
+
+		if claims.UserID == "" {
+			return response.Error(c, fiber.StatusUnauthorized, errors.ErrUnauthorized)
+		}
+
+		if parsedUserID, err := uuid.Parse(claims.UserID); err == nil {
+			c.Locals("user_id", parsedUserID)
+			c.SetUserContext(WithUserID(c.UserContext(), parsedUserID))
+		}
+		if parsedTenantID, err := uuid.Parse(claims.TenantID); err == nil {
+			c.Locals("tenant_id", parsedTenantID)
+			c.SetUserContext(WithTenantID(c.UserContext(), parsedTenantID))
+		}
+		if claims.Email != "" {
+			c.Locals("email", claims.Email)
+			c.SetUserContext(context.WithValue(c.UserContext(), contextKeyEmail, claims.Email))
+		}
+		if len(claims.Roles) > 0 {
+			c.Locals("roles", claims.Roles)
+			c.SetUserContext(context.WithValue(c.UserContext(), contextKeyRoles, claims.Roles))
+		}
+
 		return c.Next()
 	}
 }

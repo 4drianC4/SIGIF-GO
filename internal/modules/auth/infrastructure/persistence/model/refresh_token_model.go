@@ -11,7 +11,7 @@ import (
 type RefreshTokenModel struct {
 	ID        uuid.UUID      `gorm:"type:uuid;primaryKey;default:gen_random_uuid()"`
 	UserID    uuid.UUID      `gorm:"type:uuid;not null;index"`
-	TokenHash string         `gorm:"type:varchar(255);not null;uniqueIndex"`
+	TokenHash string         `gorm:"type:varchar(64);not null;uniqueIndex"`
 	UserAgent string         `gorm:"type:varchar(500)"`
 	IPAddress string         `gorm:"type:varchar(45)"`
 	ExpiresAt time.Time      `gorm:"not null;index"`

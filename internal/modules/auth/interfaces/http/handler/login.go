@@ -8,11 +8,15 @@ import (
 	"github.com/sigif/sigif-go/internal/modules/auth/interfaces/http/dtos"
 	sharedErrors "github.com/sigif/sigif-go/internal/shared/errors"
 	"github.com/sigif/sigif-go/internal/shared/response"
+	sharedValidator "github.com/sigif/sigif-go/internal/shared/validator"
 )
 
 func (h *AuthHTTPHandler) Login(c *fiber.Ctx) error {
 	var req dtos.LoginRequest
 	if err := c.BodyParser(&req); err != nil {
+		return response.Error(c, fiber.StatusBadRequest, err)
+	}
+	if err := sharedValidator.New().Validate(&req); err != nil {
 		return response.Error(c, fiber.StatusBadRequest, err)
 	}
 
