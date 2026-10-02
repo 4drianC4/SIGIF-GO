@@ -39,10 +39,10 @@ type TokenPair struct {
 }
 
 type JWTManager struct {
-	secret            []byte
+	secret             []byte
 	accessTokenExpiry  time.Duration
 	refreshTokenExpiry time.Duration
-	issuer            string
+	issuer             string
 }
 
 func NewManager(cfg *config.Config) *JWTManager {
