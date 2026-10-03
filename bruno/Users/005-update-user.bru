@@ -7,7 +7,7 @@ meta {
 put {
   url: {{baseUrl}}/api/v1/users/{{userId}}
   body: json
-  auth: none
+  auth: bearer
 }
 
 headers {
@@ -15,9 +15,15 @@ headers {
   Authorization: Bearer {{accessToken}}
 }
 
+auth:bearer {
+  token: {{auth}}
+}
+
 body:json {
-  "first_name": "Juan Carlos",
-  "last_name": "Pérez Gómez",
-  "phone": "+57 300 123 4567",
-  "area": "Soporte técnico"
+  {
+    "first_name": "Juan Carlos",
+    "last_name": "Pérez Gómez",
+    "phone": "+57 300 123 4567",
+    "area": "Soporte técnico"
+  }
 }

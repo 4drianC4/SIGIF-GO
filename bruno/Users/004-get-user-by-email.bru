@@ -7,9 +7,13 @@ meta {
 get {
   url: {{baseUrl}}/api/v1/users/by-email?email=soporte@sigif.com
   body: none
-  auth: none
+  auth: bearer
 }
 
 headers {
   Authorization: Bearer {{accessToken}}
+}
+
+auth:bearer {
+  token: {{auth}}
 }

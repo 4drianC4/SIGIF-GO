@@ -15,11 +15,8 @@ headers {
 }
 
 body:json {
-  "email": "admin@sigif.com",
-  "password": "admin123"
-}
-
-script:post-response {
-bru.setVar('accessToken', res.body && res.body.data && res.body.data.token ? res.body.data.token.access_token : '');
-bru.setVar('userId', res.body && res.body.data && res.body.data.user ? res.body.data.user.id : '');
+  {
+    "email": "admin@sigif.com",
+    "password": "admin123"
+  }
 }

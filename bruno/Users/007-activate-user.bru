@@ -7,9 +7,13 @@ meta {
 post {
   url: {{baseUrl}}/api/v1/users/{{userId}}/activate
   body: none
-  auth: none
+  auth: bearer
 }
 
 headers {
   Authorization: Bearer {{accessToken}}
+}
+
+auth:bearer {
+  token: {{auth}}
 }
