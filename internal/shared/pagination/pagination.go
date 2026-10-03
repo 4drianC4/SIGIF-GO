@@ -1,16 +1,16 @@
 package pagination
 
 import (
+	"github.com/gofiber/fiber/v2"
 	"math"
 	"strconv"
-	"github.com/gofiber/fiber/v2"
 )
 
 type Page struct {
-	Page       int `json:"page"`
-	Limit      int `json:"limit"`
+	Page       int   `json:"page"`
+	Limit      int   `json:"limit"`
 	Total      int64 `json:"total"`
-	TotalPages int `json:"total_pages"`
+	TotalPages int   `json:"total_pages"`
 }
 
 func New(page, limit int, total int64) *Page {
@@ -48,8 +48,8 @@ func Parse(c *fiber.Ctx, defaultLimit, maxLimit int) (int, int) {
 }
 
 type Cursor struct {
-	Cursor string `json:"cursor,omitempty"`
-	Limit  int    `json:"limit"`
+	Cursor  string `json:"cursor,omitempty"`
+	Limit   int    `json:"limit"`
 	HasMore bool   `json:"has_more"`
 }
 

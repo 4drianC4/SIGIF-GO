@@ -2,49 +2,49 @@ package dto
 
 import (
 	userEntity "github.com/sigif/sigif-go/internal/modules/user/domain/entity"
-	"github.com/sigif/sigif-go/internal/shared/jwt"
 )
 
 type User struct {
 	ID        string                `json:"id"`
-	TenantID  string                `json:"tenant_id"`
-	Email     string                `json:"email"`
+	CompanyID *string               `json:"company_id,omitempty"`
+	RoleID    string                `json:"role_id"`
+	Role      string                `json:"role"`
 	FirstName string                `json:"first_name"`
 	LastName  string                `json:"last_name"`
 	FullName  string                `json:"full_name"`
-	Roles     []userEntity.UserRole `json:"roles"`
+	Username  string                `json:"username"`
+	Email     string                `json:"email"`
 	Status    userEntity.UserStatus `json:"status"`
 }
 
-type TokenPair struct {
-	AccessToken  string `json:"access_token"`
-	RefreshToken string `json:"refresh_token"`
-	ExpiresIn    int    `json:"expires_in"`
-	TokenType    string `json:"token_type"`
+type Token struct {
+	AccessToken string `json:"access_token"`
+	ExpiresIn   int    `json:"expires_in"`
+	TokenType   string `json:"token_type"`
 }
 
 type AuthResponse struct {
-	User   User      `json:"user"`
-	Tokens TokenPair `json:"tokens"`
+	User  User  `json:"user"`
+	Token Token `json:"token"`
 }
 
-func FromUser(u *userEntity.User, tokens *jwt.TokenPair) AuthResponse {
-	return AuthResponse{
-		User: User{
-			ID:        u.ID.String(),
-			TenantID:  u.TenantID.String(),
-			Email:     u.Email,
-			FirstName: u.FirstName,
-			LastName:  u.LastName,
-			FullName:  u.FullName(),
-			Roles:     u.Roles,
-			Status:    u.Status,
-		},
-		Tokens: TokenPair{
-			AccessToken:  tokens.AccessToken,
-			RefreshToken: tokens.RefreshToken,
-			ExpiresIn:    tokens.ExpiresIn,
-			TokenType:    tokens.TokenType,
-		},
+func FromUser(u *userEntity.AppUser) User {
+	var companyID *string
+	if u.CompanyID != nil {
+		s := u.CompanyID.String()
+		companyID = &s
+	}
+
+	return User{
+		ID:        u.ID.String(),
+		CompanyID: companyID,
+		RoleID:    u.RoleID.String(),
+		Role:      u.RoleName,
+		FirstName: u.FirstName,
+		LastName:  u.LastName,
+		FullName:  u.FullName(),
+		Username:  u.Username,
+		Email:     u.Email,
+		Status:    u.Status,
 	}
 }

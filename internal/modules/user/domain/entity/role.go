@@ -1,18 +1,27 @@
 package entity
 
-type UserRole string
+import (
+	"time"
 
-const (
-	RoleSuperAdmin   UserRole = "super_admin"
-	RoleTenantAdmin  UserRole = "tenant_admin"
-	RoleCompanyAdmin UserRole = "company_admin"
-	RoleManager      UserRole = "manager"
-	RoleCashier      UserRole = "cashier"
-	RoleInventory    UserRole = "inventory"
-	RoleSales        UserRole = "sales"
-	RoleViewer       UserRole = "viewer"
+	"github.com/google/uuid"
 )
 
-func ParseUserRole(role string) UserRole {
-	return UserRole(role)
+// Role names seeded by the system.
+const (
+	RoleSuperadmin = "superadmin"
+	RoleSoporte    = "soporte"
+)
+
+type Role struct {
+	ID          uuid.UUID
+	CompanyID   *uuid.UUID
+	Name        string
+	Description string
+	IsTemplate  bool
+	IsSystem    bool
+	CreatedAt   time.Time
+}
+
+func (r *Role) IsGlobal() bool {
+	return r.CompanyID == nil
 }

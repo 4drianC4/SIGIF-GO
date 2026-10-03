@@ -2,6 +2,7 @@
 bin/
 sigif-server
 sigif-migrate
+server
 
 # Dependencies
 vendor/

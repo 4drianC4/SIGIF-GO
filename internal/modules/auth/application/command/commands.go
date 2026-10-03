@@ -5,21 +5,16 @@ import (
 )
 
 type Login struct {
-	TenantID  uuid.UUID
 	Email     string
 	Password  string
-	UserAgent string
 	IPAddress string
-}
-
-type Refresh struct {
-	RefreshToken string
+	Device    string
 }
 
 type Logout struct {
-	RefreshToken string
+	TokenHash string
 }
 
-type LogoutAll struct {
+type Me struct {
 	UserID uuid.UUID
 }

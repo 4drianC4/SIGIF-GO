@@ -9,12 +9,10 @@ type GetUser struct {
 }
 
 type GetUserByEmail struct {
-	TenantID uuid.UUID
-	Email    string
+	Email string
 }
 
 type ListUsers struct {
-	TenantID uuid.UUID
-	Offset   int
-	Limit    int
+	Offset int
+	Limit  int
 }

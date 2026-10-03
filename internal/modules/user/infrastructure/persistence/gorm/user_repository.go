@@ -12,8 +12,6 @@ import (
 	"github.com/sigif/sigif-go/internal/modules/user/infrastructure/persistence/mapper"
 	"github.com/sigif/sigif-go/internal/modules/user/infrastructure/persistence/model"
 	sharedDatabase "github.com/sigif/sigif-go/internal/shared/database"
-	sharedErrors "github.com/sigif/sigif-go/internal/shared/errors"
-	sharedMiddleware "github.com/sigif/sigif-go/internal/shared/middleware"
 )
 
 type UserGormRepository struct {
@@ -24,102 +22,114 @@ func NewUserGormRepository(db *sharedDatabase.Database) repository.UserRepositor
 	return &UserGormRepository{db: db}
 }
 
-func (r *UserGormRepository) Create(ctx context.Context, user *entity.User) error {
-	if user == nil || user.TenantID == uuid.Nil {
-		return sharedErrors.ErrTenantRequired
-	}
-	return r.db.GetDB(ctx).Create(mapper.ToModel(user)).Error
+func (r *UserGormRepository) Create(ctx context.Context, user *entity.AppUser) error {
+	return r.db.GetDB(ctx).Create(mapper.UserToModel(user)).Error
 }
 
-func applyTenantScope(ctx context.Context, db *gorm.DB) (*gorm.DB, error) {
-	if tenantID, ok := sharedMiddleware.TenantIDFromContext(ctx); ok {
-		return db.Where("tenant_id = ?", tenantID), nil
-	}
-	return nil, sharedErrors.ErrTenantRequired
-}
-
-func (r *UserGormRepository) GetByID(ctx context.Context, id uuid.UUID) (*entity.User, error) {
+func (r *UserGormRepository) GetByID(ctx context.Context, id uuid.UUID) (*entity.AppUser, error) {
 	var m model.UserModel
-	db, err := applyTenantScope(ctx, r.db.GetDB(ctx).Model(&model.UserModel{}))
-	if err != nil {
-		return nil, err
-	}
-	err = db.Where("id = ?", id).First(&m).Error
+	err := r.db.GetDB(ctx).Where("id = ?", id).First(&m).Error
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, nil
 		}
 		return nil, err
 	}
-	return mapper.ToDomain(&m), nil
+	user := mapper.UserToDomain(&m)
+	if err := r.attachRoleNames(ctx, []*entity.AppUser{user}); err != nil {
+		return nil, err
+	}
+	return user, nil
 }
 
-func (r *UserGormRepository) GetByEmail(ctx context.Context, tenantID uuid.UUID, email string) (*entity.User, error) {
-	if tenantID == uuid.Nil {
-		return nil, sharedErrors.ErrTenantRequired
-	}
+func (r *UserGormRepository) GetByEmail(ctx context.Context, email string) (*entity.AppUser, error) {
 	var m model.UserModel
-	err := r.db.GetDB(ctx).Where("tenant_id = ? AND email = ?", tenantID, email).First(&m).Error
+	err := r.db.GetDB(ctx).Where("email = ?", email).First(&m).Error
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, nil
 		}
 		return nil, err
 	}
-	return mapper.ToDomain(&m), nil
+	user := mapper.UserToDomain(&m)
+	if err := r.attachRoleNames(ctx, []*entity.AppUser{user}); err != nil {
+		return nil, err
+	}
+	return user, nil
 }
 
-func (r *UserGormRepository) List(ctx context.Context, tenantID uuid.UUID, offset, limit int) ([]*entity.User, int64, error) {
-	if tenantID == uuid.Nil {
-		return nil, 0, sharedErrors.ErrTenantRequired
-	}
-	var models []model.UserModel
+func (r *UserGormRepository) List(ctx context.Context, offset, limit int) ([]*entity.AppUser, int64, error) {
 	var total int64
-
-	db := r.db.GetDB(ctx).Model(&model.UserModel{}).Where("tenant_id = ?", tenantID)
+	db := r.db.GetDB(ctx).Model(&model.UserModel{})
 	if err := db.Count(&total).Error; err != nil {
 		return nil, 0, err
 	}
 
+	var models []model.UserModel
 	if err := db.Offset(offset).Limit(limit).Order("created_at DESC").Find(&models).Error; err != nil {
 		return nil, 0, err
 	}
 
-	users := make([]*entity.User, len(models))
-	for i, m := range models {
-		users[i] = mapper.ToDomain(&m)
+	users := make([]*entity.AppUser, len(models))
+	for i := range models {
+		users[i] = mapper.UserToDomain(&models[i])
 	}
+	if err := r.attachRoleNames(ctx, users); err != nil {
+		return nil, 0, err
+	}
+
 	return users, total, nil
 }
 
-func (r *UserGormRepository) Update(ctx context.Context, user *entity.User) error {
-	db, err := applyTenantScope(ctx, r.db.GetDB(ctx).Model(&model.UserModel{}))
-	if err != nil {
-		return err
-	}
-	return db.Where("id = ?", user.ID).Updates(mapper.ToModel(user)).Error
+func (r *UserGormRepository) Update(ctx context.Context, user *entity.AppUser) error {
+	return r.db.GetDB(ctx).Model(&model.UserModel{}).
+		Where("id = ?", user.ID).
+		Updates(mapper.UserToModel(user)).Error
 }
 
 func (r *UserGormRepository) Delete(ctx context.Context, id uuid.UUID) error {
-	db, err := applyTenantScope(ctx, r.db.GetDB(ctx).Model(&model.UserModel{}))
-	if err != nil {
+	return r.db.GetDB(ctx).Where("id = ?", id).Delete(&model.UserModel{}).Error
+}
+
+func (r *UserGormRepository) ExistsByEmail(ctx context.Context, email string) (bool, error) {
+	var count int64
+	err := r.db.GetDB(ctx).Model(&model.UserModel{}).Where("email = ?", email).Count(&count).Error
+	return count > 0, err
+}
+
+func (r *UserGormRepository) attachRoleNames(ctx context.Context, users []*entity.AppUser) error {
+	if len(users) == 0 {
+		return nil
+	}
+
+	ids := make([]uuid.UUID, 0, len(users))
+	seen := map[uuid.UUID]struct{}{}
+	for _, u := range users {
+		if u == nil || u.RoleID == uuid.Nil {
+			continue
+		}
+		if _, ok := seen[u.RoleID]; !ok {
+			seen[u.RoleID] = struct{}{}
+			ids = append(ids, u.RoleID)
+		}
+	}
+	if len(ids) == 0 {
+		return nil
+	}
+
+	var roles []model.RoleModel
+	if err := r.db.GetDB(ctx).Where("id IN ?", ids).Find(&roles).Error; err != nil {
 		return err
 	}
-	return db.Where("id = ?", id).Delete(&model.UserModel{}).Error
-}
 
-func (r *UserGormRepository) ExistsByEmail(ctx context.Context, tenantID uuid.UUID, email string) (bool, error) {
-	var count int64
-	err := r.db.GetDB(ctx).Model(&model.UserModel{}).Where("tenant_id = ? AND email = ?", tenantID, email).Count(&count).Error
-	return count > 0, err
-}
-
-func (r *UserGormRepository) ExistsByID(ctx context.Context, id uuid.UUID) (bool, error) {
-	var count int64
-	db, err := applyTenantScope(ctx, r.db.GetDB(ctx).Model(&model.UserModel{}))
-	if err != nil {
-		return false, err
+	names := make(map[uuid.UUID]string, len(roles))
+	for i := range roles {
+		names[roles[i].ID] = roles[i].Name
 	}
-	err = db.Where("id = ?", id).Count(&count).Error
-	return count > 0, err
+	for _, u := range users {
+		if u != nil {
+			u.RoleName = names[u.RoleID]
+		}
+	}
+	return nil
 }
