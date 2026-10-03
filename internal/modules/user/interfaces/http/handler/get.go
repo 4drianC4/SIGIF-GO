@@ -33,11 +33,7 @@ func (h *UserHTTPHandler) GetByEmail(c *fiber.Ctx) error {
 		return response.Error(c, fiber.StatusBadRequest, sharedErrors.ErrBadRequest)
 	}
 
-	tenantID := dtos.TenantIDFromContext(c)
-	user, err := h.queryHandler.HandleGetByEmail(c.UserContext(), query.GetUserByEmail{
-		TenantID: tenantID,
-		Email:    email,
-	})
+	user, err := h.queryHandler.HandleGetByEmail(c.UserContext(), query.GetUserByEmail{Email: email})
 	if err != nil {
 		return response.Error(c, fiber.StatusInternalServerError, err)
 	}

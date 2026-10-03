@@ -19,18 +19,9 @@ database:
   conn_max_lifetime: 300
   log_level: "silent"
 
-redis:
-  host: "localhost"
-  port: 6379
-  password: ""
-  db: 0
-  pool_size: 10
-  min_idle_conns: 5
-
 jwt:
   secret: "your-super-secret-jwt-key-change-in-production"
   access_token_expiry: 15
-  refresh_token_expiry: 10080
   issuer: "sigif-go"
 
 cors:
@@ -50,7 +41,6 @@ cors:
     - "Accept"
     - "Authorization"
     - "X-Request-ID"
-    - "X-Tenant-ID"
   allow_credentials: true
   expose_headers:
     - "X-Request-ID"
@@ -69,12 +59,8 @@ logging:
   format: "console"
   output: "stdout"
 
-modules:
-  enabled:
-    - "user"
-    - "auth"
-
-business_types:
-  - "minimarket"
-  - "hardware"
-  - "pharmacy"
+seed:
+  admin_email: "admin@sigif.com"
+  admin_password: "admin123"
+  admin_first_name: "Admin"
+  admin_last_name: "SIGIF"

@@ -1,17 +1,23 @@
 package validator
 
 import (
-	sharedErrors "github.com/sigif/sigif-go/internal/shared/errors"
+	"errors"
+	"reflect"
+	"strings"
+
 	"github.com/go-playground/locales/en"
 	"github.com/go-playground/locales/es"
 	ut "github.com/go-playground/universal-translator"
 	"github.com/go-playground/validator/v10"
 	enTranslations "github.com/go-playground/validator/v10/translations/en"
 	esTranslations "github.com/go-playground/validator/v10/translations/es"
-	"errors"
-	"reflect"
-	"strings"
+	"go.uber.org/fx"
+
+	sharedErrors "github.com/sigif/sigif-go/internal/shared/errors"
 )
+
+// Module provides a single shared Validator instance.
+var Module = fx.Provide(New)
 
 type Validator struct {
 	validate   *validator.Validate

@@ -23,10 +23,10 @@ import (
 	"github.com/sigif/sigif-go/internal/shared/clock"
 	"github.com/sigif/sigif-go/internal/shared/config"
 	"github.com/sigif/sigif-go/internal/shared/database"
-	"github.com/sigif/sigif-go/internal/shared/events"
 	"github.com/sigif/sigif-go/internal/shared/jwt"
 	sharedLogger "github.com/sigif/sigif-go/internal/shared/logger"
 	"github.com/sigif/sigif-go/internal/shared/middleware"
+	"github.com/sigif/sigif-go/internal/shared/validator"
 )
 
 func main() {
@@ -35,8 +35,8 @@ func main() {
 			config.NewConfig,
 			sharedLogger.NewLogger,
 			database.NewDatabase,
-			events.NewBus,
 			jwt.NewManager,
+			validator.New,
 			newFiberApp,
 			fx.Annotate(clock.NewRealClock, fx.As(new(clock.Clock))),
 		),
@@ -49,7 +49,7 @@ func main() {
 	app.Run()
 }
 
-func newFiberApp(cfg *config.Config, jwtManager *jwt.JWTManager) *fiber.App {
+func newFiberApp(cfg *config.Config, jwtManager *jwt.JWTManager, sessions middleware.SessionReader) *fiber.App {
 	app := fiber.New(fiber.Config{
 		AppName:      cfg.App.Name,
 		ReadTimeout:  time.Duration(cfg.App.ReadTimeout) * time.Second,
@@ -88,8 +88,7 @@ func newFiberApp(cfg *config.Config, jwtManager *jwt.JWTManager) *fiber.App {
 	}
 
 	app.Use(middleware.RequestID())
-	app.Use(middleware.TenantContext())
-	app.Use(middleware.AuthRequired(jwtManager))
+	app.Use(middleware.AuthRequired(jwtManager, sessions))
 
 	app.Get("/health", func(c *fiber.Ctx) error {
 		return c.JSON(fiber.Map{
@@ -102,9 +101,12 @@ func newFiberApp(cfg *config.Config, jwtManager *jwt.JWTManager) *fiber.App {
 	return app
 }
 
-func registerHooks(lc fx.Lifecycle, log *zap.Logger) {
+func registerHooks(lc fx.Lifecycle, cfg *config.Config, log *zap.Logger) {
 	lc.Append(fx.Hook{
 		OnStart: func(ctx context.Context) error {
+			if cfg.JWT.Secret == "" || cfg.JWT.Secret == "your-super-secret-jwt-key-change-in-production" {
+				log.Warn("JWT secret is using the default placeholder value; set SIGIF_JWT_SECRET in production")
+			}
 			log.Info("Application starting...")
 			return nil
 		},

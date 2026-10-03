@@ -23,7 +23,7 @@ services:
     image: redis:7-alpine
     container_name: sigif-redis
     ports:
-      - "6380:6379"
+      - "6379:6379"
     volumes:
       - redis_data:/data
     healthcheck:
@@ -75,6 +75,8 @@ services:
       - SIGIF_DATABASE_PASSWORD=sigif
       - SIGIF_DATABASE_NAME=sigif
       - SIGIF_DATABASE_SSL_MODE=disable
+      - SIGIF_SEED_ADMIN_EMAIL=admin@sigif.com
+      - SIGIF_SEED_ADMIN_PASSWORD=admin123
     depends_on:
       postgres:
         condition: service_healthy

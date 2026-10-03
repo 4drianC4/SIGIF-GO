@@ -12,18 +12,16 @@ post {
 
 headers {
   Content-Type: application/json
-  X-Tenant-ID: {{tenantId}}
   Authorization: Bearer {{accessToken}}
 }
 
 body:json {
-  "email": "cajero@sigif.com",
-  "password": "password123",
   "first_name": "Juan",
   "last_name": "Pérez",
-  "phone": "+57 300 123 4567",
-  "roles": ["cashier"],
-  "company_id": "{{companyId}}"
+  "email": "soporte@sigif.com",
+  "password": "password123",
+  "role": "soporte",
+  "area": "Soporte técnico"
 }
 
 script:post-response {

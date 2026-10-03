@@ -6,8 +6,8 @@ import (
 	"github.com/google/uuid"
 )
 
-// RecordLogin marca la hora del último login del usuario.
-func (s *UserService) RecordLogin(ctx context.Context, id uuid.UUID) error {
+// RecordAccess updates the user's last access timestamp.
+func (s *UserService) RecordAccess(ctx context.Context, id uuid.UUID) error {
 	user, err := s.repo.GetByID(ctx, id)
 	if err != nil {
 		return err
@@ -16,6 +16,6 @@ func (s *UserService) RecordLogin(ctx context.Context, id uuid.UUID) error {
 		return nil
 	}
 
-	user.RecordLogin(s.clock)
+	user.RecordAccess(s.clock)
 	return s.repo.Update(ctx, user)
 }

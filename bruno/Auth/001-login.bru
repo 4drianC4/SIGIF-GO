@@ -12,18 +12,14 @@ post {
 
 headers {
   Content-Type: application/json
-  X-Tenant-ID: {{tenantId}}
 }
 
 body:json {
   "email": "admin@sigif.com",
-  "password": "password123"
+  "password": "admin123"
 }
 
 script:post-response {
-bru.setVar('accessToken', res.body && res.body.data && res.body.data.tokenPair ? res.body.data.tokenPair.accessToken : '');
-bru.setVar('refreshToken', res.body && res.body.data && res.body.data.tokenPair ? res.body.data.tokenPair.refreshToken : '');
+bru.setVar('accessToken', res.body && res.body.data && res.body.data.token ? res.body.data.token.access_token : '');
 bru.setVar('userId', res.body && res.body.data && res.body.data.user ? res.body.data.user.id : '');
-bru.setVar('tenantId', res.body && res.body.data && res.body.data.user ? res.body.data.user.tenantId : '');
-bru.setVar('companyId', res.body && res.body.data && res.body.data.user ? res.body.data.user.companyId || '' : '');
 }

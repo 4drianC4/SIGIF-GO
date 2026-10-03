@@ -2,19 +2,21 @@ package router
 
 import (
 	"github.com/gofiber/fiber/v2"
+
 	"github.com/sigif/sigif-go/internal/modules/user/interfaces/http/handler"
+	"github.com/sigif/sigif-go/internal/shared/middleware"
 )
 
-func RegisterUserRoutes(router fiber.Router, h *handler.UserHTTPHandler) {
+func RegisterUserRoutes(router fiber.Router, h *handler.UserHTTPHandler, checker middleware.PermissionChecker) {
 	users := router.Group("/users")
-	users.Post("/", h.Create)
-	users.Get("/", h.List)
-	users.Get("/by-email", h.GetByEmail)
-	users.Get("/:id", h.GetByID)
-	users.Put("/:id", h.Update)
-	users.Put("/:id/password", h.ChangePassword)
-	users.Delete("/:id", h.Delete)
-	users.Post("/:id/activate", h.Activate)
-	users.Post("/:id/deactivate", h.Deactivate)
-	users.Post("/:id/suspend", h.Suspend)
+
+	users.Post("/", middleware.RequirePermission(checker, "users", "create"), h.Create)
+	users.Get("/", middleware.RequirePermission(checker, "users", "list"), h.List)
+	users.Get("/by-email", middleware.RequirePermission(checker, "users", "read"), h.GetByEmail)
+	users.Get("/:id", middleware.RequirePermission(checker, "users", "read"), h.GetByID)
+	users.Put("/:id", middleware.RequirePermission(checker, "users", "update"), h.Update)
+	users.Put("/:id/password", middleware.RequirePermission(checker, "users", "change_password"), h.ChangePassword)
+	users.Delete("/:id", middleware.RequirePermission(checker, "users", "delete"), h.Delete)
+	users.Post("/:id/activate", middleware.RequirePermission(checker, "users", "activate"), h.Activate)
+	users.Post("/:id/deactivate", middleware.RequirePermission(checker, "users", "deactivate"), h.Deactivate)
 }

@@ -1,678 +1,147 @@
-# Reporte de endpoints — HU-API-001 Autenticación y gestión de usuarios
+# Endpoints — Autenticación (HU-01) y Registro de usuarios (HU-02-01)
 
-## Información general
+- Prefijo base: `/api/v1`
+- Formato exitoso: `{ "success": true, "data": ... }` (listados agregan `meta`).
+- Formato de error: `{ "success": false, "error": { "code": "...", "message": "..." } }`.
+- Autenticación: `Authorization: Bearer <access_token>`. El token se valida contra la sesión persistida en `user_session` (hash), no solo contra su firma.
 
-- HU: HU-API-001 — Autenticación y gestión de usuarios
-- Rama: `main`
-- Prefijo base: `/api/v1` para usuarios; autenticación se registra actualmente bajo `/auth`
-- Requiere contexto autenticado del backend: no existe middleware HTTP que valide el token Bearer, `userId` o permisos. Las rutas de usuarios solo leen `X-Tenant-ID`; `logout-all` espera un `user_id` en el contexto interno de Fiber.
-- Formato de respuesta exitosa: `{ "success": true, "data": ... }`. En listados se agrega `meta` con `page`, `limit`, `total` y `total_pages`.
-- Formato de respuesta de error: `{ "success": false, "error": { "code": "CODIGO", "message": "descripción" } }`.
-
----
-
-## Resumen rápido
+## Resumen
 
 | Método | Ruta | Permiso | Descripción |
 |---|---|---|---|
-| `GET` | `/health` | — | Comprueba que el servidor está disponible. |
-| `POST` | `/auth/login` | — | Autentica al usuario y genera access/refresh tokens. |
-| `POST` | `/auth/refresh` | — | Rota un refresh token válido. |
-| `POST` | `/auth/logout` | — | Revoca el refresh token enviado. |
-| `POST` | `/auth/logout-all` | — | Revoca todos los refresh tokens del usuario del contexto. |
-| `POST` | `/api/v1/users/` | — | Crea un usuario. |
-| `GET` | `/api/v1/users/` | — | Lista usuarios del tenant con paginación. |
-| `GET` | `/api/v1/users/by-email` | — | Busca un usuario por email dentro del tenant. |
-| `GET` | `/api/v1/users/:id` | — | Obtiene un usuario por UUID. |
-| `PUT` | `/api/v1/users/:id` | — | Actualiza datos, roles y configuración del usuario. |
-| `PUT` | `/api/v1/users/:id/password` | — | Cambia la contraseña. |
-| `DELETE` | `/api/v1/users/:id` | — | Elimina lógicamente un usuario. |
-| `POST` | `/api/v1/users/:id/activate` | — | Cambia el estado a `active`. |
-| `POST` | `/api/v1/users/:id/deactivate` | — | Cambia el estado a `inactive`. |
-| `POST` | `/api/v1/users/:id/suspend` | — | Cambia el estado a `suspended`. |
+| `POST` | `/api/v1/auth/login` | — | Inicia sesión (email + contraseña). |
+| `POST` | `/api/v1/auth/logout` | — (token válido) | Revoca la sesión actual. |
+| `GET`  | `/api/v1/auth/me` | — (token válido) | Devuelve el usuario autenticado. |
+| `POST` | `/api/v1/users` | `users.create` | Registra un usuario. |
+| `GET`  | `/api/v1/users` | `users.list` | Lista usuarios (paginado). |
+| `GET`  | `/api/v1/users/by-email` | `users.read` | Busca usuario por email. |
+| `GET`  | `/api/v1/users/:id` | `users.read` | Obtiene usuario por ID. |
+| `PUT`  | `/api/v1/users/:id` | `users.update` | Actualiza datos del usuario. |
+| `PUT`  | `/api/v1/users/:id/password` | `users.change_password` | Cambia la contraseña. |
+| `DELETE` | `/api/v1/users/:id` | `users.delete` | Elimina (soft delete) al usuario. |
+| `POST` | `/api/v1/users/:id/activate` | `users.activate` | Activa al usuario. |
+| `POST` | `/api/v1/users/:id/deactivate` | `users.deactivate` | Desactiva al usuario. |
 
----
+## 1) Login — `POST /api/v1/auth/login`
 
-## Autenticación / permisos (todas las rutas)
-
-| Header | Obligatorio | Descripción |
-|---|---|---|
-| `X-Tenant-ID` | Requerido funcionalmente en login; opcional en el middleware | UUID del tenant. Si está presente y es válido, se guarda como `tenant_id`; si se omite, el contexto queda vacío/UUID nulo. No se usa `DEFAULT_COMPANY_ID` en el código HTTP revisado. |
-| `Authorization` | No validado por el backend actual | Los ejemplos de Bruno envían `Bearer <access_token>`, pero no hay middleware que lo parsee o valide. |
-| `X-User-ID` | No | No se lee en las rutas revisadas. `logout-all` espera `c.Locals("user_id")`, que no es poblado por el middleware actual. |
-
-Permisos usados en esta HU: ninguno implementado en las rutas actuales.
-
----
-
-## 1) Health check — `GET /health`
-
-Comprueba la disponibilidad del servidor y devuelve su versión y hora UTC.
-
-### Permiso
-`—`
-
-### Respuesta exitosa
-
-**`200`**
-```json
-{
-  "status": "ok",
-  "version": "1.0.0",
-  "time": "2026-10-01T12:00:00Z"
-}
-```
-
-### Códigos de error
-
-| Code | HTTP | Causa |
-|---|---|---|
-| `INTERNAL_ERROR` | 500 | Error no controlado al procesar la solicitud. |
-
----
-
-## 2) Iniciar sesión — `POST /auth/login`
-
-Autentica un usuario dentro del tenant y devuelve un par de tokens.
-
-### Permiso
-`—`
-
-### Body
+Body:
 
 ```json
-{
-  "email": "usuario@ejemplo.com",
-  "password": "password123"
-}
+{ "email": "admin@sigif.com", "password": "admin123" }
 ```
 
-| Campo | Tipo | Obligatorio | Restricciones / notas |
+| Campo | Tipo | Obligatorio | Notas |
 |---|---|---|---|
-| `email` | string | Sí | Debe ser un email válido según el DTO; la validación automática no está conectada al handler. |
-| `password` | string | Sí | Se compara contra el hash almacenado. |
+| `email` | string | Sí | Email válido. |
+| `password` | string | Sí | Se compara contra el hash almacenado (Argon2id). |
 
-### Respuesta exitosa
+Respuesta `200`:
 
-**`200`**
 ```json
 {
   "success": true,
   "data": {
     "user": {
       "id": "uuid",
-      "tenant_id": "uuid",
-      "email": "usuario@ejemplo.com",
-      "first_name": "Ana",
-      "last_name": "Pérez",
-      "full_name": "Ana Pérez",
-      "roles": ["viewer"],
+      "role": "superadmin",
+      "role_id": "uuid",
+      "first_name": "Admin",
+      "last_name": "SIGIF",
+      "full_name": "Admin SIGIF",
+      "username": "admin@sigif.com",
+      "email": "admin@sigif.com",
       "status": "active"
     },
-    "tokens": {
+    "token": {
       "access_token": "jwt",
-      "refresh_token": "jwt",
-      "expires_in": 3600,
+      "expires_in": 900,
       "token_type": "Bearer"
     }
   }
 }
 ```
 
-### Códigos de error
+Errores:
 
 | Code | HTTP | Causa |
 |---|---|---|
-| `INVALID_TENANT` | 400 | Falta `X-Tenant-ID` válido en el contexto. |
-| `INTERNAL_ERROR` | 400 | El parser no pudo leer el body. |
-| `UNAUTHORIZED` | 401 | Credenciales inválidas. |
-| `FORBIDDEN` | 401 | La cuenta no está activa; el handler conserva el status 401. |
+| `BAD_REQUEST` | 400 | Body inválido o campos faltantes. |
+| `UNAUTHORIZED` | 401 | Credenciales inválidas, cuenta inactiva o bloqueada (mensaje genérico). |
 
----
+> El login devuelve siempre el mismo mensaje genérico (`invalid credentials`) para evitar enumeración de cuentas. La razón real se guarda en `login_attempt.failure_reason`.
 
-## 3) Renovar tokens — `POST /auth/refresh`
+Cada login exitoso crea una fila en `user_session` (token hasheado, IP, dispositivo, expiración) y un registro en `login_attempt`.
 
-Valida, revoca y reemplaza el refresh token enviado.
+## 2) Logout — `POST /api/v1/auth/logout`
 
-### Permiso
-`—`
+Requiere token válido. Marca la sesión actual como terminada (`ended_at` + `close_reason = 'manual'`).
 
-### Body
+Respuesta `204` sin contenido.
 
-```json
-{
-  "refresh_token": "jwt-refresh-token"
-}
-```
+## 3) Me — `GET /api/v1/auth/me`
 
-| Campo | Tipo | Obligatorio | Restricciones / notas |
-|---|---|---|---|
-| `refresh_token` | string | Sí | Debe ser válido, no estar revocado ni expirado. |
+Devuelve el usuario autenticado (mismo shape de `user` del login).
 
-### Respuesta exitosa
+## 4) Registrar usuario — `POST /api/v1/users`
 
-**`200`**
-```json
-{
-  "success": true,
-  "data": {
-    "access_token": "jwt",
-    "refresh_token": "jwt-nuevo",
-    "expires_in": 3600,
-    "token_type": "Bearer"
-  }
-}
-```
-
-### Códigos de error
-
-| Code | HTTP | Causa |
-|---|---|---|
-| `INTERNAL_ERROR` | 400 | El parser no pudo leer el body. |
-| `UNAUTHORIZED` | 401 | Refresh token inválido, expirado, revocado o usuario inactivo. |
-
----
-
-## 4) Cerrar sesión — `POST /auth/logout`
-
-Revoca el refresh token enviado; no devuelve un cuerpo de respuesta.
-
-### Permiso
-`—`
-
-### Body
+Body:
 
 ```json
 {
-  "refresh_token": "jwt-refresh-token"
-}
-```
-
-| Campo | Tipo | Obligatorio | Restricciones / notas |
-|---|---|---|---|
-| `refresh_token` | string | Sí | Token cuyo hash se buscará para revocarlo. |
-
-### Respuesta exitosa
-
-**`204`** Sin contenido.
-
-### Códigos de error
-
-| Code | HTTP | Causa |
-|---|---|---|
-| `INTERNAL_ERROR` | 400 | El parser no pudo leer el body. |
-| `INTERNAL_ERROR` | 500 | Fallo al revocar el token. |
-
----
-
-## 5) Cerrar sesión en todos los dispositivos — `POST /auth/logout-all`
-
-Revoca todos los refresh tokens asociados al usuario presente en `c.Locals("user_id")`.
-
-### Permiso
-`—`
-
-### Body
-
-No requiere body. El `user_id` no se obtiene de un header ni del body.
-
-### Respuesta exitosa
-
-**`204`** Sin contenido.
-
-### Códigos de error
-
-| Code | HTTP | Causa |
-|---|---|---|
-| `UNAUTHORIZED` | 401 | No existe un UUID de usuario en `c.Locals("user_id")`. |
-| `INTERNAL_ERROR` | 500 | Fallo al revocar los tokens. |
-
----
-
-## 6) Crear usuario — `POST /api/v1/users/`
-
-Crea un usuario en el tenant guardado por el middleware a partir de `X-Tenant-ID`.
-
-### Permiso
-`—` (no se verifica en el backend actual).
-
-### Body
-
-```json
-{
-  "email": "cajero@ejemplo.com",
-  "password": "password123",
   "first_name": "Juan",
   "last_name": "Pérez",
-  "phone": "+57 300 123 4567",
-  "roles": ["cashier"]
+  "email": "soporte@sigif.com",
+  "password": "password123",
+  "role": "soporte",
+  "area": "Soporte técnico"
 }
 ```
 
-| Campo | Tipo | Obligatorio | Restricciones / notas |
+| Campo | Tipo | Obligatorio | Notas |
 |---|---|---|---|
-| `email` | string | Sí | Email válido según el DTO. |
-| `password` | string | Sí | Mínimo 8 caracteres según el DTO; se almacena hasheada. |
-| `first_name` | string | Sí | Entre 1 y 100 caracteres. |
-| `last_name` | string | Sí | Entre 1 y 100 caracteres. |
-| `phone` | string | No | Máximo 50 caracteres. |
-| `roles` | enum[] | No | `super_admin` \| `tenant_admin` \| `company_admin` \| `manager` \| `cashier` \| `inventory` \| `sales` \| `viewer`. Si se omite, el dominio asigna `viewer`. |
+| `first_name` | string | Sí | 1-80 caracteres. |
+| `last_name` | string | Sí | 1-80 caracteres. |
+| `email` | string | Sí | Email válido y único. |
+| `password` | string | Sí | Mínimo 8 caracteres. |
+| `role` | string | Sí | `superadmin` o `soporte`. |
+| `area` | string | No | Máximo 120 caracteres. |
 
-### Respuesta exitosa
+Respuesta `201` con el usuario creado (sin el hash de contraseña).
 
-**`201`**
-```json
-{
-  "success": true,
-  "data": {
-    "id": "uuid",
-    "tenant_id": "uuid",
-    "email": "cajero@ejemplo.com",
-    "first_name": "Juan",
-    "last_name": "Pérez",
-    "full_name": "Juan Pérez",
-    "roles": ["cashier"],
-    "status": "pending",
-    "settings": {
-      "language": "es",
-      "timezone": "UTC",
-      "theme": "light",
-      "notifications": true
-    },
-    "created_at": "2026-10-01T12:00:00Z",
-    "updated_at": "2026-10-01T12:00:00Z"
-  }
-}
-```
-
-### Códigos de error
+Errores:
 
 | Code | HTTP | Causa |
 |---|---|---|
-| `INTERNAL_ERROR` | 400 | El parser no pudo leer el body. |
-| `INTERNAL_ERROR` | 500 | Fallo al crear el usuario. |
+| `BAD_REQUEST` | 400 | Body inválido, campos faltantes o rol inexistente. |
+| `CONFLICT` | 409 | Ya existe un usuario con ese email. |
+| `FORBIDDEN` | 403 | El usuario autenticado no tiene el permiso `users.create`. |
 
----
+## 5) Listar usuarios — `GET /api/v1/users`
 
-## 7) Listar usuarios — `GET /api/v1/users/`
+Query: `page` (default 1), `limit` (default 20, máx 100).
 
-Lista usuarios filtrados por el tenant del contexto.
+Respuesta `200` con `data` (array) y `meta` (`page`, `limit`, `total`, `total_pages`).
 
-### Permiso
-`—`
+## 6) Otros endpoints de usuario
 
-### Query params
+- `GET /api/v1/users/:id` / `by-email` → `200` con el usuario, o `404`.
+- `PUT /api/v1/users/:id` → actualiza `first_name`, `last_name`, `phone`, `area`.
+- `PUT /api/v1/users/:id/password` → verifica `current_password` y guarda `new_password`.
+- `DELETE /api/v1/users/:id` → soft delete (marca `deleted_at` y estado `inactive`).
+- `POST /api/v1/users/:id/activate|deactivate` → cambia el estado.
 
-| Nombre | Obligatorio | Tipo | Descripción |
-|---|---|---|---|
-| `page` | No, por defecto `1` | integer | Si es menor que 1, se ajusta a `1`. |
-| `limit` | No, por defecto `20` | integer | Valores menores que 1 o mayores que `100` se ajustan silenciosamente a `20`. |
+## Permisos (RBAC)
 
-### Respuesta exitosa
+| Rol | Permisos |
+|---|---|
+| `superadmin` | Todos (`users.create`, `users.list`, `users.read`, `users.update`, `users.delete`, `users.activate`, `users.deactivate`, `users.change_password`). |
+| `soporte` | `users.list`, `users.read` (solo lectura). |
 
-**`200`**
-```json
-{
-  "success": true,
-  "data": [
-    {
-      "id": "uuid",
-      "tenant_id": "uuid",
-      "email": "usuario@ejemplo.com",
-      "first_name": "Ana",
-      "last_name": "Pérez",
-      "full_name": "Ana Pérez",
-      "roles": ["viewer"],
-      "status": "active",
-      "settings": {
-        "language": "es",
-        "timezone": "UTC",
-        "theme": "light",
-        "notifications": true
-      },
-      "created_at": "2026-10-01T12:00:00Z",
-      "updated_at": "2026-10-01T12:00:00Z"
-    }
-  ],
-  "meta": {
-    "page": 1,
-    "limit": 20,
-    "total": 1,
-    "total_pages": 1
-  }
-}
-```
+Los permisos se resuelven por petición vía `role_permission`; el middleware `RequirePermission(module, operation)` los aplica por ruta.
 
-### Códigos de error
+## Modelo de datos (tablas nuevas)
 
-| Code | HTTP | Causa |
-|---|---|---|
-| `INTERNAL_ERROR` | 500 | Fallo al consultar usuarios. |
-
----
-
-## 8) Obtener usuario por email — `GET /api/v1/users/by-email`
-
-Busca un usuario por email dentro del tenant del contexto.
-
-### Permiso
-`—`
-
-### Query params
-
-| Nombre | Obligatorio | Tipo | Descripción |
-|---|---|---|---|
-| `email` | Sí | string | Email exacto que se buscará. |
-
-### Respuesta exitosa
-
-**`200`**
-```json
-{
-  "success": true,
-  "data": {
-    "id": "uuid",
-    "tenant_id": "uuid",
-    "email": "usuario@ejemplo.com",
-    "first_name": "Ana",
-    "last_name": "Pérez",
-    "full_name": "Ana Pérez",
-    "roles": ["viewer"],
-    "status": "active",
-    "settings": {
-      "language": "es",
-      "timezone": "UTC",
-      "theme": "light",
-      "notifications": true
-    },
-    "created_at": "2026-10-01T12:00:00Z",
-    "updated_at": "2026-10-01T12:00:00Z"
-  }
-}
-```
-
-### Códigos de error
-
-| Code | HTTP | Causa |
-|---|---|---|
-| `INTERNAL_ERROR` | 400 | Falta `email` en la query. |
-| `NOT_FOUND` | 404 | No existe un usuario con ese email en el tenant. |
-| `INTERNAL_ERROR` | 500 | Fallo al consultar el usuario. |
-
----
-
-## 9) Obtener usuario por ID — `GET /api/v1/users/:id`
-
-Obtiene un usuario por UUID.
-
-### Permiso
-`—`
-
-### Params de ruta
-- `id`: UUID — identificador del usuario.
-
-### Respuesta exitosa
-
-**`200`** Mismo shape de usuario mostrado en `GET /api/v1/users/by-email`.
-
-### Códigos de error
-
-| Code | HTTP | Causa |
-|---|---|---|
-| `INTERNAL_ERROR` | 400 | `id` no es un UUID válido. |
-| `NOT_FOUND` | 404 | El usuario no existe. |
-| `INTERNAL_ERROR` | 500 | Fallo al consultar el usuario. |
-
----
-
-## 10) Actualizar usuario — `PUT /api/v1/users/:id`
-
-Actualiza datos personales, roles y configuración del usuario.
-
-### Permiso
-`—`
-
-### Params de ruta
-- `id`: UUID — identificador del usuario.
-
-### Body
-
-```json
-{
-  "first_name": "Juan Carlos",
-  "last_name": "Pérez Gómez",
-  "phone": "+57 300 123 4567",
-  "avatar_url": "https://ejemplo.com/avatar.png",
-  "roles": ["cashier", "inventory"],
-  "settings": {
-    "language": "es",
-    "timezone": "America/Bogota",
-    "theme": "dark",
-    "notifications": true
-  }
-}
-```
-
-| Campo | Tipo | Obligatorio | Restricciones / notas |
-|---|---|---|---|
-| `first_name` | string | Sí | Entre 1 y 100 caracteres según el DTO. |
-| `last_name` | string | Sí | Entre 1 y 100 caracteres según el DTO. |
-| `phone` | string | No | Máximo 50 caracteres. |
-| `avatar_url` | string | No | URL válida según el DTO. |
-| `roles` | enum[] | No | Roles soportados: `super_admin`, `tenant_admin`, `company_admin`, `manager`, `cashier`, `inventory`, `sales`, `viewer`. |
-| `settings` | object | Sí en el struct | `language`, `timezone`, `theme`, `notifications`. El handler no ejecuta validación automática. |
-
-### Respuesta exitosa
-
-**`200`** Devuelve `{ "success": true, "data": <usuario> }` con el shape de entidad documentado al final.
-
-### Códigos de error
-
-| Code | HTTP | Causa |
-|---|---|---|
-| `INTERNAL_ERROR` | 400 | UUID inválido o body ilegible. |
-| `INTERNAL_ERROR` | 500 | Fallo al actualizar el usuario. |
-
----
-
-## 11) Cambiar contraseña — `PUT /api/v1/users/:id/password`
-
-Verifica la contraseña actual y almacena la nueva contraseña hasheada.
-
-### Permiso
-`—`
-
-### Params de ruta
-- `id`: UUID — identificador del usuario.
-
-### Body
-
-```json
-{
-  "current_password": "password123",
-  "new_password": "newpassword456"
-}
-```
-
-| Campo | Tipo | Obligatorio | Restricciones / notas |
-|---|---|---|---|
-| `current_password` | string | Sí | Debe coincidir con la contraseña actual. |
-| `new_password` | string | Sí | Mínimo 8 caracteres según el DTO. |
-
-### Respuesta exitosa
-
-**`204`** Sin contenido.
-
-### Códigos de error
-
-| Code | HTTP | Causa |
-|---|---|---|
-| `INTERNAL_ERROR` | 400 | UUID inválido o body ilegible. |
-| `INTERNAL_ERROR` | 500 | Fallo al verificar o guardar la contraseña. |
-
----
-
-## 12) Eliminar usuario — `DELETE /api/v1/users/:id`
-
-Realiza un borrado lógico: marca el usuario como eliminado e inactivo.
-
-### Permiso
-`—`
-
-### Params de ruta
-- `id`: UUID — identificador del usuario.
-
-### Respuesta exitosa
-
-**`204`** Sin contenido.
-
-### Códigos de error
-
-| Code | HTTP | Causa |
-|---|---|---|
-| `INTERNAL_ERROR` | 400 | `id` no es un UUID válido. |
-| `INTERNAL_ERROR` | 500 | Fallo al eliminar el usuario. |
-
----
-
-## 13) Activar usuario — `POST /api/v1/users/:id/activate`
-
-Cambia el estado del usuario a `active`.
-
-### Permiso
-`—`
-
-### Params de ruta
-- `id`: UUID — identificador del usuario.
-
-### Respuesta exitosa
-
-**`204`** Sin contenido.
-
-### Códigos de error
-
-| Code | HTTP | Causa |
-|---|---|---|
-| `INTERNAL_ERROR` | 400 | `id` no es un UUID válido. |
-| `INTERNAL_ERROR` | 500 | Fallo al actualizar el estado. |
-
----
-
-## 14) Desactivar usuario — `POST /api/v1/users/:id/deactivate`
-
-Cambia el estado del usuario a `inactive`.
-
-### Permiso
-`—`
-
-### Params de ruta
-- `id`: UUID — identificador del usuario.
-
-### Respuesta exitosa
-
-**`204`** Sin contenido.
-
-### Códigos de error
-
-| Code | HTTP | Causa |
-|---|---|---|
-| `INTERNAL_ERROR` | 400 | `id` no es un UUID válido. |
-| `INTERNAL_ERROR` | 500 | Fallo al actualizar el estado. |
-
----
-
-## 15) Suspender usuario — `POST /api/v1/users/:id/suspend`
-
-Cambia el estado del usuario a `suspended`.
-
-### Permiso
-`—`
-
-### Params de ruta
-- `id`: UUID — identificador del usuario.
-
-### Respuesta exitosa
-
-**`204`** Sin contenido.
-
-### Códigos de error
-
-| Code | HTTP | Causa |
-|---|---|---|
-| `INTERNAL_ERROR` | 400 | `id` no es un UUID válido. |
-| `INTERNAL_ERROR` | 500 | Fallo al actualizar el estado. |
-
----
-
-## Estructura de respuesta de entidad `Usuario`
-
-```json
-{
-  "id": "uuid",
-  "tenant_id": "uuid",
-  "email": "usuario@ejemplo.com",
-  "first_name": "Ana",
-  "last_name": "Pérez",
-  "full_name": "Ana Pérez",
-  "phone": "string",
-  "avatar_url": "https://ejemplo.com/avatar.png",
-  "roles": ["viewer"],
-  "status": "active | inactive | pending | suspended",
-  "last_login_at": "date | null",
-  "settings": {
-    "language": "es",
-    "timezone": "UTC",
-    "theme": "light",
-    "notifications": true
-  },
-  "created_at": "date",
-  "updated_at": "date"
-}
-```
-
-Los campos `phone`, `avatar_url` y `last_login_at` se omiten cuando están vacíos o son nulos.
-
----
-
-## Tabla de errores consolidada
-
-```json
-{
-  "success": false,
-  "error": {
-    "code": "CODIGO",
-    "message": "descripción"
-  }
-}
-```
-
-| Code | HTTP | Origen |
-|---|---|---|
-| `INVALID_TENANT` | 400 | `X-Tenant-ID` ausente o inválido en login. |
-| `NOT_FOUND` | 404 | Usuario no encontrado en consultas que sí lo detectan. |
-| `UNAUTHORIZED` | 401 | Credenciales/token inválido o `logout-all` sin `user_id` en contexto. |
-| `FORBIDDEN` | 401 | Cuenta inactiva durante login; el handler devuelve 401. |
-| `INTERNAL_ERROR` | 400 | Error de parseo, UUID inválido o query obligatoria ausente; el handler no conserva un código específico. |
-| `INTERNAL_ERROR` | 500 | Error de persistencia o de caso de uso en handlers de usuarios/logout. |
-
----
-
-## Casos borde / comportamiento no obvio
-
-- El middleware lee `X-Tenant-ID`, no `x-company-id`. Los nombres de headers HTTP no distinguen mayúsculas y minúsculas, pero el significado implementado es tenant.
-- La autenticación está montada en `/auth/*`, no en `/api/v1/auth/*`, aunque los archivos de Bruno usan el segundo prefijo.
-- No se valida `Authorization: Bearer ...` en el pipeline HTTP actual; enviarlo no convierte una ruta en autenticada.
-- Las etiquetas `validate:"..."` de los DTO existen, pero los handlers revisados solo ejecutan `BodyParser`; no invocan el validador compartido.
-- En paginación, `page < 1` se convierte en `1`; `limit < 1` o `limit > 100` se convierte silenciosamente en `20`.
-- El listado devuelve el array directamente en `data` y la paginación en `meta`, no campos `total`, `page` y `limit` al mismo nivel de `data`.
-- Los usuarios nuevos empiezan en estado `pending`; si no se envían roles, se asigna `viewer`.
-- Las búsquedas por ID no filtran explícitamente por tenant en el handler; la búsqueda por email sí recibe el tenant del contexto.
-- Los errores de dominio de varias rutas de usuarios se envuelven como `INTERNAL_ERROR` y HTTP 500 por el handler, aunque el dominio pueda representar otra causa.
-- `logout-all` requiere que algún componente externo haya poblado `c.Locals("user_id")`; el middleware incluido en este servidor no lo hace.
-- Las rutas de cambio de estado, eliminación y cambio de contraseña responden 204 sin cuerpo.
-
----
-
-## Diferencias respecto a una versión anterior (si aplica)
-
-Esta rama documenta el estado actual de `main`; no se proporcionó una rama o versión anterior para comparar.
+- `app_user`: usuarios (UUID PK, `role_id`, `status`, `password_algorithm`, soft delete).
+- `role`, `permission`, `role_permission`: RBAC.
+- `user_session`: sesiones (token hasheado, IP, dispositivo, expiración).
+- `login_attempt`: auditoría de intentos de login.

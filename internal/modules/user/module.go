@@ -10,21 +10,25 @@ import (
 	"github.com/sigif/sigif-go/internal/modules/user/infrastructure/persistence/gorm"
 	httpHandler "github.com/sigif/sigif-go/internal/modules/user/interfaces/http/handler"
 	httpRouter "github.com/sigif/sigif-go/internal/modules/user/interfaces/http/router"
+	"github.com/sigif/sigif-go/internal/shared/middleware"
 )
 
 var Module = fx.Options(
 	fx.Provide(
 		fx.Annotate(gorm.NewUserGormRepository, fx.As(new(repository.UserRepository))),
+		fx.Annotate(gorm.NewRoleGormRepository, fx.As(new(repository.RoleRepository))),
+		fx.Annotate(gorm.NewPermissionGormRepository, fx.As(new(repository.PermissionRepository))),
 		service.NewUserService,
+		// Expose the same UserService as the RBAC PermissionChecker used by the
+		// shared middleware.
+		func(s *service.UserService) middleware.PermissionChecker { return s },
 		handler.NewUserCommandHandler,
 		handler.NewUserQueryHandler,
 	),
 
-	// Handler individual
 	fx.Provide(httpHandler.NewUserHTTPHandler),
 
-	// routes
-	fx.Invoke(func(app *fiber.App, handler *httpHandler.UserHTTPHandler) {
-		httpRouter.RegisterUserRoutes(app, handler)
+	fx.Invoke(func(app *fiber.App, handler *httpHandler.UserHTTPHandler, checker middleware.PermissionChecker) {
+		httpRouter.RegisterUserRoutes(app.Group("/api/v1"), handler, checker)
 	}),
 )

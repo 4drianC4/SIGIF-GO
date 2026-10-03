@@ -8,7 +8,6 @@ import (
 	sharedErrors "github.com/sigif/sigif-go/internal/shared/errors"
 )
 
-// Delete elimina lógicamente un usuario.
 func (s *UserService) Delete(ctx context.Context, id uuid.UUID) error {
 	user, err := s.repo.GetByID(ctx, id)
 	if err != nil {

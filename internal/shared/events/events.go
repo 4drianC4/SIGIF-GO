@@ -26,9 +26,9 @@ func NewEvent(name string, payload any) *BaseEvent {
 	}
 }
 
-func (e *BaseEvent) Name() string       { return e.name }
-func (e *BaseEvent) Payload() any       { return e.payload }
-func (e *BaseEvent) OccurredAt() int64  { return e.occurredAt }
+func (e *BaseEvent) Name() string      { return e.name }
+func (e *BaseEvent) Payload() any      { return e.payload }
+func (e *BaseEvent) OccurredAt() int64 { return e.occurredAt }
 
 type Handler func(ctx context.Context, event Event) error
 

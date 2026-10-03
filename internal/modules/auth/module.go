@@ -11,21 +11,23 @@ import (
 	"github.com/sigif/sigif-go/internal/modules/auth/infrastructure/persistence/gorm"
 	httpHandler "github.com/sigif/sigif-go/internal/modules/auth/interfaces/http/handler"
 	httpRouter "github.com/sigif/sigif-go/internal/modules/auth/interfaces/http/router"
+	"github.com/sigif/sigif-go/internal/shared/middleware"
 )
 
 var Module = fx.Options(
 	fx.Provide(
-		fx.Annotate(gorm.NewRefreshTokenGormRepository, fx.As(new(repository.RefreshTokenRepository))),
+		fx.Annotate(gorm.NewSessionGormRepository, fx.As(new(repository.SessionRepository))),
+		fx.Annotate(gorm.NewLoginAttemptGormRepository, fx.As(new(repository.LoginAttemptRepository))),
 		adapter.NewUserRepoAdapter,
 		authService.NewAuthService,
 		handler.NewAuthCommandHandler,
+		// Expose the session repository as the middleware SessionReader.
+		func(r repository.SessionRepository) middleware.SessionReader { return r },
 	),
 
-	// Handler HTTP individual
 	fx.Provide(httpHandler.NewAuthHTTPHandler),
 
-	// Registrar rutas con el router de Fiber
 	fx.Invoke(func(app *fiber.App, handler *httpHandler.AuthHTTPHandler) {
-		httpRouter.RegisterAuthRoutes(app, handler)
+		httpRouter.RegisterAuthRoutes(app.Group("/api/v1"), handler)
 	}),
 )

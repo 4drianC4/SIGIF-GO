@@ -1,23 +1,24 @@
 package config
 
 import (
+	"bufio"
+	"os"
 	"strconv"
+	"strings"
 
 	"github.com/spf13/viper"
 	"go.uber.org/fx"
 )
 
 type Config struct {
-	App       AppConfig       `mapstructure:"app"`
-	Database  DatabaseConfig  `mapstructure:"database"`
-	Redis     RedisConfig     `mapstructure:"redis"`
-	JWT       JWTConfig       `mapstructure:"jwt"`
-	CORS      CORSConfig      `mapstructure:"cors"`
-	RateLimit RateLimitConfig `mapstructure:"rate_limit"`
+	App        AppConfig        `mapstructure:"app"`
+	Database   DatabaseConfig   `mapstructure:"database"`
+	JWT        JWTConfig        `mapstructure:"jwt"`
+	CORS       CORSConfig       `mapstructure:"cors"`
+	RateLimit  RateLimitConfig  `mapstructure:"rate_limit"`
 	Pagination PaginationConfig `mapstructure:"pagination"`
-	Logging   LoggingConfig   `mapstructure:"logging"`
-	Modules   ModulesConfig   `mapstructure:"modules"`
-	BusinessTypes []string    `mapstructure:"business_types"`
+	Logging    LoggingConfig    `mapstructure:"logging"`
+	Seed       SeedConfig       `mapstructure:"seed"`
 }
 
 type AppConfig struct {
@@ -47,24 +48,10 @@ func (d DatabaseConfig) DSN() string {
 	return "host=" + d.Host + " port=" + strconv.Itoa(d.Port) + " user=" + d.User + " password=" + d.Password + " dbname=" + d.Name + " sslmode=" + d.SSLMode
 }
 
-type RedisConfig struct {
-	Host         string `mapstructure:"host"`
-	Port         int    `mapstructure:"port"`
-	Password     string `mapstructure:"password"`
-	DB           int    `mapstructure:"db"`
-	PoolSize     int    `mapstructure:"pool_size"`
-	MinIdleConns int    `mapstructure:"min_idle_conns"`
-}
-
-func (r RedisConfig) Addr() string {
-	return r.Host + ":" + strconv.Itoa(r.Port)
-}
-
 type JWTConfig struct {
-	Secret             string `mapstructure:"secret"`
-	AccessTokenExpiry  int    `mapstructure:"access_token_expiry"`
-	RefreshTokenExpiry int    `mapstructure:"refresh_token_expiry"`
-	Issuer             string `mapstructure:"issuer"`
+	Secret            string `mapstructure:"secret"`
+	AccessTokenExpiry int    `mapstructure:"access_token_expiry"`
+	Issuer            string `mapstructure:"issuer"`
 }
 
 type CORSConfig struct {
@@ -92,13 +79,18 @@ type LoggingConfig struct {
 	Output string `mapstructure:"output"`
 }
 
-type ModulesConfig struct {
-	Enabled []string `mapstructure:"enabled"`
+type SeedConfig struct {
+	AdminEmail     string `mapstructure:"admin_email"`
+	AdminPassword  string `mapstructure:"admin_password"`
+	AdminFirstName string `mapstructure:"admin_first_name"`
+	AdminLastName  string `mapstructure:"admin_last_name"`
 }
 
 var Module = fx.Provide(NewConfig)
 
 func NewConfig() (*Config, error) {
+	loadDotEnv(".env")
+
 	viper.SetConfigName("config")
 	viper.SetConfigType("yaml")
 	viper.AddConfigPath("./configs")
@@ -107,28 +99,25 @@ func NewConfig() (*Config, error) {
 	viper.AutomaticEnv()
 	viper.SetEnvPrefix("SIGIF")
 
-	// Explicitly bind env vars for critical settings
+	// Explicitly bind env vars for critical settings.
+	_ = viper.BindEnv("app.env", "SIGIF_APP_ENV")
+	_ = viper.BindEnv("app.port", "SIGIF_APP_PORT")
+	_ = viper.BindEnv("app.host", "SIGIF_APP_HOST")
 	_ = viper.BindEnv("database.host", "SIGIF_DATABASE_HOST")
 	_ = viper.BindEnv("database.port", "SIGIF_DATABASE_PORT")
 	_ = viper.BindEnv("database.user", "SIGIF_DATABASE_USER")
 	_ = viper.BindEnv("database.password", "SIGIF_DATABASE_PASSWORD")
 	_ = viper.BindEnv("database.name", "SIGIF_DATABASE_NAME")
 	_ = viper.BindEnv("database.ssl_mode", "SIGIF_DATABASE_SSL_MODE")
-	_ = viper.BindEnv("redis.host", "SIGIF_REDIS_HOST")
-	_ = viper.BindEnv("redis.port", "SIGIF_REDIS_PORT")
-	_ = viper.BindEnv("redis.password", "SIGIF_REDIS_PASSWORD")
-	_ = viper.BindEnv("redis.db", "SIGIF_REDIS_DB")
-	_ = viper.BindEnv("redis.pool_size", "SIGIF_REDIS_POOL_SIZE")
-	_ = viper.BindEnv("redis.min_idle_conns", "SIGIF_REDIS_MIN_IDLE_CONNS")
 	_ = viper.BindEnv("jwt.secret", "SIGIF_JWT_SECRET")
 	_ = viper.BindEnv("jwt.access_token_expiry", "SIGIF_JWT_ACCESS_TOKEN_EXPIRY")
-	_ = viper.BindEnv("jwt.refresh_token_expiry", "SIGIF_JWT_REFRESH_TOKEN_EXPIRY")
 	_ = viper.BindEnv("jwt.issuer", "SIGIF_JWT_ISSUER")
-	_ = viper.BindEnv("app.env", "SIGIF_APP_ENV")
-	_ = viper.BindEnv("app.port", "SIGIF_APP_PORT")
-	_ = viper.BindEnv("app.host", "SIGIF_APP_HOST")
+	_ = viper.BindEnv("seed.admin_email", "SIGIF_SEED_ADMIN_EMAIL")
+	_ = viper.BindEnv("seed.admin_password", "SIGIF_SEED_ADMIN_PASSWORD")
+	_ = viper.BindEnv("seed.admin_first_name", "SIGIF_SEED_ADMIN_FIRST_NAME")
+	_ = viper.BindEnv("seed.admin_last_name", "SIGIF_SEED_ADMIN_LAST_NAME")
 
-	// Config file is optional
+	// Config file is optional.
 	_ = viper.ReadInConfig()
 
 	var cfg Config
@@ -139,11 +128,34 @@ func NewConfig() (*Config, error) {
 	return &cfg, nil
 }
 
-func (c *Config) IsModuleEnabled(name string) bool {
-	for _, m := range c.Modules.Enabled {
-		if m == name {
-			return true
+// loadDotEnv loads KEY=VALUE pairs from a .env file into the process
+// environment without overriding variables that are already set. It only
+// recognizes simple lines (comments and empty lines are ignored).
+func loadDotEnv(path string) {
+	f, err := os.Open(path)
+	if err != nil {
+		return
+	}
+	defer f.Close()
+
+	scanner := bufio.NewScanner(f)
+	for scanner.Scan() {
+		line := strings.TrimSpace(scanner.Text())
+		if line == "" || strings.HasPrefix(line, "#") {
+			continue
+		}
+
+		key, value, ok := strings.Cut(line, "=")
+		if !ok {
+			continue
+		}
+
+		key = strings.TrimSpace(key)
+		value = strings.TrimSpace(value)
+		value = strings.Trim(value, `"'`)
+
+		if key != "" && os.Getenv(key) == "" {
+			_ = os.Setenv(key, value)
 		}
 	}
-	return false
 }

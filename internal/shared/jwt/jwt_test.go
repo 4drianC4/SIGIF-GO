@@ -16,32 +16,51 @@ func TestGenerateIDProducesUniqueValues(t *testing.T) {
 	}
 }
 
-func TestGeneratePairAssignsTokenType(t *testing.T) {
+func TestAccessTokenRoundTrip(t *testing.T) {
 	manager := &JWTManager{
-		secret:             []byte("super-secret-key"),
-		accessTokenExpiry:  time.Hour,
-		refreshTokenExpiry: 24 * time.Hour,
-		issuer:             "sigif-test",
+		secret:            []byte("super-secret-key"),
+		accessTokenExpiry: time.Hour,
+		issuer:            "sigif-test",
 	}
 
-	pair, err := manager.GeneratePair("user-1", "tenant-1", "user@example.com", []string{"admin"})
+	token, _, err := manager.GenerateAccessToken(
+		"11111111-1111-1111-1111-111111111111",
+		"22222222-2222-2222-2222-222222222222",
+		"33333333-3333-3333-3333-333333333333",
+		"user@example.com",
+		"superadmin",
+	)
 	if err != nil {
-		t.Fatalf("GeneratePair returned error: %v", err)
+		t.Fatalf("GenerateAccessToken returned error: %v", err)
 	}
 
-	accessClaims, err := manager.Validate(pair.AccessToken)
+	claims, err := manager.ValidateAccessToken(token)
 	if err != nil {
-		t.Fatalf("Validate access token returned error: %v", err)
-	}
-	if accessClaims.TokenType != AccessTokenType {
-		t.Fatalf("expected access token type %q, got %q", AccessTokenType, accessClaims.TokenType)
+		t.Fatalf("ValidateAccessToken returned error: %v", err)
 	}
 
-	refreshClaims, err := manager.Validate(pair.RefreshToken)
-	if err != nil {
-		t.Fatalf("Validate refresh token returned error: %v", err)
+	if claims.TokenType != TokenTypeAccess {
+		t.Fatalf("expected token type %q, got %q", TokenTypeAccess, claims.TokenType)
 	}
-	if refreshClaims.TokenType != RefreshTokenType {
-		t.Fatalf("expected refresh token type %q, got %q", RefreshTokenType, refreshClaims.TokenType)
+	if claims.UserID != "11111111-1111-1111-1111-111111111111" {
+		t.Fatalf("unexpected user id %q", claims.UserID)
+	}
+	if claims.SessionID != "22222222-2222-2222-2222-222222222222" {
+		t.Fatalf("unexpected session id %q", claims.SessionID)
+	}
+	if claims.Role != "superadmin" {
+		t.Fatalf("unexpected role %q", claims.Role)
+	}
+}
+
+func TestValidateRejectsInvalidToken(t *testing.T) {
+	manager := &JWTManager{
+		secret:            []byte("super-secret-key"),
+		accessTokenExpiry: time.Hour,
+		issuer:            "sigif-test",
+	}
+
+	if _, err := manager.ValidateAccessToken("not-a-token"); err == nil {
+		t.Fatal("expected error validating an invalid token")
 	}
 }

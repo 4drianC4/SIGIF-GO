@@ -9,17 +9,14 @@ import (
 	sharedErrors "github.com/sigif/sigif-go/internal/shared/errors"
 )
 
-type UpdateUserParams struct {
+type UpdateUserInput struct {
 	FirstName string
 	LastName  string
 	Phone     string
-	AvatarURL string
-	Roles     []entity.UserRole
-	Settings  entity.UserSettings
+	Area      string
 }
 
-// Update actualiza los datos de un usuario existente.
-func (s *UserService) Update(ctx context.Context, id uuid.UUID, params UpdateUserParams) (*entity.User, error) {
+func (s *UserService) Update(ctx context.Context, id uuid.UUID, in UpdateUserInput) (*entity.AppUser, error) {
 	user, err := s.repo.GetByID(ctx, id)
 	if err != nil {
 		return nil, err
@@ -28,7 +25,7 @@ func (s *UserService) Update(ctx context.Context, id uuid.UUID, params UpdateUse
 		return nil, sharedErrors.New(sharedErrors.CodeNotFound, "user not found", 404)
 	}
 
-	user.Update(params.FirstName, params.LastName, params.Phone, params.AvatarURL, params.Roles, params.Settings, s.clock)
+	user.Update(in.FirstName, in.LastName, in.Phone, in.Area, s.clock)
 	if err := s.repo.Update(ctx, user); err != nil {
 		return nil, err
 	}

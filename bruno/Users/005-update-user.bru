@@ -12,7 +12,6 @@ put {
 
 headers {
   Content-Type: application/json
-  X-Tenant-ID: {{tenantId}}
   Authorization: Bearer {{accessToken}}
 }
 
@@ -20,11 +19,5 @@ body:json {
   "first_name": "Juan Carlos",
   "last_name": "Pérez Gómez",
   "phone": "+57 300 123 4567",
-  "roles": ["cashier", "inventory"],
-  "settings": {
-    "language": "es",
-    "timezone": "America/Bogota",
-    "theme": "dark",
-    "notifications": true
-  }
+  "area": "Soporte técnico"
 }

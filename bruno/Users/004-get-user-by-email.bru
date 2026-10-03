@@ -5,12 +5,11 @@ meta {
 }
 
 get {
-  url: {{baseUrl}}/api/v1/users/by-email?email=cajero@sigif.com
+  url: {{baseUrl}}/api/v1/users/by-email?email=soporte@sigif.com
   body: none
   auth: none
 }
 
 headers {
-  X-Tenant-ID: {{tenantId}}
   Authorization: Bearer {{accessToken}}
 }

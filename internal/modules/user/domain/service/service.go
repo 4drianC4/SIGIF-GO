@@ -5,16 +5,24 @@ import (
 	"github.com/sigif/sigif-go/internal/shared/clock"
 )
 
-// UserService expone los casos de uso de dominio de usuarios.
-// Cada método está en su propio archivo (create.go, get.go, etc.).
+// UserService exposes the use cases for application users and RBAC.
 type UserService struct {
-	repo  repository.UserRepository
-	clock clock.Clock
+	repo     repository.UserRepository
+	roleRepo repository.RoleRepository
+	permRepo repository.PermissionRepository
+	clock    clock.Clock
 }
 
-func NewUserService(repo repository.UserRepository, clock clock.Clock) *UserService {
+func NewUserService(
+	repo repository.UserRepository,
+	roleRepo repository.RoleRepository,
+	permRepo repository.PermissionRepository,
+	clock clock.Clock,
+) *UserService {
 	return &UserService{
-		repo:  repo,
-		clock: clock,
+		repo:     repo,
+		roleRepo: roleRepo,
+		permRepo: permRepo,
+		clock:    clock,
 	}
 }
