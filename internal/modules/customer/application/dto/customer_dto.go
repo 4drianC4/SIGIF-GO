@@ -6,9 +6,8 @@ import (
 	"github.com/sigif/sigif-go/internal/modules/customer/domain/entity"
 )
 
-// Customer es el DTO que expone los datos del cliente desde la capa de aplicación.
 type Customer struct {
-	ID             int64                 `json:"id"`
+	ID             string                `json:"id"`
 	TenantID       string                `json:"tenant_id"`
 	LegalName      string                `json:"legal_name"`
 	DocumentType   entity.DocumentType   `json:"document_type"`
@@ -24,7 +23,6 @@ type Customer struct {
 	UpdatedAt      *string               `json:"updated_at,omitempty"`
 }
 
-// FromEntity convierte la entidad de dominio al DTO plano.
 func FromEntity(c *entity.Customer) Customer {
 	var updatedAt *string
 	if c.UpdatedAt != nil {
@@ -33,7 +31,7 @@ func FromEntity(c *entity.Customer) Customer {
 	}
 
 	return Customer{
-		ID:             c.ID,
+		ID:             c.ID.String(),
 		TenantID:       c.TenantID.String(),
 		LegalName:      c.LegalName,
 		DocumentType:   c.DocumentType,
@@ -50,7 +48,6 @@ func FromEntity(c *entity.Customer) Customer {
 	}
 }
 
-// FromEntityList convierte un slice de entidades de dominio en un slice de DTOs.
 func FromEntityList(customers []*entity.Customer) []Customer {
 	result := make([]Customer, len(customers))
 	for i, c := range customers {

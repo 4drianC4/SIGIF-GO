@@ -7,7 +7,6 @@ import (
 	"github.com/sigif/sigif-go/internal/modules/customer/infrastructure/persistence/model"
 )
 
-// ToModel convierte la entidad de dominio al modelo de persistencia GORM.
 func ToModel(c *entity.Customer) *model.CustomerModel {
 	return &model.CustomerModel{
 		ID:             c.ID,
@@ -28,7 +27,6 @@ func ToModel(c *entity.Customer) *model.CustomerModel {
 	}
 }
 
-// ToDomain convierte el modelo de persistencia a la entidad de dominio.
 func ToDomain(m *model.CustomerModel) *entity.Customer {
 	creditLimit, _ := decimal.NewFromString(m.CreditLimit)
 	creditBalance, _ := decimal.NewFromString(m.CreditBalance)

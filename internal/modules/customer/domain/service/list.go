@@ -9,8 +9,6 @@ import (
 	"github.com/sigif/sigif-go/internal/modules/customer/domain/repository"
 )
 
-// List retorna una página de clientes del tenant aplicando los filtros indicados.
-// El total corresponde al conjunto completo tras aplicar filtros (antes del offset/limit).
 func (s *CustomerService) List(
 	ctx context.Context,
 	tenantID uuid.UUID,

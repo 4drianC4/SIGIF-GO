@@ -177,6 +177,7 @@ func AuthRequired(jwtManager *jwt.JWTManager, sessions SessionReader) fiber.Hand
 		ctx = WithSessionID(ctx, sessionID)
 		if companyID, err := uuid.Parse(claims.CompanyID); err == nil && companyID != uuid.Nil {
 			ctx = WithCompanyID(ctx, companyID)
+			c.Locals("company_id", companyID)
 		}
 		if claims.Email != "" {
 			ctx = context.WithValue(ctx, contextKeyEmail, claims.Email)

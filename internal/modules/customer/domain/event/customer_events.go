@@ -1,11 +1,12 @@
 package event
 
 import (
+	"github.com/google/uuid"
+
 	"github.com/sigif/sigif-go/internal/modules/customer/domain/entity"
 	"github.com/sigif/sigif-go/internal/shared/events"
 )
 
-// CustomerCreatedEvent se publica cuando un nuevo cliente es registrado con éxito.
 type CustomerCreatedEvent struct {
 	*events.BaseEvent
 	Customer *entity.Customer
@@ -18,7 +19,6 @@ func NewCustomerCreatedEvent(customer *entity.Customer) *CustomerCreatedEvent {
 	}
 }
 
-// CustomerUpdatedEvent se publica cuando los datos de un cliente son modificados.
 type CustomerUpdatedEvent struct {
 	*events.BaseEvent
 	Customer *entity.Customer
@@ -31,20 +31,18 @@ func NewCustomerUpdatedEvent(customer *entity.Customer) *CustomerUpdatedEvent {
 	}
 }
 
-// CustomerDeletedEvent se publica cuando un cliente recibe baja lógica.
 type CustomerDeletedEvent struct {
 	*events.BaseEvent
-	CustomerID int64
+	CustomerID uuid.UUID
 }
 
-func NewCustomerDeletedEvent(customerID int64) *CustomerDeletedEvent {
+func NewCustomerDeletedEvent(customerID uuid.UUID) *CustomerDeletedEvent {
 	return &CustomerDeletedEvent{
 		BaseEvent:  events.NewEvent("customer.deleted", map[string]any{"customer_id": customerID}),
 		CustomerID: customerID,
 	}
 }
 
-// CustomerStatusChangedEvent se publica cuando el estado del cliente cambia.
 type CustomerStatusChangedEvent struct {
 	*events.BaseEvent
 	Customer *entity.Customer

@@ -5,8 +5,6 @@ import (
 	"github.com/sigif/sigif-go/internal/shared/clock"
 )
 
-// CustomerService expone los casos de uso de dominio de clientes.
-// Cada operación está en su propio archivo (create.go, get.go, etc.).
 type CustomerService struct {
 	repo  repository.CustomerRepository
 	clock clock.Clock

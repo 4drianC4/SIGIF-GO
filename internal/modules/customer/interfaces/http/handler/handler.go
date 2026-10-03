@@ -5,7 +5,6 @@ import (
 	"github.com/sigif/sigif-go/internal/shared/validator"
 )
 
-// CustomerHTTPHandler expone los endpoints HTTP de clientes.
 type CustomerHTTPHandler struct {
 	cmdHandler   *handler.CustomerCommandHandler
 	queryHandler *handler.CustomerQueryHandler

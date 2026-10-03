@@ -6,13 +6,11 @@ import (
 	"github.com/sigif/sigif-go/internal/modules/customer/domain/entity"
 )
 
-// GetCustomer define la consulta para obtener un cliente por ID.
 type GetCustomer struct {
-	ID       int64
+	ID       uuid.UUID
 	TenantID uuid.UUID
 }
 
-// ListCustomers define la consulta para buscar clientes paginados.
 type ListCustomers struct {
 	TenantID uuid.UUID
 	Q        string

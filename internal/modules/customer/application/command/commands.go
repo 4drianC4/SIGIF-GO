@@ -6,7 +6,6 @@ import (
 	"github.com/sigif/sigif-go/internal/modules/customer/domain/entity"
 )
 
-// CreateCustomer encapsula los datos necesarios para registrar un nuevo cliente.
 type CreateCustomer struct {
 	TenantID       uuid.UUID
 	LegalName      string
@@ -16,9 +15,8 @@ type CreateCustomer struct {
 	Email          *string
 }
 
-// UpdateCustomer encapsula los datos editables de un cliente existente.
 type UpdateCustomer struct {
-	ID             int64
+	ID             uuid.UUID
 	TenantID       uuid.UUID
 	LegalName      string
 	DocumentType   entity.DocumentType
@@ -28,15 +26,13 @@ type UpdateCustomer struct {
 	Address        *string
 }
 
-// DeleteCustomer encapsula la solicitud de baja lógica de un cliente.
 type DeleteCustomer struct {
-	ID       int64
+	ID       uuid.UUID
 	TenantID uuid.UUID
 }
 
-// ChangeCustomerStatus encapsula el cambio de estado de un cliente.
 type ChangeCustomerStatus struct {
-	ID       int64
+	ID       uuid.UUID
 	TenantID uuid.UUID
 	Status   entity.CustomerStatus
 }

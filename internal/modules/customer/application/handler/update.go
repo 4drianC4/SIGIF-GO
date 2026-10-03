@@ -9,7 +9,6 @@ import (
 	"github.com/sigif/sigif-go/internal/modules/customer/domain/service"
 )
 
-// HandleUpdate procesa la actualización de un cliente y publica un evento.
 func (h *CustomerCommandHandler) HandleUpdate(ctx context.Context, cmd command.UpdateCustomer) (*entity.Customer, error) {
 	customer, err := h.service.Update(ctx, service.UpdateCustomerParams{
 		ID:             cmd.ID,

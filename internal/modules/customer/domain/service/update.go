@@ -10,9 +10,8 @@ import (
 	sharedErrors "github.com/sigif/sigif-go/internal/shared/errors"
 )
 
-// UpdateCustomerParams reúne los datos editables de un cliente.
 type UpdateCustomerParams struct {
-	ID             int64
+	ID             uuid.UUID
 	TenantID       uuid.UUID
 	LegalName      string
 	DocumentType   entity.DocumentType
@@ -22,9 +21,6 @@ type UpdateCustomerParams struct {
 	Address        *string
 }
 
-// Update carga el cliente, valida los nuevos datos y los persiste.
-// La unicidad del documento se re-verifica solo si el número cambió respecto
-// al valor actual.
 func (s *CustomerService) Update(ctx context.Context, params UpdateCustomerParams) (*entity.Customer, error) {
 	if strings.TrimSpace(params.LegalName) == "" {
 		return nil, sharedErrors.New(sharedErrors.CodeValidation, "legal_name is required", 400)
@@ -38,7 +34,6 @@ func (s *CustomerService) Update(ctx context.Context, params UpdateCustomerParam
 		return nil, sharedErrors.New(sharedErrors.CodeNotFound, "customer not found", 404)
 	}
 
-	// Re-verificar unicidad del documento solo si cambió
 	newDocNumber := ""
 	if params.DocumentNumber != nil {
 		newDocNumber = strings.TrimSpace(*params.DocumentNumber)

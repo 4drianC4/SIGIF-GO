@@ -5,7 +5,6 @@ import (
 	"github.com/sigif/sigif-go/internal/shared/events"
 )
 
-// CustomerCommandHandler coordina los casos de uso de escritura.
 type CustomerCommandHandler struct {
 	service  *service.CustomerService
 	eventBus *events.Bus
@@ -18,7 +17,6 @@ func NewCustomerCommandHandler(service *service.CustomerService, eventBus *event
 	}
 }
 
-// CustomerQueryHandler coordina los casos de uso de lectura.
 type CustomerQueryHandler struct {
 	service *service.CustomerService
 }

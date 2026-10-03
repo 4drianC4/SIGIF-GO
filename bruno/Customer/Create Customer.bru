@@ -1,0 +1,30 @@
+meta {
+  name: Create Customer
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{baseUrl}}/api/v1/customers/
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjoiOGY0MzE3ZGYtNTI5Ni00YzE5LWEwZGItMGM2YmFiZjUyY2EyIiwic2Vzc2lvbl9pZCI6ImIzNzI5ZWM2LWYxZTktNDAwNy04MDVhLTc3NTIwMjk5NjlkOSIsImNvbXBhbnlfaWQiOiIxMTExMTExMS0xMTExLTQxMTEtODExMS0xMTExMTExMTExMTEiLCJlbWFpbCI6ImFkbWluQHNpZ2lmLmNvbSIsInJvbGUiOiJzdXBlcmFkbWluIiwidHlwIjoiYWNjZXNzIiwiaXNzIjoic2lnaWYtZ28iLCJzdWIiOiI4ZjQzMTdkZi01Mjk2LTRjMTktYTBkYi0wYzZiYWJmNTJjYTIiLCJhdWQiOlsic2lnaWYiXSwiZXhwIjoxNzkxMDA3ODIzLCJuYmYiOjE3OTEwMDY5MjMsImlhdCI6MTc5MTAwNjkyMywianRpIjoiNzg0YzIzYWUtMzRhYy00ODVjLWJjNTUtZTMzYWQyNzRlODE3In0.2fylkDB1GZKC0J396_MI7w5oWfWDeGDFH1gcB1d9UtE
+}
+
+body:json {
+  {
+    "legal_name": "Comercial Bruno",
+    "document_type": "tax_id",
+    "document_number": "BRUNO-TEST-001",
+    "phone": "+59170000000",
+    "email": "bruno@example.com"
+  }
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+}

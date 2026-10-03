@@ -16,7 +16,6 @@ import (
 	sharedErrors "github.com/sigif/sigif-go/internal/shared/errors"
 )
 
-// CustomerGormRepository implementa repository.CustomerRepository usando GORM.
 type CustomerGormRepository struct {
 	db *sharedDatabase.Database
 }
@@ -25,7 +24,6 @@ func NewCustomerGormRepository(db *sharedDatabase.Database) repository.CustomerR
 	return &CustomerGormRepository{db: db}
 }
 
-// Create persiste un nuevo cliente y copia el ID generado por la BD a la entidad.
 func (r *CustomerGormRepository) Create(ctx context.Context, customer *entity.Customer) error {
 	m := mapper.ToModel(customer)
 	if err := r.db.GetDB(ctx).Create(m).Error; err != nil {
@@ -35,14 +33,11 @@ func (r *CustomerGormRepository) Create(ctx context.Context, customer *entity.Cu
 		}
 		return err
 	}
-	// Retroalimentar el ID generado a la entidad de dominio
 	customer.ID = m.ID
 	return nil
 }
 
-// GetByID retorna el cliente filtrando por tenant y excluyendo soft-deleted.
-// Retorna (nil, nil) si no existe o el tenant no coincide.
-func (r *CustomerGormRepository) GetByID(ctx context.Context, tenantID uuid.UUID, id int64) (*entity.Customer, error) {
+func (r *CustomerGormRepository) GetByID(ctx context.Context, tenantID, id uuid.UUID) (*entity.Customer, error) {
 	var m model.CustomerModel
 	err := r.db.GetDB(ctx).
 		Where("customer_id = ? AND tenant_id = ? AND deleted_at IS NULL", id, tenantID).
@@ -56,8 +51,6 @@ func (r *CustomerGormRepository) GetByID(ctx context.Context, tenantID uuid.UUID
 	return mapper.ToDomain(&m), nil
 }
 
-// List retorna una página de clientes del tenant aplicando filtros dinámicos.
-// El conteo se realiza antes del offset/limit para que la paginación sea coherente.
 func (r *CustomerGormRepository) List(
 	ctx context.Context,
 	tenantID uuid.UUID,
@@ -70,7 +63,6 @@ func (r *CustomerGormRepository) List(
 	db := r.db.GetDB(ctx).Model(&model.CustomerModel{}).
 		Where("tenant_id = ? AND deleted_at IS NULL", tenantID)
 
-	// Filtro de búsqueda libre: coincidencia parcial en múltiples columnas
 	if q := strings.TrimSpace(filter.Q); q != "" {
 		pattern := "%" + strings.ToLower(q) + "%"
 		db = db.Where(
@@ -79,7 +71,6 @@ func (r *CustomerGormRepository) List(
 		)
 	}
 
-	// Filtro de estado
 	if filter.Status != nil {
 		db = db.Where("status = ?", string(*filter.Status))
 	}
@@ -104,7 +95,6 @@ func (r *CustomerGormRepository) List(
 	return customers, total, nil
 }
 
-// ExistsByDocument verifica unicidad dentro del tenant para clientes activos.
 func (r *CustomerGormRepository) ExistsByDocument(
 	ctx context.Context,
 	tenantID uuid.UUID,
@@ -119,7 +109,6 @@ func (r *CustomerGormRepository) ExistsByDocument(
 	return count > 0, err
 }
 
-// Update persiste los cambios de un cliente existente.
 func (r *CustomerGormRepository) Update(ctx context.Context, customer *entity.Customer) error {
 	m := mapper.ToModel(customer)
 	if err := r.db.GetDB(ctx).Save(m).Error; err != nil {
@@ -132,7 +121,6 @@ func (r *CustomerGormRepository) Update(ctx context.Context, customer *entity.Cu
 	return nil
 }
 
-// isUniqueViolation detecta violaciones de clave única de PostgreSQL (código 23505).
 func isUniqueViolation(err error) bool {
 	return err != nil && strings.Contains(err.Error(), "23505")
 }

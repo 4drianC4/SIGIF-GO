@@ -9,12 +9,10 @@ import (
 	sharedErrors "github.com/sigif/sigif-go/internal/shared/errors"
 )
 
-// ChangeStatus cambia el estado operativo del cliente.
-// Solo acepta los valores oficiales del enum CustomerStatus.
 func (s *CustomerService) ChangeStatus(
 	ctx context.Context,
 	tenantID uuid.UUID,
-	id int64,
+	id uuid.UUID,
 	newStatus entity.CustomerStatus,
 ) (*entity.Customer, error) {
 	if !newStatus.IsValid() {

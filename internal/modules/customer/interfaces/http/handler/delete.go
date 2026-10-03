@@ -1,9 +1,8 @@
 package handler
 
 import (
-	"strconv"
-
 	"github.com/gofiber/fiber/v2"
+	"github.com/google/uuid"
 
 	"github.com/sigif/sigif-go/internal/modules/customer/application/command"
 	"github.com/sigif/sigif-go/internal/modules/customer/interfaces/http/dtos"
@@ -11,9 +10,8 @@ import (
 	"github.com/sigif/sigif-go/internal/shared/response"
 )
 
-// Delete maneja DELETE /customers/:id para aplicar baja lógica.
 func (h *CustomerHTTPHandler) Delete(c *fiber.Ctx) error {
-	id, err := strconv.ParseInt(c.Params("id"), 10, 64)
+	id, err := uuid.Parse(c.Params("id"))
 	if err != nil {
 		return response.Error(c, fiber.StatusBadRequest, sharedErrors.New(sharedErrors.CodeBadRequest, "invalid customer id", 400))
 	}
