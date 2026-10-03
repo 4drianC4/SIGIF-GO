@@ -1,0 +1,33 @@
+meta {
+  name: Create Product - Category Not Found (404)
+  type: http
+  seq: 8
+}
+
+post {
+  url: {{baseUrl}}/products
+  body: json
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+  Authorization: Bearer {{accessToken}}
+}
+
+body:json {
+  {
+    "category_id": "00000000-0000-4000-8000-000000000000",
+    "sku": "NO-CATEGORY-1",
+    "name": "Producto sin categoría válida",
+    "unit_of_measure": "unit",
+    "sale_price": 1
+  }
+}
+
+tests {
+  test("responde 404 NOT_FOUND si la categoría no existe en el tenant", function() {
+    expect(res.status).to.equal(404);
+    expect(res.body.error.code).to.equal('NOT_FOUND');
+  });
+}
