@@ -4,6 +4,7 @@ import (
 	"go.uber.org/fx"
 
 	"github.com/sigif/sigif-go/internal/modules/auth"
+	"github.com/sigif/sigif-go/internal/modules/product"
 	"github.com/sigif/sigif-go/internal/modules/user"
 	"github.com/sigif/sigif-go/internal/shared/clock"
 	"github.com/sigif/sigif-go/internal/shared/config"
@@ -24,4 +25,5 @@ var Module = fx.Options(
 	),
 	user.Module,
 	auth.Module,
+	product.Module,
 )
