@@ -11,6 +11,7 @@ import (
 
 	authModel "github.com/sigif/sigif-go/internal/modules/auth/infrastructure/persistence/model"
 	customerModel "github.com/sigif/sigif-go/internal/modules/customer/infrastructure/persistence/model"
+	productModel "github.com/sigif/sigif-go/internal/modules/product/infrastructure/persistence/model"
 	userModel "github.com/sigif/sigif-go/internal/modules/user/infrastructure/persistence/model"
 	"github.com/sigif/sigif-go/internal/modules/user/infrastructure/seed"
 	"github.com/sigif/sigif-go/internal/shared/config"
@@ -66,6 +67,8 @@ func autoMigrate(db *gorm.DB) error {
 		&authModel.SessionModel{},
 		&authModel.LoginAttemptModel{},
 		&customerModel.CustomerModel{},
+		&productModel.CategoryModel{},
+		&productModel.ProductModel{},
 	)
 }
 

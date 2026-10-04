@@ -28,6 +28,7 @@ import (
 	"github.com/sigif/sigif-go/internal/shared/middleware"
 	"github.com/sigif/sigif-go/internal/shared/validator"
 	"github.com/sigif/sigif-go/internal/modules/customer"
+	"github.com/sigif/sigif-go/internal/modules/product"
 	"github.com/sigif/sigif-go/internal/shared/events"
 )
 
@@ -46,6 +47,7 @@ func main() {
 		user.Module,
 		auth.Module,
 		customer.Module,
+		product.Module,
 		fx.Invoke(registerHooks),
 		fx.Invoke(startServer),
 	)

@@ -1,0 +1,32 @@
+meta {
+  name: Create Product - Without Token (401)
+  type: http
+  seq: 9
+}
+
+post {
+  url: {{baseUrl}}/api/v1/products
+  body: json
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "category_id": "{{categoryId}}",
+    "sku": "NO-TOKEN-1",
+    "name": "Producto sin token",
+    "unit_of_measure": "unit",
+    "sale_price": 1
+  }
+}
+
+tests {
+  test("responde 401 UNAUTHORIZED sin token", function() {
+    expect(res.status).to.equal(401);
+    expect(res.body.error.code).to.equal('UNAUTHORIZED');
+  });
+}

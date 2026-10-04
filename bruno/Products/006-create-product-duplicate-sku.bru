@@ -1,0 +1,36 @@
+meta {
+  name: Create Product - Duplicate SKU (409)
+  type: http
+  seq: 6
+}
+
+post {
+  url: {{baseUrl}}/api/v1/products
+  body: json
+  auth: bearer
+}
+
+headers {
+  Content-Type: application/json
+}
+
+auth:bearer {
+  token: {{accessToken}}
+}
+
+body:json {
+  {
+    "category_id": "{{categoryId}}",
+    "sku": "{{productSku}}",
+    "name": "Otro producto con el mismo SKU",
+    "unit_of_measure": "unit",
+    "sale_price": 1
+  }
+}
+
+tests {
+  test("rechaza el SKU repetido con 409 CONFLICT", function() {
+    expect(res.status).to.equal(409);
+    expect(res.body.error.code).to.equal('CONFLICT');
+  });
+}

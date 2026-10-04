@@ -24,6 +24,8 @@ const (
 	PermUsersActivate       = "users.activate"
 	PermUsersDeactivate     = "users.deactivate"
 	PermUsersChangePassword = "users.change_password"
+	PermCategoriesCreate    = "categories.create"
+	PermProductsCreate      = "products.create"
 )
 
 // AllPermissions returns the canonical set of permissions for the implemented
@@ -44,6 +46,18 @@ func AllPermissions() []Permission {
 				{"activate", "Activar usuarios"},
 				{"deactivate", "Desactivar usuarios"},
 				{"change_password", "Cambiar contraseña de usuarios"},
+			},
+		},
+		{
+			module: "categories",
+			ops: []struct{ op, desc string }{
+				{"create", "Registrar categorías de productos"},
+			},
+		},
+		{
+			module: "products",
+			ops: []struct{ op, desc string }{
+				{"create", "Registrar productos"},
 			},
 		},
 	}

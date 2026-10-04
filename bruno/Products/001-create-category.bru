@@ -1,0 +1,43 @@
+meta {
+  name: Create Category
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{baseUrl}}/api/v1/categories
+  body: json
+  auth: bearer
+}
+
+headers {
+  Content-Type: application/json
+}
+
+auth:bearer {
+  token: {{accessToken}}
+}
+
+body:json {
+  {
+    "name": "{{categoryName}}",
+    "description": "Gaseosas, jugos y aguas"
+  }
+}
+
+script:pre-request {
+  bru.setVar('categoryName', 'Bebidas ' + Date.now());
+}
+
+script:post-response {
+  bru.setVar('categoryId', res.body && res.body.data ? res.body.data.id : '');
+}
+
+tests {
+  test("responde 201 con la categoría activa", function() {
+    expect(res.status).to.equal(201);
+    expect(res.body.success).to.equal(true);
+    expect(res.body.data.name).to.equal(bru.getVar('categoryName'));
+    expect(res.body.data.status).to.equal('active');
+  });
+}

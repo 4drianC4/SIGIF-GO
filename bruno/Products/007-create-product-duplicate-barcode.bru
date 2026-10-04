@@ -1,0 +1,37 @@
+meta {
+  name: Create Product - Duplicate Barcode (409)
+  type: http
+  seq: 7
+}
+
+post {
+  url: {{baseUrl}}/api/v1/products
+  body: json
+  auth: bearer
+}
+
+headers {
+  Content-Type: application/json
+}
+
+auth:bearer {
+  token: {{accessToken}}
+}
+
+body:json {
+  {
+    "category_id": "{{categoryId}}",
+    "sku": "OTHER-{{productBarcode}}",
+    "barcode": "{{productBarcode}}",
+    "name": "Otro producto con el mismo código de barras",
+    "unit_of_measure": "unit",
+    "sale_price": 1
+  }
+}
+
+tests {
+  test("rechaza el código de barras repetido con 409 CONFLICT", function() {
+    expect(res.status).to.equal(409);
+    expect(res.body.error.code).to.equal('CONFLICT');
+  });
+}

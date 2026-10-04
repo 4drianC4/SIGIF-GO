@@ -1,0 +1,36 @@
+meta {
+  name: Create Category - Duplicate Name (409)
+  type: http
+  seq: 2
+}
+
+post {
+  url: {{baseUrl}}/api/v1/categories
+  body: json
+  auth: bearer
+}
+
+headers {
+  Content-Type: application/json
+}
+
+auth:bearer {
+  token: {{accessToken}}
+}
+
+body:json {
+  {
+    "name": "{{categoryNameUpper}}"
+  }
+}
+
+script:pre-request {
+  bru.setVar('categoryNameUpper', String(bru.getVar('categoryName')).toUpperCase());
+}
+
+tests {
+  test("rechaza el nombre repetido con 409 CONFLICT", function() {
+    expect(res.status).to.equal(409);
+    expect(res.body.error.code).to.equal('CONFLICT');
+  });
+}

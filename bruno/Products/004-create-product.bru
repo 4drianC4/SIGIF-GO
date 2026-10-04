@@ -1,0 +1,56 @@
+meta {
+  name: Create Product
+  type: http
+  seq: 4
+}
+
+post {
+  url: {{baseUrl}}/api/v1/products
+  body: json
+  auth: bearer
+}
+
+headers {
+  Content-Type: application/json
+}
+
+auth:bearer {
+  token: {{accessToken}}
+}
+
+body:json {
+  {
+    "category_id": "{{categoryId}}",
+    "sku": "{{productSku}}",
+    "barcode": "{{productBarcode}}",
+    "name": "Coca Cola 600ml",
+    "description": "Botella PET 600ml",
+    "unit_of_measure": "unit",
+    "cost_price": 3.20,
+    "sale_price": "5.50"
+  }
+}
+
+script:pre-request {
+  const now = String(Date.now());
+  bru.setVar('productSku', 'coca-' + now);
+  bru.setVar('productBarcode', now);
+}
+
+script:post-response {
+  bru.setVar('productId', res.body && res.body.data ? res.body.data.id : '');
+}
+
+tests {
+  test("responde 201 con el producto activo", function() {
+    expect(res.status).to.equal(201);
+    expect(res.body.data.status).to.equal('active');
+    expect(res.body.data.category_id).to.equal(bru.getVar('categoryId'));
+  });
+
+  test("normaliza el SKU a mayúsculas y los precios a 2 decimales", function() {
+    expect(res.body.data.sku).to.equal(String(bru.getVar('productSku')).toUpperCase());
+    expect(res.body.data.cost_price).to.equal('3.20');
+    expect(res.body.data.sale_price).to.equal('5.50');
+  });
+}
