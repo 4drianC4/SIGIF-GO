@@ -20,3 +20,24 @@ func (h *UserHTTPHandler) Delete(c *fiber.Ctx) error {
 
 	return response.NoContent(c)
 }
+
+func (h *UserHTTPHandler) Activate(c *fiber.Ctx) error {
+	return h.changeStatus(c, true)
+}
+
+func (h *UserHTTPHandler) Deactivate(c *fiber.Ctx) error {
+	return h.changeStatus(c, false)
+}
+
+func (h *UserHTTPHandler) changeStatus(c *fiber.Ctx, active bool) error {
+	id, err := uuid.Parse(c.Params("id"))
+	if err != nil {
+		return response.Error(c, fiber.StatusBadRequest, err)
+	}
+
+	if err := h.cmdHandler.HandleChangeStatus(c.UserContext(), command.ChangeStatus{ID: id, Active: active}); err != nil {
+		return response.Error(c, fiber.StatusInternalServerError, err)
+	}
+
+	return response.NoContent(c)
+}

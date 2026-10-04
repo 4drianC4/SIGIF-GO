@@ -11,7 +11,7 @@ import (
 
 type Category struct {
 	ID          uuid.UUID
-	TenantID    uuid.UUID
+	CompanyID   uuid.UUID
 	Name        string
 	Description string
 	Status      Status
@@ -20,12 +20,11 @@ type Category struct {
 	DeletedAt   *time.Time
 }
 
-// NewCategory crea una categoría activa con el nombre normalizado.
-func NewCategory(clock clock.Clock, tenantID uuid.UUID, name, description string) *Category {
+func NewCategory(clock clock.Clock, companyID uuid.UUID, name, description string) *Category {
 	now := clock.NowUTC()
 	return &Category{
 		ID:          uuid.New(),
-		TenantID:    tenantID,
+		CompanyID:   companyID,
 		Name:        NormalizeName(name),
 		Description: strings.TrimSpace(description),
 		Status:      StatusActive,
@@ -38,7 +37,6 @@ func (c *Category) IsActive() bool {
 	return c.Status == StatusActive
 }
 
-// NormalizeName quita espacios sobrantes al inicio, al final y entre palabras.
 func NormalizeName(name string) string {
 	return strings.Join(strings.Fields(name), " ")
 }

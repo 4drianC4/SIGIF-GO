@@ -1,4 +1,3 @@
-// Package testutil contiene repositorios en memoria para probar el módulo product sin base de datos.
 package testutil
 
 import (
@@ -28,22 +27,22 @@ func (r *MemoryCategoryRepository) Create(_ context.Context, category *entity.Ca
 	return nil
 }
 
-func (r *MemoryCategoryRepository) GetByID(_ context.Context, tenantID, id uuid.UUID) (*entity.Category, error) {
+func (r *MemoryCategoryRepository) GetByID(_ context.Context, companyID, id uuid.UUID) (*entity.Category, error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	category, ok := r.Categories[id]
-	if !ok || category.TenantID != tenantID {
+	if !ok || category.CompanyID != companyID {
 		return nil, nil
 	}
 	copied := *category
 	return &copied, nil
 }
 
-func (r *MemoryCategoryRepository) ExistsByName(_ context.Context, tenantID uuid.UUID, name string) (bool, error) {
+func (r *MemoryCategoryRepository) ExistsByName(_ context.Context, companyID uuid.UUID, name string) (bool, error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	for _, category := range r.Categories {
-		if category.TenantID == tenantID && strings.EqualFold(category.Name, name) {
+		if category.CompanyID == companyID && strings.EqualFold(category.Name, name) {
 			return true, nil
 		}
 	}
@@ -67,22 +66,22 @@ func (r *MemoryProductRepository) Create(_ context.Context, product *entity.Prod
 	return nil
 }
 
-func (r *MemoryProductRepository) ExistsBySKU(_ context.Context, tenantID uuid.UUID, sku string) (bool, error) {
+func (r *MemoryProductRepository) ExistsBySKU(_ context.Context, companyID uuid.UUID, sku string) (bool, error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	for _, product := range r.Products {
-		if product.TenantID == tenantID && product.SKU == sku {
+		if product.CompanyID == companyID && product.SKU == sku {
 			return true, nil
 		}
 	}
 	return false, nil
 }
 
-func (r *MemoryProductRepository) ExistsByBarcode(_ context.Context, tenantID uuid.UUID, barcode string) (bool, error) {
+func (r *MemoryProductRepository) ExistsByBarcode(_ context.Context, companyID uuid.UUID, barcode string) (bool, error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	for _, product := range r.Products {
-		if product.TenantID == tenantID && product.Barcode == barcode {
+		if product.CompanyID == companyID && product.Barcode == barcode {
 			return true, nil
 		}
 	}

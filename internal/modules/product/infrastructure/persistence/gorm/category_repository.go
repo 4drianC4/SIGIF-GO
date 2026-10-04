@@ -34,9 +34,9 @@ func (r *CategoryGormRepository) Create(ctx context.Context, category *entity.Ca
 	return nil
 }
 
-func (r *CategoryGormRepository) GetByID(ctx context.Context, tenantID, id uuid.UUID) (*entity.Category, error) {
+func (r *CategoryGormRepository) GetByID(ctx context.Context, companyID, id uuid.UUID) (*entity.Category, error) {
 	var m model.CategoryModel
-	err := r.db.GetDB(ctx).Where("tenant_id = ? AND id = ?", tenantID, id).First(&m).Error
+	err := r.db.GetDB(ctx).Where("company_id = ? AND id = ?", companyID, id).First(&m).Error
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, nil
@@ -46,10 +46,10 @@ func (r *CategoryGormRepository) GetByID(ctx context.Context, tenantID, id uuid.
 	return mapper.CategoryToDomain(&m), nil
 }
 
-func (r *CategoryGormRepository) ExistsByName(ctx context.Context, tenantID uuid.UUID, name string) (bool, error) {
+func (r *CategoryGormRepository) ExistsByName(ctx context.Context, companyID uuid.UUID, name string) (bool, error) {
 	var count int64
 	err := r.db.GetDB(ctx).Model(&model.CategoryModel{}).
-		Where("tenant_id = ? AND LOWER(name) = LOWER(?)", tenantID, name).
+		Where("company_id = ? AND LOWER(name) = LOWER(?)", companyID, name).
 		Count(&count).Error
 	return count > 0, err
 }

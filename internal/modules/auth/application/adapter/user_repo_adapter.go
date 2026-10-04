@@ -10,7 +10,7 @@ import (
 	userService "github.com/sigif/sigif-go/internal/modules/user/domain/service"
 )
 
-// userRepoAdapter adapta el UserService al puerto UserRepo de auth.
+// userRepoAdapter adapts the user module's UserService to the auth UserRepo port.
 type userRepoAdapter struct {
 	userService *userService.UserService
 }
@@ -19,16 +19,16 @@ func NewUserRepoAdapter(userService *userService.UserService) authRepo.UserRepo 
 	return &userRepoAdapter{userService: userService}
 }
 
-func (a *userRepoAdapter) GetByEmail(ctx context.Context, tenantID uuid.UUID, email string) (*userEntity.User, error) {
-	return a.userService.GetByEmail(ctx, tenantID, email)
+func (a *userRepoAdapter) GetByEmail(ctx context.Context, email string) (*userEntity.AppUser, error) {
+	return a.userService.GetByEmail(ctx, email)
 }
 
-func (a *userRepoAdapter) GetByID(ctx context.Context, id uuid.UUID) (*userEntity.User, error) {
+func (a *userRepoAdapter) GetByID(ctx context.Context, id uuid.UUID) (*userEntity.AppUser, error) {
 	return a.userService.GetByID(ctx, id)
 }
 
-func (a *userRepoAdapter) RecordLogin(ctx context.Context, userID uuid.UUID) error {
-	return a.userService.RecordLogin(ctx, userID)
+func (a *userRepoAdapter) RecordAccess(ctx context.Context, userID uuid.UUID) error {
+	return a.userService.RecordAccess(ctx, userID)
 }
 
 var _ authRepo.UserRepo = (*userRepoAdapter)(nil)

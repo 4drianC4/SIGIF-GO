@@ -5,14 +5,17 @@ meta {
 }
 
 post {
-  url: {{baseUrl}}/categories
+  url: {{baseUrl}}/api/v1/categories
   body: json
-  auth: none
+  auth: bearer
 }
 
 headers {
   Content-Type: application/json
-  Authorization: Bearer {{accessToken}}
+}
+
+auth:bearer {
+  token: {{accessToken}}
 }
 
 body:json {
@@ -23,7 +26,6 @@ body:json {
 }
 
 script:pre-request {
-  // Nombre único en cada ejecución para poder repetir la colección.
   bru.setVar('categoryName', 'Bebidas ' + Date.now());
 }
 

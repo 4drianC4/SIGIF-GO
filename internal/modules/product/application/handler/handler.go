@@ -5,7 +5,6 @@ import (
 	"github.com/sigif/sigif-go/internal/shared/events"
 )
 
-// CatalogCommandHandler coordina los casos de uso de escritura del catálogo.
 type CatalogCommandHandler struct {
 	service  *service.CatalogService
 	eventBus *events.Bus

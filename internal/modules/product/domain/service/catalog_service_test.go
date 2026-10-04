@@ -17,8 +17,8 @@ import (
 )
 
 var (
-	tenantA = uuid.MustParse("aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa")
-	tenantB = uuid.MustParse("bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb")
+	companyA = uuid.MustParse("aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa")
+	companyB = uuid.MustParse("bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb")
 )
 
 type fixture struct {
@@ -38,18 +38,18 @@ func newFixture() fixture {
 	}
 }
 
-func (f fixture) category(t *testing.T, tenantID uuid.UUID, name string) *entity.Category {
+func (f fixture) category(t *testing.T, companyID uuid.UUID, name string) *entity.Category {
 	t.Helper()
-	category, err := f.svc.CreateCategory(context.Background(), service.CreateCategoryParams{TenantID: tenantID, Name: name})
+	category, err := f.svc.CreateCategory(context.Background(), service.CreateCategoryParams{CompanyID: companyID, Name: name})
 	if err != nil {
 		t.Fatalf("CreateCategory(%q) error = %v", name, err)
 	}
 	return category
 }
 
-func validProduct(tenantID, categoryID uuid.UUID) service.CreateProductParams {
+func validProduct(companyID, categoryID uuid.UUID) service.CreateProductParams {
 	return service.CreateProductParams{
-		TenantID:      tenantID,
+		CompanyID:     companyID,
 		CategoryID:    categoryID,
 		SKU:           " coca-600 ",
 		Barcode:       "7750182000123",
@@ -75,7 +75,7 @@ func assertAppError(t *testing.T, err error, code sharedErrors.ErrorCode, status
 func TestCreateCategory(t *testing.T) {
 	f := newFixture()
 
-	category := f.category(t, tenantA, "  Bebidas   gaseosas ")
+	category := f.category(t, companyA, "  Bebidas   gaseosas ")
 
 	if category.Name != "Bebidas gaseosas" {
 		t.Errorf("name = %q, want normalized %q", category.Name, "Bebidas gaseosas")
@@ -90,32 +90,32 @@ func TestCreateCategory(t *testing.T) {
 
 func TestCreateCategoryRejectsDuplicateNameIgnoringCase(t *testing.T) {
 	f := newFixture()
-	f.category(t, tenantA, "Bebidas")
+	f.category(t, companyA, "Bebidas")
 
-	_, err := f.svc.CreateCategory(context.Background(), service.CreateCategoryParams{TenantID: tenantA, Name: "  BEBIDAS "})
+	_, err := f.svc.CreateCategory(context.Background(), service.CreateCategoryParams{CompanyID: companyA, Name: "  BEBIDAS "})
 
 	assertAppError(t, err, sharedErrors.CodeConflict, 409)
 }
 
-func TestCreateCategoryAllowsSameNameInAnotherTenant(t *testing.T) {
+func TestCreateCategoryAllowsSameNameInAnotherCompany(t *testing.T) {
 	f := newFixture()
-	f.category(t, tenantA, "Bebidas")
-	f.category(t, tenantB, "Bebidas")
+	f.category(t, companyA, "Bebidas")
+	f.category(t, companyB, "Bebidas")
 }
 
-func TestCreateCategoryRequiresTenant(t *testing.T) {
+func TestCreateCategoryRequiresCompany(t *testing.T) {
 	f := newFixture()
 
-	_, err := f.svc.CreateCategory(context.Background(), service.CreateCategoryParams{TenantID: uuid.Nil, Name: "Bebidas"})
+	_, err := f.svc.CreateCategory(context.Background(), service.CreateCategoryParams{CompanyID: uuid.Nil, Name: "Bebidas"})
 
-	assertAppError(t, err, sharedErrors.CodeTenantRequired, 400)
+	assertAppError(t, err, sharedErrors.CodeBadRequest, 400)
 }
 
 func TestCreateProduct(t *testing.T) {
 	f := newFixture()
-	category := f.category(t, tenantA, "Bebidas")
+	category := f.category(t, companyA, "Bebidas")
 
-	product, err := f.svc.CreateProduct(context.Background(), validProduct(tenantA, category.ID))
+	product, err := f.svc.CreateProduct(context.Background(), validProduct(companyA, category.ID))
 	if err != nil {
 		t.Fatalf("CreateProduct() error = %v", err)
 	}
@@ -146,12 +146,12 @@ func TestCreateProductRejectsDuplicates(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			f := newFixture()
-			category := f.category(t, tenantA, "Bebidas")
-			if _, err := f.svc.CreateProduct(context.Background(), validProduct(tenantA, category.ID)); err != nil {
+			category := f.category(t, companyA, "Bebidas")
+			if _, err := f.svc.CreateProduct(context.Background(), validProduct(companyA, category.ID)); err != nil {
 				t.Fatalf("first CreateProduct() error = %v", err)
 			}
 
-			params := validProduct(tenantA, category.ID)
+			params := validProduct(companyA, category.ID)
 			tt.mutate(&params)
 			_, err := f.svc.CreateProduct(context.Background(), params)
 
@@ -163,38 +163,38 @@ func TestCreateProductRejectsDuplicates(t *testing.T) {
 	}
 }
 
-func TestCreateProductAllowsSameSKUInAnotherTenant(t *testing.T) {
+func TestCreateProductAllowsSameSKUInAnotherCompany(t *testing.T) {
 	f := newFixture()
-	categoryA := f.category(t, tenantA, "Bebidas")
-	categoryB := f.category(t, tenantB, "Bebidas")
+	categoryA := f.category(t, companyA, "Bebidas")
+	categoryB := f.category(t, companyB, "Bebidas")
 
-	if _, err := f.svc.CreateProduct(context.Background(), validProduct(tenantA, categoryA.ID)); err != nil {
-		t.Fatalf("tenant A CreateProduct() error = %v", err)
+	if _, err := f.svc.CreateProduct(context.Background(), validProduct(companyA, categoryA.ID)); err != nil {
+		t.Fatalf("company A CreateProduct() error = %v", err)
 	}
-	if _, err := f.svc.CreateProduct(context.Background(), validProduct(tenantB, categoryB.ID)); err != nil {
-		t.Fatalf("tenant B CreateProduct() error = %v", err)
+	if _, err := f.svc.CreateProduct(context.Background(), validProduct(companyB, categoryB.ID)); err != nil {
+		t.Fatalf("company B CreateProduct() error = %v", err)
 	}
 }
 
 func TestCreateProductCategoryRules(t *testing.T) {
 	t.Run("category does not exist", func(t *testing.T) {
 		f := newFixture()
-		_, err := f.svc.CreateProduct(context.Background(), validProduct(tenantA, uuid.New()))
+		_, err := f.svc.CreateProduct(context.Background(), validProduct(companyA, uuid.New()))
 		assertAppError(t, err, sharedErrors.CodeNotFound, 404)
 	})
 
-	t.Run("category belongs to another tenant", func(t *testing.T) {
+	t.Run("category belongs to another company", func(t *testing.T) {
 		f := newFixture()
-		foreign := f.category(t, tenantB, "Bebidas")
-		_, err := f.svc.CreateProduct(context.Background(), validProduct(tenantA, foreign.ID))
+		foreign := f.category(t, companyB, "Bebidas")
+		_, err := f.svc.CreateProduct(context.Background(), validProduct(companyA, foreign.ID))
 		assertAppError(t, err, sharedErrors.CodeNotFound, 404)
 	})
 
 	t.Run("category is inactive", func(t *testing.T) {
 		f := newFixture()
-		category := f.category(t, tenantA, "Bebidas")
+		category := f.category(t, companyA, "Bebidas")
 		f.categories.Categories[category.ID].Status = entity.StatusInactive
-		_, err := f.svc.CreateProduct(context.Background(), validProduct(tenantA, category.ID))
+		_, err := f.svc.CreateProduct(context.Background(), validProduct(companyA, category.ID))
 		assertAppError(t, err, sharedErrors.CodeBadRequest, 400)
 	})
 }
@@ -216,8 +216,8 @@ func TestCreateProductBusinessValidation(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			f := newFixture()
-			category := f.category(t, tenantA, "Bebidas")
-			params := validProduct(tenantA, category.ID)
+			category := f.category(t, companyA, "Bebidas")
+			params := validProduct(companyA, category.ID)
 			tt.mutate(&params)
 
 			_, err := f.svc.CreateProduct(context.Background(), params)
@@ -236,8 +236,8 @@ func TestCreateProductBusinessValidation(t *testing.T) {
 
 func TestCreateProductAcceptsZeroCostAndTrailingZeros(t *testing.T) {
 	f := newFixture()
-	category := f.category(t, tenantA, "Bebidas")
-	params := validProduct(tenantA, category.ID)
+	category := f.category(t, companyA, "Bebidas")
+	params := validProduct(companyA, category.ID)
 	params.CostPrice = decimal.Zero
 	params.SalePrice = decimal.RequireFromString("5.500")
 

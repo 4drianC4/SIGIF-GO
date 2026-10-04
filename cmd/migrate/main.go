@@ -9,9 +9,11 @@ import (
 	"go.uber.org/zap"
 	"gorm.io/gorm"
 
-	userModel "github.com/sigif/sigif-go/internal/modules/user/infrastructure/persistence/model"
 	authModel "github.com/sigif/sigif-go/internal/modules/auth/infrastructure/persistence/model"
+	customerModel "github.com/sigif/sigif-go/internal/modules/customer/infrastructure/persistence/model"
 	productModel "github.com/sigif/sigif-go/internal/modules/product/infrastructure/persistence/model"
+	userModel "github.com/sigif/sigif-go/internal/modules/user/infrastructure/persistence/model"
+	"github.com/sigif/sigif-go/internal/modules/user/infrastructure/seed"
 	"github.com/sigif/sigif-go/internal/shared/config"
 	"github.com/sigif/sigif-go/internal/shared/database"
 	sharedLogger "github.com/sigif/sigif-go/internal/shared/logger"
@@ -39,7 +41,14 @@ func runMigrations(lc fx.Lifecycle, cfg *config.Config, log *zap.Logger, db *dat
 			log.Info("Running database migrations...")
 
 			if err := autoMigrate(db.DB); err != nil {
-				log.Fatal("Migration failed", zap.Error(err))
+				log.Error("Migration failed", zap.Error(err))
+				return err
+			}
+
+			log.Info("Seeding roles, permissions and default admin...")
+			if err := seed.Seed(ctx, db.DB, cfg); err != nil {
+				log.Error("Seeding failed", zap.Error(err))
+				return err
 			}
 
 			log.Info("Migrations completed successfully")
@@ -52,7 +61,12 @@ func runMigrations(lc fx.Lifecycle, cfg *config.Config, log *zap.Logger, db *dat
 func autoMigrate(db *gorm.DB) error {
 	return db.AutoMigrate(
 		&userModel.UserModel{},
-		&authModel.RefreshTokenModel{},
+		&userModel.RoleModel{},
+		&userModel.PermissionModel{},
+		&userModel.RolePermissionModel{},
+		&authModel.SessionModel{},
+		&authModel.LoginAttemptModel{},
+		&customerModel.CustomerModel{},
 		&productModel.CategoryModel{},
 		&productModel.ProductModel{},
 	)

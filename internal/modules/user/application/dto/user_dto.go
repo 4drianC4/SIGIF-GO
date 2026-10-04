@@ -1,52 +1,62 @@
 package dto
 
 import (
+	"time"
+
 	"github.com/sigif/sigif-go/internal/modules/user/domain/entity"
 )
 
 type User struct {
-	ID          string              `json:"id"`
-	TenantID    string              `json:"tenant_id"`
-	Email       string              `json:"email"`
-	FirstName   string              `json:"first_name"`
-	LastName    string              `json:"last_name"`
-	FullName    string              `json:"full_name"`
-	Phone       string              `json:"phone,omitempty"`
-	AvatarURL   string              `json:"avatar_url,omitempty"`
-	Roles       []entity.UserRole   `json:"roles"`
-	Status      entity.UserStatus   `json:"status"`
-	LastLoginAt *string             `json:"last_login_at,omitempty"`
-	Settings    entity.UserSettings `json:"settings"`
-	CreatedAt   string              `json:"created_at"`
-	UpdatedAt   string              `json:"updated_at"`
+	ID         string            `json:"id"`
+	CompanyID  *string           `json:"company_id,omitempty"`
+	RoleID     string            `json:"role_id"`
+	Role       string            `json:"role"`
+	FirstName  string            `json:"first_name"`
+	LastName   string            `json:"last_name"`
+	FullName   string            `json:"full_name"`
+	Username   string            `json:"username"`
+	Email      string            `json:"email"`
+	Phone      string            `json:"phone,omitempty"`
+	Area       string            `json:"area,omitempty"`
+	Status     entity.UserStatus `json:"status"`
+	LastAccess *string           `json:"last_access,omitempty"`
+	CreatedAt  string            `json:"created_at"`
+	UpdatedAt  string            `json:"updated_at"`
 }
 
-func FromEntity(u *entity.User) User {
-	var lastLogin *string
-	if u.LastLoginAt != nil {
-		s := u.LastLoginAt.Format("2006-01-02T15:04:05Z07:00")
-		lastLogin = &s
+func FromEntity(u *entity.AppUser) User {
+	var companyID *string
+	if u.CompanyID != nil {
+		s := u.CompanyID.String()
+		companyID = &s
+	}
+
+	var lastAccess *string
+	if u.LastAccess != nil {
+		s := u.LastAccess.Format(time.RFC3339)
+		lastAccess = &s
 	}
 
 	return User{
-		ID:          u.ID.String(),
-		TenantID:    u.TenantID.String(),
-		Email:       u.Email,
-		FirstName:   u.FirstName,
-		LastName:    u.LastName,
-		FullName:    u.FullName(),
-		Phone:       u.Phone,
-		AvatarURL:   u.AvatarURL,
-		Roles:       u.Roles,
-		Status:      u.Status,
-		LastLoginAt: lastLogin,
-		Settings:    u.Settings,
-		CreatedAt:   u.CreatedAt.Format("2006-01-02T15:04:05Z07:00"),
-		UpdatedAt:   u.UpdatedAt.Format("2006-01-02T15:04:05Z07:00"),
+		ID:         u.ID.String(),
+		CompanyID:  companyID,
+		RoleID:     u.RoleID.String(),
+		Role:       u.RoleName,
+		FirstName:  u.FirstName,
+		LastName:   u.LastName,
+		FullName:   u.FullName(),
+		Username:   u.Username,
+		Email:      u.Email,
+		Phone:      u.Phone,
+		Area:       u.Area,
+		Status:     u.Status,
+		LastAccess: lastAccess,
+		CreatedAt:  u.CreatedAt.Format(time.RFC3339),
+		UpdatedAt:  u.UpdatedAt.Format(time.RFC3339),
 	}
 }
 
-func FromEntityList(users []*entity.User) []User {
+func FromEntityList(users []*entity.AppUser) []User {
 	result := make([]User, len(users))
 	for i, u := range users {
 		result[i] = FromEntity(u)

@@ -9,31 +9,27 @@ import (
 type ErrorCode string
 
 const (
-	CodeInternal          ErrorCode = "INTERNAL_ERROR"
-	CodeNotFound          ErrorCode = "NOT_FOUND"
-	CodeValidation        ErrorCode = "VALIDATION_ERROR"
-	CodeUnauthorized      ErrorCode = "UNAUTHORIZED"
-	CodeForbidden         ErrorCode = "FORBIDDEN"
-	CodeConflict          ErrorCode = "CONFLICT"
-	CodeBadRequest        ErrorCode = "BAD_REQUEST"
-	CodeTooManyRequests   ErrorCode = "TOO_MANY_REQUESTS"
+	CodeInternal           ErrorCode = "INTERNAL_ERROR"
+	CodeNotFound           ErrorCode = "NOT_FOUND"
+	CodeValidation         ErrorCode = "VALIDATION_ERROR"
+	CodeUnauthorized       ErrorCode = "UNAUTHORIZED"
+	CodeForbidden          ErrorCode = "FORBIDDEN"
+	CodeConflict           ErrorCode = "CONFLICT"
+	CodeBadRequest         ErrorCode = "BAD_REQUEST"
+	CodeTooManyRequests    ErrorCode = "TOO_MANY_REQUESTS"
 	CodeServiceUnavailable ErrorCode = "SERVICE_UNAVAILABLE"
-	CodeTenantRequired    ErrorCode = "TENANT_REQUIRED"
-	CodeInvalidTenant     ErrorCode = "INVALID_TENANT"
 )
 
 var (
-	ErrInternal          = New(CodeInternal, "internal server error", http.StatusInternalServerError)
-	ErrNotFound          = New(CodeNotFound, "resource not found", http.StatusNotFound)
-	ErrValidation        = New(CodeValidation, "validation failed", http.StatusBadRequest)
-	ErrUnauthorized      = New(CodeUnauthorized, "unauthorized", http.StatusUnauthorized)
-	ErrForbidden         = New(CodeForbidden, "forbidden", http.StatusForbidden)
-	ErrConflict          = New(CodeConflict, "resource conflict", http.StatusConflict)
-	ErrBadRequest        = New(CodeBadRequest, "bad request", http.StatusBadRequest)
-	ErrTooManyRequests   = New(CodeTooManyRequests, "too many requests", http.StatusTooManyRequests)
+	ErrInternal           = New(CodeInternal, "internal server error", http.StatusInternalServerError)
+	ErrNotFound           = New(CodeNotFound, "resource not found", http.StatusNotFound)
+	ErrValidation         = New(CodeValidation, "validation failed", http.StatusBadRequest)
+	ErrUnauthorized       = New(CodeUnauthorized, "unauthorized", http.StatusUnauthorized)
+	ErrForbidden          = New(CodeForbidden, "forbidden", http.StatusForbidden)
+	ErrConflict           = New(CodeConflict, "resource conflict", http.StatusConflict)
+	ErrBadRequest         = New(CodeBadRequest, "bad request", http.StatusBadRequest)
+	ErrTooManyRequests    = New(CodeTooManyRequests, "too many requests", http.StatusTooManyRequests)
 	ErrServiceUnavailable = New(CodeServiceUnavailable, "service unavailable", http.StatusServiceUnavailable)
-	ErrTenantRequired    = New(CodeTenantRequired, "tenant context required", http.StatusBadRequest)
-	ErrInvalidTenant     = New(CodeInvalidTenant, "invalid tenant", http.StatusBadRequest)
 )
 
 type AppError struct {
@@ -107,8 +103,6 @@ func getStatusCode(code ErrorCode) int {
 		return http.StatusTooManyRequests
 	case CodeServiceUnavailable:
 		return http.StatusServiceUnavailable
-	case CodeTenantRequired, CodeInvalidTenant:
-		return http.StatusBadRequest
 	default:
 		return http.StatusInternalServerError
 	}

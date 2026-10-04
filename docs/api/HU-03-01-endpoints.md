@@ -5,11 +5,11 @@
 - HU: HU-03-01 — Registro de producto y categoría
 - Rama: `feature/HU-03-01-product-and-category-registration`
 - Prefijo base: `/api/v1`
-- Autenticación: todas las rutas requieren `Authorization: Bearer <access_token>`. El middleware global `AuthRequired` valida el token.
-- Tenant: se toma del **token** (claim `tenant_id`). La cabecera `X-Tenant-ID` no permite cambiarlo.
+- Autenticación: todas las rutas requieren `Authorization: Bearer <access_token>` obtenido con `POST /api/v1/auth/login`. El middleware global `AuthRequired` valida el token y que la sesión siga activa (tras `logout` el token deja de servir).
+- Empresa: los productos y categorías pertenecen a la empresa del usuario, que se toma del claim `company_id` del token. Un usuario sin empresa (por ejemplo, un superadmin global) recibe `400 company is required`.
 - Formato de respuesta exitosa: `{ "success": true, "data": ... }`.
 - Formato de respuesta de error: `{ "success": false, "error": { "code": "CODIGO", "message": "descripción", "details": { "campo": "motivo" } } }`. `details` solo aparece en errores de validación.
-- Colección Bruno: `bruno/Products/` (001–009). Cada petición incluye sus `tests`.
+- Colección Bruno: `bruno/Products/` (001–009). Cada petición incluye sus `tests`. Usa las variables de entorno `baseUrl` (`http://localhost:8080`) y `accessToken` (pegar el `access_token` del login).
 
 ---
 
@@ -17,8 +17,8 @@
 
 | Método | Ruta | Permiso | Descripción |
 |---|---|---|---|
-| `POST` | `/api/v1/categories` | Gestor de catálogo | Registra una categoría activa. |
-| `POST` | `/api/v1/products` | Gestor de catálogo | Registra un producto activo dentro de una categoría. |
+| `POST` | `/api/v1/categories` | `categories.create` | Registra una categoría activa. |
+| `POST` | `/api/v1/products` | `products.create` | Registra un producto activo dentro de una categoría. |
 
 ---
 
@@ -26,14 +26,17 @@
 
 | Header | Obligatorio | Descripción |
 |---|---|---|
-| `Authorization` | Sí | `Bearer <access_token>`. Un refresh token se rechaza. |
+| `Authorization` | Sí | `Bearer <access_token>` de una sesión activa. |
 | `Content-Type` | Sí | `application/json` |
 
-**Gestor de catálogo** = el usuario tiene al menos uno de estos roles:
+Los permisos se comprueban con el RBAC de la base de datos (`RequirePermission`):
 
-`super_admin` · `tenant_admin` · `company_admin` · `manager` · `inventory`
+| Permiso | Endpoint | Roles sembrados que lo tienen |
+|---|---|---|
+| `categories.create` | `POST /api/v1/categories` | `superadmin` |
+| `products.create` | `POST /api/v1/products` | `superadmin` |
 
-Los roles `cashier`, `sales` y `viewer` reciben **403**.
+Ambos permisos se añadieron al catálogo de `AllPermissions()`; `make migrate-up` los crea y se los asigna al superadmin también en bases ya existentes. El rol `soporte` no los tiene y recibe **403**. Para darlos a otro rol, asignarlos en `role_permission`.
 
 ---
 
@@ -50,7 +53,7 @@ Los roles `cashier`, `sales` y `viewer` reciben **403**.
 
 | Campo | Tipo | Obligatorio | Restricciones / notas |
 |---|---|---|---|
-| `name` | string | Sí | 2–100 caracteres tras quitar espacios. Los espacios repetidos se colapsan (`"  Bebidas   frías "` → `"Bebidas frías"`). **Único por tenant sin distinguir mayúsculas.** |
+| `name` | string | Sí | 2–100 caracteres tras quitar espacios. Los espacios repetidos se colapsan (`"  Bebidas   frías "` → `"Bebidas frías"`). **Único por empresa sin distinguir mayúsculas.** |
 | `description` | string | No | Máximo 500 caracteres. |
 
 ### Respuesta exitosa
@@ -61,7 +64,7 @@ Los roles `cashier`, `sales` y `viewer` reciben **403**.
   "success": true,
   "data": {
     "id": "b45978d0-37f8-4051-92a8-218441dac948",
-    "tenant_id": "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+    "company_id": "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
     "name": "Bebidas",
     "description": "Gaseosas, jugos y aguas",
     "status": "active",
@@ -77,9 +80,10 @@ Los roles `cashier`, `sales` y `viewer` reciben **403**.
 |---|---|---|
 | `BAD_REQUEST` | 400 | El body no es JSON válido. |
 | `VALIDATION_ERROR` | 400 | `name` vacío, demasiado corto o largo; `description` demasiado larga. |
-| `UNAUTHORIZED` | 401 | Falta el token, es inválido, expiró o es un refresh token. |
-| `FORBIDDEN` | 403 | El usuario no tiene un rol de gestor de catálogo. |
-| `CONFLICT` | 409 | Ya existe una categoría con ese nombre en el tenant (`"BEBIDAS"` = `"bebidas"`). |
+| `BAD_REQUEST` | 400 | El token no tiene empresa (`company is required`). |
+| `UNAUTHORIZED` | 401 | Falta el token, es inválido, expiró o su sesión se cerró. |
+| `FORBIDDEN` | 403 | El usuario no tiene el permiso `categories.create`. |
+| `CONFLICT` | 409 | Ya existe una categoría con ese nombre en la empresa (`"BEBIDAS"` = `"bebidas"`). |
 | `INTERNAL_ERROR` | 500 | Error no controlado. |
 
 ---
@@ -103,9 +107,9 @@ Los roles `cashier`, `sales` y `viewer` reciben **403**.
 
 | Campo | Tipo | Obligatorio | Restricciones / notas |
 |---|---|---|---|
-| `category_id` | uuid | Sí | Debe existir, pertenecer al tenant y estar activa. |
-| `sku` | string | Sí | Máximo 50 caracteres. Solo letras, números, `.`, `-` y `_`; debe empezar por letra o número. **Se guarda en mayúsculas** (`coca-600` → `COCA-600`). **Único por tenant.** |
-| `barcode` | string | No | Solo dígitos, 8–14 caracteres (EAN-8, UPC-A, EAN-13, GTIN-14). **Único por tenant** si se envía. |
+| `category_id` | uuid | Sí | Debe existir, pertenecer a la empresa y estar activa. |
+| `sku` | string | Sí | Máximo 50 caracteres. Solo letras, números, `.`, `-` y `_`; debe empezar por letra o número. **Se guarda en mayúsculas** (`coca-600` → `COCA-600`). **Único por empresa.** |
+| `barcode` | string | No | Solo dígitos, 8–14 caracteres (EAN-8, UPC-A, EAN-13, GTIN-14). **Único por empresa** si se envía. |
 | `name` | string | Sí | 2–150 caracteres tras quitar espacios. Los espacios repetidos se colapsan. |
 | `description` | string | No | Máximo 1000 caracteres. |
 | `unit_of_measure` | enum | Sí | `unit` \| `kg` \| `g` \| `l` \| `ml` \| `m` \| `box` \| `pack` |
@@ -124,7 +128,7 @@ El producto se crea siempre con `status: "active"`.
   "success": true,
   "data": {
     "id": "e1844a92-0665-45bc-b7fe-a2516fbc458d",
-    "tenant_id": "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+    "company_id": "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
     "category_id": "b45978d0-37f8-4051-92a8-218441dac948",
     "sku": "COCA-600",
     "barcode": "7750182000123",
@@ -168,10 +172,11 @@ El producto se crea siempre con `status: "active"`.
 | `BAD_REQUEST` | 400 | El body no es JSON válido o un precio no es numérico (`"abc"`). |
 | `VALIDATION_ERROR` | 400 | Campos obligatorios vacíos o con formato inválido; `sale_price` ≤ 0; `cost_price` negativo; precio con más de 2 decimales; SKU con caracteres no permitidos. Ver `details`. |
 | `BAD_REQUEST` | 400 | La categoría existe pero está inactiva (`category is inactive`). |
-| `UNAUTHORIZED` | 401 | Falta el token, es inválido, expiró o es un refresh token. |
-| `FORBIDDEN` | 403 | El usuario no tiene un rol de gestor de catálogo. |
-| `NOT_FOUND` | 404 | La categoría no existe en el tenant del usuario. |
-| `CONFLICT` | 409 | Ya existe un producto con ese SKU, o con ese código de barras, en el tenant. |
+| `BAD_REQUEST` | 400 | El token no tiene empresa (`company is required`). |
+| `UNAUTHORIZED` | 401 | Falta el token, es inválido, expiró o su sesión se cerró. |
+| `FORBIDDEN` | 403 | El usuario no tiene el permiso `products.create`. |
+| `NOT_FOUND` | 404 | La categoría no existe en la empresa del usuario. |
+| `CONFLICT` | 409 | Ya existe un producto con ese SKU, o con ese código de barras, en la empresa. |
 | `INTERNAL_ERROR` | 500 | Error no controlado. |
 
 ---
@@ -180,13 +185,13 @@ El producto se crea siempre con `status: "active"`.
 
 | Regla | Comprobación previa (servicio) | Respaldo en base de datos |
 |---|---|---|
-| Nombre de categoría por tenant | `LOWER(name)`, sin distinguir mayúsculas | Índice único parcial `idx_categories_tenant_name (tenant_id, name) WHERE deleted_at IS NULL` |
-| SKU por tenant | SKU normalizado a mayúsculas | Índice único parcial `idx_products_tenant_sku (tenant_id, sku) WHERE deleted_at IS NULL` |
-| Código de barras por tenant | Solo si se envía | Índice único parcial `idx_products_tenant_barcode (tenant_id, barcode) WHERE deleted_at IS NULL AND barcode IS NOT NULL` |
+| Nombre de categoría por empresa | `LOWER(name)`, sin distinguir mayúsculas | Índice único parcial `idx_categories_company_name (company_id, name) WHERE deleted_at IS NULL` |
+| SKU por empresa | SKU normalizado a mayúsculas | Índice único parcial `idx_products_company_sku (company_id, sku) WHERE deleted_at IS NULL` |
+| Código de barras por empresa | Solo si se envía | Índice único parcial `idx_products_company_barcode (company_id, barcode) WHERE deleted_at IS NULL AND barcode IS NOT NULL` |
 
 - El servicio comprueba **antes de persistir**. Si dos peticiones idénticas llegan a la vez y ambas pasan la comprobación, el índice único rechaza la segunda, y el repositorio la traduce a **409**, no a 500. Probado con 10 peticiones simultáneas: 1 × 201 y 9 × 409.
 - Los índices son **parciales**: un producto o categoría borrado lógicamente libera su SKU, código de barras o nombre.
-- El mismo SKU, código de barras o nombre **sí** se puede usar en otro tenant.
+- El mismo SKU, código de barras o nombre **sí** se puede usar en otra empresa.
 
 ---
 
@@ -194,9 +199,8 @@ El producto se crea siempre con `status: "active"`.
 
 | Nivel | Archivo | Qué cubre |
 |---|---|---|
-| Servicio | `internal/modules/product/domain/service/catalog_service_test.go` | Registro válido, duplicados (SKU sin distinguir mayúsculas, código de barras, nombre de categoría), categoría inexistente, de otro tenant o inactiva, reglas de precio y SKU, aislamiento por tenant. |
-| HTTP | `internal/modules/product/interfaces/http/handler/catalog_handler_test.go` | 201 / 400 / 401 / 403 / 404 / 409 con el middleware real, todos los roles permitidos y el tenant tomado del token. |
-| Middleware | `internal/shared/middleware/roles_test.go` | `RequireRoles`. |
+| Servicio | `internal/modules/product/domain/service/catalog_service_test.go` | Registro válido, duplicados (SKU sin distinguir mayúsculas, código de barras, nombre de categoría), categoría inexistente, de otra empresa o inactiva, reglas de precio y SKU, aislamiento por empresa. |
+| HTTP | `internal/modules/product/interfaces/http/handler/catalog_handler_test.go` | 201 / 400 / 401 / 403 / 404 / 409 con `AuthRequired` real; cada permiso habilita solo su endpoint; empresa tomada del token. |
 | Integración (Postgres) | `internal/modules/product/infrastructure/persistence/gorm/repository_integration_test.go` | Índices únicos parciales → 409, varios productos sin código de barras, SKU reutilizable tras borrado. |
 | API manual | `bruno/Products/001–009` | Flujo completo con `tests` en cada petición. |
 

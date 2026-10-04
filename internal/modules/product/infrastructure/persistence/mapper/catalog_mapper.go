@@ -12,7 +12,7 @@ import (
 func CategoryToModel(c *entity.Category) *model.CategoryModel {
 	return &model.CategoryModel{
 		ID:          c.ID,
-		TenantID:    c.TenantID,
+		CompanyID:   c.CompanyID,
 		Name:        c.Name,
 		Description: c.Description,
 		Status:      string(c.Status),
@@ -25,7 +25,7 @@ func CategoryToModel(c *entity.Category) *model.CategoryModel {
 func CategoryToDomain(m *model.CategoryModel) *entity.Category {
 	return &entity.Category{
 		ID:          m.ID,
-		TenantID:    m.TenantID,
+		CompanyID:   m.CompanyID,
 		Name:        m.Name,
 		Description: m.Description,
 		Status:      entity.Status(m.Status),
@@ -35,7 +35,6 @@ func CategoryToDomain(m *model.CategoryModel) *entity.Category {
 	}
 }
 
-// ProductToModel guarda el código de barras vacío como NULL para que no choque con el índice único.
 func ProductToModel(p *entity.Product) *model.ProductModel {
 	var barcode *string
 	if p.Barcode != "" {
@@ -45,7 +44,7 @@ func ProductToModel(p *entity.Product) *model.ProductModel {
 
 	return &model.ProductModel{
 		ID:            p.ID,
-		TenantID:      p.TenantID,
+		CompanyID:     p.CompanyID,
 		CategoryID:    p.CategoryID,
 		SKU:           p.SKU,
 		Barcode:       barcode,
@@ -69,7 +68,7 @@ func ProductToDomain(m *model.ProductModel) *entity.Product {
 
 	return &entity.Product{
 		ID:            m.ID,
-		TenantID:      m.TenantID,
+		CompanyID:     m.CompanyID,
 		CategoryID:    m.CategoryID,
 		SKU:           m.SKU,
 		Barcode:       barcode,

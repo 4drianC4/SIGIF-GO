@@ -8,7 +8,7 @@ const timeLayout = "2006-01-02T15:04:05Z07:00"
 
 type Category struct {
 	ID          string        `json:"id"`
-	TenantID    string        `json:"tenant_id"`
+	CompanyID   string        `json:"company_id"`
 	Name        string        `json:"name"`
 	Description string        `json:"description,omitempty"`
 	Status      entity.Status `json:"status"`
@@ -16,10 +16,9 @@ type Category struct {
 	UpdatedAt   string        `json:"updated_at"`
 }
 
-// Product expone los precios como string con 2 decimales para no perder precisión en JSON.
 type Product struct {
 	ID            string               `json:"id"`
-	TenantID      string               `json:"tenant_id"`
+	CompanyID     string               `json:"company_id"`
 	CategoryID    string               `json:"category_id"`
 	SKU           string               `json:"sku"`
 	Barcode       string               `json:"barcode,omitempty"`
@@ -36,7 +35,7 @@ type Product struct {
 func FromCategory(c *entity.Category) Category {
 	return Category{
 		ID:          c.ID.String(),
-		TenantID:    c.TenantID.String(),
+		CompanyID:   c.CompanyID.String(),
 		Name:        c.Name,
 		Description: c.Description,
 		Status:      c.Status,
@@ -48,7 +47,7 @@ func FromCategory(c *entity.Category) Category {
 func FromProduct(p *entity.Product) Product {
 	return Product{
 		ID:            p.ID.String(),
-		TenantID:      p.TenantID.String(),
+		CompanyID:     p.CompanyID.String(),
 		CategoryID:    p.CategoryID.String(),
 		SKU:           p.SKU,
 		Barcode:       p.Barcode,

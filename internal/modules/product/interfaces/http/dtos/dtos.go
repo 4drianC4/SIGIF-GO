@@ -11,13 +11,11 @@ type CreateCategoryRequest struct {
 	Description string `json:"description" validate:"omitempty,max=500"`
 }
 
-// Normalize quita espacios al inicio y al final antes de validar, para que "   " cuente como vacío.
 func (r *CreateCategoryRequest) Normalize() {
 	r.Name = strings.TrimSpace(r.Name)
 	r.Description = strings.TrimSpace(r.Description)
 }
 
-// CreateProductRequest acepta los precios como número (12.5) o como string ("12.50").
 type CreateProductRequest struct {
 	CategoryID    string           `json:"category_id" validate:"required,uuid"`
 	SKU           string           `json:"sku" validate:"required,max=50"`

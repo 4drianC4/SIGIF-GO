@@ -13,6 +13,10 @@ import (
 )
 
 const (
+	// Algorithm is the identifier stored alongside the hash to allow future
+	// migration between hashing algorithms without invalidating accounts.
+	Algorithm = "argon2id"
+
 	argon2Time    = 1
 	argon2Memory  = 64 * 1024
 	argon2Threads = 4

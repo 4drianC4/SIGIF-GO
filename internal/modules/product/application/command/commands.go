@@ -8,13 +8,13 @@ import (
 )
 
 type CreateCategory struct {
-	TenantID    uuid.UUID
+	CompanyID   uuid.UUID
 	Name        string
 	Description string
 }
 
 type CreateProduct struct {
-	TenantID      uuid.UUID
+	CompanyID     uuid.UUID
 	CategoryID    uuid.UUID
 	SKU           string
 	Barcode       string

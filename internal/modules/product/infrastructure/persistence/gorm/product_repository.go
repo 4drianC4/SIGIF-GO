@@ -26,8 +26,7 @@ func (r *ProductGormRepository) Create(ctx context.Context, product *entity.Prod
 	db := r.db.GetDB(ctx)
 	if err := db.Create(mapper.ProductToModel(product)).Error; err != nil {
 		if isDuplicateKey(db, err) {
-			// El nombre del índice dice qué campo chocó.
-			if strings.Contains(err.Error(), "idx_products_tenant_barcode") {
+			if strings.Contains(err.Error(), "idx_products_company_barcode") {
 				return service.ErrBarcodeTaken
 			}
 			return service.ErrSKUTaken
@@ -37,18 +36,18 @@ func (r *ProductGormRepository) Create(ctx context.Context, product *entity.Prod
 	return nil
 }
 
-func (r *ProductGormRepository) ExistsBySKU(ctx context.Context, tenantID uuid.UUID, sku string) (bool, error) {
+func (r *ProductGormRepository) ExistsBySKU(ctx context.Context, companyID uuid.UUID, sku string) (bool, error) {
 	var count int64
 	err := r.db.GetDB(ctx).Model(&model.ProductModel{}).
-		Where("tenant_id = ? AND sku = ?", tenantID, sku).
+		Where("company_id = ? AND sku = ?", companyID, sku).
 		Count(&count).Error
 	return count > 0, err
 }
 
-func (r *ProductGormRepository) ExistsByBarcode(ctx context.Context, tenantID uuid.UUID, barcode string) (bool, error) {
+func (r *ProductGormRepository) ExistsByBarcode(ctx context.Context, companyID uuid.UUID, barcode string) (bool, error) {
 	var count int64
 	err := r.db.GetDB(ctx).Model(&model.ProductModel{}).
-		Where("tenant_id = ? AND barcode = ?", tenantID, barcode).
+		Where("company_id = ? AND barcode = ?", companyID, barcode).
 		Count(&count).Error
 	return count > 0, err
 }

@@ -5,14 +5,17 @@ meta {
 }
 
 post {
-  url: {{baseUrl}}/products
+  url: {{baseUrl}}/api/v1/products
   body: json
-  auth: none
+  auth: bearer
 }
 
 headers {
   Content-Type: application/json
-  Authorization: Bearer {{accessToken}}
+}
+
+auth:bearer {
+  token: {{accessToken}}
 }
 
 body:json {
@@ -29,7 +32,6 @@ body:json {
 }
 
 script:pre-request {
-  // SKU y código de barras únicos en cada ejecución (Date.now() tiene 13 dígitos, como un EAN-13).
   const now = String(Date.now());
   bru.setVar('productSku', 'coca-' + now);
   bru.setVar('productBarcode', now);

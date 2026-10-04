@@ -7,10 +7,13 @@ meta {
 post {
   url: {{baseUrl}}/api/v1/users/{{userId}}/deactivate
   body: none
-  auth: none
+  auth: bearer
 }
 
 headers {
-  X-Tenant-ID: {{tenantId}}
   Authorization: Bearer {{accessToken}}
+}
+
+auth:bearer {
+  token: {{auth}}
 }

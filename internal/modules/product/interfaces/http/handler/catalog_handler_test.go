@@ -2,13 +2,16 @@ package handler_test
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"io"
 	"net/http/httptest"
+	"sync"
 	"testing"
 	"time"
 
 	"github.com/gofiber/fiber/v2"
+	"github.com/google/uuid"
 
 	appHandler "github.com/sigif/sigif-go/internal/modules/product/application/handler"
 	"github.com/sigif/sigif-go/internal/modules/product/domain/service"
@@ -20,12 +23,12 @@ import (
 	"github.com/sigif/sigif-go/internal/shared/events"
 	"github.com/sigif/sigif-go/internal/shared/jwt"
 	"github.com/sigif/sigif-go/internal/shared/middleware"
+	"github.com/sigif/sigif-go/internal/shared/validator"
 )
 
 const (
-	tenantA = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa"
-	tenantB = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb"
-	userID  = "11111111-1111-4111-8111-111111111111"
+	companyA = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa"
+	companyB = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb"
 )
 
 type apiResponse struct {
@@ -42,39 +45,66 @@ type testServer struct {
 	app        *fiber.App
 	jwtManager *jwt.JWTManager
 	products   *testutil.MemoryProductRepository
+	perms      *stubPermissions
 }
 
-// newTestServer arma la app igual que cmd/server: AuthRequired global y rutas bajo /api/v1.
+type activeSessions struct{}
+
+func (activeSessions) IsActive(context.Context, string) (bool, error) { return true, nil }
+
+type stubPermissions struct {
+	mu     sync.Mutex
+	byUser map[uuid.UUID]map[string]bool
+}
+
+func (p *stubPermissions) HasPermission(_ context.Context, userID uuid.UUID, module, operation string) (bool, error) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	return p.byUser[userID][module+"."+operation], nil
+}
+
 func newTestServer(t *testing.T) *testServer {
 	t.Helper()
 	jwtManager := jwt.NewManager(&config.Config{JWT: config.JWTConfig{
-		Secret:             "test-secret",
-		AccessTokenExpiry:  60,
-		RefreshTokenExpiry: 1440,
-		Issuer:             "sigif-test",
+		Secret:            "test-secret",
+		AccessTokenExpiry: 60,
+		Issuer:            "sigif-test",
 	}})
 
 	products := testutil.NewMemoryProductRepository()
 	categories := testutil.NewMemoryCategoryRepository()
 	clk := clock.NewMockClock(time.Date(2026, 10, 2, 12, 0, 0, 0, time.UTC))
 	svc := service.NewCatalogService(products, categories, clk)
-	h := httpHandler.NewCatalogHTTPHandler(appHandler.NewCatalogCommandHandler(svc, events.NewBus()))
+	h := httpHandler.NewCatalogHTTPHandler(appHandler.NewCatalogCommandHandler(svc, events.NewBus()), validator.New())
+	perms := &stubPermissions{byUser: map[uuid.UUID]map[string]bool{}}
 
 	app := fiber.New()
-	app.Use(middleware.TenantContext())
-	app.Use(middleware.AuthRequired(jwtManager))
-	router.RegisterCatalogRoutes(app.Group("/api/v1"), h)
+	app.Use(middleware.AuthRequired(jwtManager, activeSessions{}))
+	router.RegisterCatalogRoutes(app.Group("/api/v1"), h, perms)
 
-	return &testServer{app: app, jwtManager: jwtManager, products: products}
+	return &testServer{app: app, jwtManager: jwtManager, products: products, perms: perms}
 }
 
-func (s *testServer) token(t *testing.T, tenantID string, roles ...string) string {
+func (s *testServer) token(t *testing.T, companyID string, perms ...string) string {
 	t.Helper()
-	pair, err := s.jwtManager.GeneratePair(userID, tenantID, "admin@sigif.com", roles)
-	if err != nil {
-		t.Fatalf("GeneratePair() error = %v", err)
+	userID := uuid.New()
+	s.perms.mu.Lock()
+	s.perms.byUser[userID] = map[string]bool{}
+	for _, perm := range perms {
+		s.perms.byUser[userID][perm] = true
 	}
-	return pair.AccessToken
+	s.perms.mu.Unlock()
+
+	token, _, err := s.jwtManager.GenerateAccessToken(userID.String(), uuid.NewString(), companyID, "admin@sigif.com", "superadmin")
+	if err != nil {
+		t.Fatalf("GenerateAccessToken() error = %v", err)
+	}
+	return token
+}
+
+func (s *testServer) manager(t *testing.T, companyID string) string {
+	t.Helper()
+	return s.token(t, companyID, "categories.create", "products.create")
 }
 
 func (s *testServer) post(t *testing.T, path, token string, body any) (int, apiResponse) {
@@ -135,7 +165,7 @@ func productBody(categoryID string) map[string]any {
 
 func TestCreateCategoryEndpoint(t *testing.T) {
 	s := newTestServer(t)
-	token := s.token(t, tenantA, "inventory")
+	token := s.manager(t, companyA)
 
 	status, resp := s.post(t, "/api/v1/categories", token, map[string]any{"name": "  Bebidas ", "description": "Gaseosas y jugos"})
 
@@ -144,14 +174,14 @@ func TestCreateCategoryEndpoint(t *testing.T) {
 	}
 	var category map[string]any
 	_ = json.Unmarshal(resp.Data, &category)
-	if category["name"] != "Bebidas" || category["status"] != "active" || category["tenant_id"] != tenantA {
+	if category["name"] != "Bebidas" || category["status"] != "active" || category["company_id"] != companyA {
 		t.Errorf("unexpected category: %v", category)
 	}
 }
 
 func TestCreateCategoryEndpointErrors(t *testing.T) {
 	s := newTestServer(t)
-	token := s.token(t, tenantA, "manager")
+	token := s.manager(t, companyA)
 	s.createCategory(t, token, "Bebidas")
 
 	tests := []struct {
@@ -178,7 +208,7 @@ func TestCreateCategoryEndpointErrors(t *testing.T) {
 
 func TestCreateProductEndpointValid(t *testing.T) {
 	s := newTestServer(t)
-	token := s.token(t, tenantA, "inventory")
+	token := s.manager(t, companyA)
 	categoryID := s.createCategory(t, token, "Bebidas")
 
 	status, resp := s.post(t, "/api/v1/products", token, productBody(categoryID))
@@ -192,7 +222,7 @@ func TestCreateProductEndpointValid(t *testing.T) {
 		"sku":             "COCA-600",
 		"barcode":         "7750182000123",
 		"category_id":     categoryID,
-		"tenant_id":       tenantA,
+		"company_id":      companyA,
 		"unit_of_measure": "unit",
 		"cost_price":      "3.20",
 		"sale_price":      "5.50",
@@ -210,7 +240,7 @@ func TestCreateProductEndpointValid(t *testing.T) {
 
 func TestCreateProductEndpointInvalid(t *testing.T) {
 	s := newTestServer(t)
-	token := s.token(t, tenantA, "inventory")
+	token := s.manager(t, companyA)
 	categoryID := s.createCategory(t, token, "Bebidas")
 
 	tests := []struct {
@@ -267,7 +297,7 @@ func TestCreateProductEndpointInvalid(t *testing.T) {
 
 func TestCreateProductEndpointDuplicate(t *testing.T) {
 	s := newTestServer(t)
-	token := s.token(t, tenantA, "inventory")
+	token := s.manager(t, companyA)
 	categoryID := s.createCategory(t, token, "Bebidas")
 	if status, resp := s.post(t, "/api/v1/products", token, productBody(categoryID)); status != fiber.StatusCreated {
 		t.Fatalf("first product status = %d (%+v)", status, resp.Error)
@@ -292,8 +322,8 @@ func TestCreateProductEndpointDuplicate(t *testing.T) {
 		}
 	})
 
-	t.Run("same sku in another tenant is allowed", func(t *testing.T) {
-		tokenB := s.token(t, tenantB, "tenant_admin")
+	t.Run("same sku in another company is allowed", func(t *testing.T) {
+		tokenB := s.manager(t, companyB)
 		categoryB := s.createCategory(t, tokenB, "Bebidas")
 		status, resp := s.post(t, "/api/v1/products", tokenB, productBody(categoryB))
 		if status != fiber.StatusCreated {
@@ -304,8 +334,8 @@ func TestCreateProductEndpointDuplicate(t *testing.T) {
 
 func TestCreateProductEndpointCategoryNotFound(t *testing.T) {
 	s := newTestServer(t)
-	token := s.token(t, tenantA, "inventory")
-	tokenB := s.token(t, tenantB, "inventory")
+	token := s.manager(t, companyA)
+	tokenB := s.manager(t, companyB)
 	foreignCategory := s.createCategory(t, tokenB, "Bebidas")
 
 	status, resp := s.post(t, "/api/v1/products", token, productBody(foreignCategory))
@@ -317,64 +347,55 @@ func TestCreateProductEndpointCategoryNotFound(t *testing.T) {
 
 func TestCatalogEndpointsPermissions(t *testing.T) {
 	s := newTestServer(t)
-	categoryID := s.createCategory(t, s.token(t, tenantA, "inventory"), "Bebidas")
+	categoryID := s.createCategory(t, s.manager(t, companyA), "Bebidas")
 
 	tests := []struct {
 		name   string
+		path   string
 		token  string
 		status int
 		code   string
 	}{
-		{name: "without token", token: "", status: 401, code: "UNAUTHORIZED"},
-		{name: "invalid token", token: "not-a-jwt", status: 401, code: "UNAUTHORIZED"},
-		{name: "cashier", token: s.token(t, tenantA, "cashier"), status: 403, code: "FORBIDDEN"},
-		{name: "viewer", token: s.token(t, tenantA, "viewer"), status: 403, code: "FORBIDDEN"},
+		{name: "product without token", path: "/api/v1/products", token: "", status: 401, code: "UNAUTHORIZED"},
+		{name: "category without token", path: "/api/v1/categories", token: "", status: 401, code: "UNAUTHORIZED"},
+		{name: "invalid token", path: "/api/v1/products", token: "not-a-jwt", status: 401, code: "UNAUTHORIZED"},
+		{name: "product without any permission", path: "/api/v1/products", token: s.token(t, companyA), status: 403, code: "FORBIDDEN"},
+		{name: "category without any permission", path: "/api/v1/categories", token: s.token(t, companyA), status: 403, code: "FORBIDDEN"},
+		{name: "product with only categories.create", path: "/api/v1/products", token: s.token(t, companyA, "categories.create"), status: 403, code: "FORBIDDEN"},
+		{name: "category with only products.create", path: "/api/v1/categories", token: s.token(t, companyA, "products.create"), status: 403, code: "FORBIDDEN"},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			for _, path := range []string{"/api/v1/products", "/api/v1/categories"} {
-				status, resp := s.post(t, path, tt.token, productBody(categoryID))
-				if status != tt.status || resp.Error == nil || resp.Error.Code != tt.code {
-					t.Fatalf("%s: got %d %+v, want %d %s", path, status, resp.Error, tt.status, tt.code)
-				}
+			status, resp := s.post(t, tt.path, tt.token, productBody(categoryID))
+			if status != tt.status || resp.Error == nil || resp.Error.Code != tt.code {
+				t.Fatalf("got %d %+v, want %d %s", status, resp.Error, tt.status, tt.code)
 			}
 		})
 	}
 
-	for _, role := range router.CatalogManagerRoles {
-		t.Run("allowed role "+role, func(t *testing.T) {
-			status, resp := s.post(t, "/api/v1/categories", s.token(t, tenantA, role), map[string]any{"name": "Categoria " + role})
-			if status != fiber.StatusCreated {
-				t.Fatalf("got %d %+v, want 201", status, resp.Error)
-			}
-		})
-	}
+	t.Run("each permission allows only its own endpoint", func(t *testing.T) {
+		status, resp := s.post(t, "/api/v1/categories", s.token(t, companyA, "categories.create"), map[string]any{"name": "Lácteos"})
+		if status != fiber.StatusCreated {
+			t.Fatalf("categories.create: got %d %+v, want 201", status, resp.Error)
+		}
+		body := productBody(categoryID)
+		body["sku"], body["barcode"] = "PERM-ONLY-1", "7750182000555"
+		status, resp = s.post(t, "/api/v1/products", s.token(t, companyA, "products.create"), body)
+		if status != fiber.StatusCreated {
+			t.Fatalf("products.create: got %d %+v, want 201", status, resp.Error)
+		}
+	})
 }
 
-func TestCreateProductUsesTenantFromTokenNotHeader(t *testing.T) {
+func TestCatalogEndpointsRequireCompanyInToken(t *testing.T) {
 	s := newTestServer(t)
-	token := s.token(t, tenantA, "inventory")
-	categoryID := s.createCategory(t, token, "Bebidas")
+	globalAdmin := s.manager(t, "")
 
-	raw, _ := json.Marshal(productBody(categoryID))
-	req := httptest.NewRequest(fiber.MethodPost, "/api/v1/products", bytes.NewReader(raw))
-	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Authorization", "Bearer "+token)
-	req.Header.Set("X-Tenant-ID", tenantB)
-
-	resp, err := s.app.Test(req)
-	if err != nil {
-		t.Fatalf("app.Test() error = %v", err)
-	}
-	if resp.StatusCode != fiber.StatusCreated {
-		t.Fatalf("status = %d, want 201", resp.StatusCode)
-	}
-	var parsed apiResponse
-	_ = json.NewDecoder(resp.Body).Decode(&parsed)
-	var product map[string]any
-	_ = json.Unmarshal(parsed.Data, &product)
-	if product["tenant_id"] != tenantA {
-		t.Errorf("tenant_id = %v, want tenant from token %s", product["tenant_id"], tenantA)
+	for _, path := range []string{"/api/v1/categories", "/api/v1/products"} {
+		status, resp := s.post(t, path, globalAdmin, productBody(uuid.NewString()))
+		if status != fiber.StatusBadRequest || resp.Error == nil || resp.Error.Message != "company is required" {
+			t.Fatalf("%s: got %d %+v, want 400 company is required", path, status, resp.Error)
+		}
 	}
 }

@@ -2,236 +2,145 @@ package service
 
 import (
 	"context"
-	"time"
 
 	"github.com/google/uuid"
 
-	authEntity "github.com/sigif/sigif-go/internal/modules/auth/domain/entity"
+	"github.com/sigif/sigif-go/internal/modules/auth/domain/entity"
 	"github.com/sigif/sigif-go/internal/modules/auth/domain/repository"
 	userEntity "github.com/sigif/sigif-go/internal/modules/user/domain/entity"
 	"github.com/sigif/sigif-go/internal/shared/clock"
-	"github.com/sigif/sigif-go/internal/shared/errors"
+	sharedErrors "github.com/sigif/sigif-go/internal/shared/errors"
 	"github.com/sigif/sigif-go/internal/shared/jwt"
-	sharedMiddleware "github.com/sigif/sigif-go/internal/shared/middleware"
 	"github.com/sigif/sigif-go/internal/shared/security"
 )
 
-type passwordHasher interface {
-	Hash(password string) (string, error)
-	Verify(password, hash string) error
-}
-
-type passwordHasherImpl struct{}
-
-func (passwordHasherImpl) Hash(password string) (string, error) {
-	return security.HashPassword(password)
-}
-
-func (passwordHasherImpl) Verify(password, hash string) error {
-	return security.VerifyPassword(password, hash)
-}
-
 type AuthService struct {
-	userRepo       repository.UserRepo
-	tokenRepo      repository.RefreshTokenRepository
-	jwtManager     *jwt.JWTManager
-	passwordHasher passwordHasher
-	clock          clock.Clock
+	userRepo         repository.UserRepo
+	sessionRepo      repository.SessionRepository
+	loginAttemptRepo repository.LoginAttemptRepository
+	jwtManager       *jwt.JWTManager
+	clock            clock.Clock
 }
 
 func NewAuthService(
 	userRepo repository.UserRepo,
-	tokenRepo repository.RefreshTokenRepository,
+	sessionRepo repository.SessionRepository,
+	loginAttemptRepo repository.LoginAttemptRepository,
 	jwtManager *jwt.JWTManager,
 	clock clock.Clock,
 ) *AuthService {
 	return &AuthService{
-		userRepo:       userRepo,
-		tokenRepo:      tokenRepo,
-		jwtManager:     jwtManager,
-		passwordHasher: passwordHasherImpl{},
-		clock:          clock,
+		userRepo:         userRepo,
+		sessionRepo:      sessionRepo,
+		loginAttemptRepo: loginAttemptRepo,
+		jwtManager:       jwtManager,
+		clock:            clock,
 	}
-}
-
-func (s *AuthService) Login(ctx context.Context, params LoginParams) (*LoginResult, error) {
-	user, err := s.userRepo.GetByEmail(ctx, params.TenantID, params.Email)
-	if err != nil {
-		return nil, err
-	}
-	if user == nil {
-		return nil, errors.New(errors.CodeUnauthorized, "invalid credentials", 401)
-	}
-
-	if err := s.passwordHasher.Verify(params.Password, user.PasswordHash); err != nil {
-		return nil, errors.New(errors.CodeUnauthorized, "invalid credentials", 401)
-	}
-
-	if user.Status != userEntity.UserStatusActive {
-		return nil, errors.New(errors.CodeForbidden, "account is not active", 403)
-	}
-
-	tokenPair, err := s.jwtManager.GeneratePair(
-		user.ID.String(),
-		user.TenantID.String(),
-		user.Email,
-		userRolesToStrings(user.Roles),
-	)
-	if err != nil {
-		return nil, err
-	}
-
-	refreshTokenEntity := authEntity.NewRefreshToken(
-		s.clock,
-		user.ID,
-		jwt.HashToken(tokenPair.RefreshToken),
-		params.UserAgent,
-		params.IPAddress,
-		s.jwtManager.GetRefreshTokenExpiry(),
-	)
-
-	if err := s.tokenRepo.Create(ctx, refreshTokenEntity); err != nil {
-		return nil, err
-	}
-
-	if err := s.userRepo.RecordLogin(ctx, user.ID); err != nil {
-		return nil, err
-	}
-
-	return &LoginResult{
-		AccessToken:  tokenPair.AccessToken,
-		RefreshToken: tokenPair.RefreshToken,
-		ExpiresIn:    tokenPair.ExpiresIn,
-		TokenType:    tokenPair.TokenType,
-		User:         user,
-	}, nil
-}
-
-func (s *AuthService) Refresh(ctx context.Context, refreshToken string) (*RefreshResult, error) {
-	claims, err := s.jwtManager.ValidateRefreshToken(refreshToken)
-	if err != nil {
-		return nil, errors.New(errors.CodeUnauthorized, "invalid refresh token", 401)
-	}
-
-	storedToken, err := s.tokenRepo.GetByTokenHash(ctx, jwt.HashToken(refreshToken))
-	if err != nil {
-		return nil, err
-	}
-	if storedToken == nil || storedToken.IsRevoked() || storedToken.IsExpired() {
-		return nil, errors.New(errors.CodeUnauthorized, "refresh token revoked or expired", 401)
-	}
-
-	userID, err := uuid.Parse(claims.UserID)
-	if err != nil {
-		return nil, err
-	}
-	if tenantID, err := uuid.Parse(claims.TenantID); err == nil {
-		ctx = sharedMiddleware.WithTenantID(ctx, tenantID)
-	}
-
-	user, err := s.userRepo.GetByID(ctx, userID)
-	if err != nil {
-		return nil, err
-	}
-	if user == nil || user.Status != userEntity.UserStatusActive {
-		return nil, errors.New(errors.CodeUnauthorized, "user not found or inactive", 401)
-	}
-
-	if err := s.tokenRepo.Revoke(ctx, storedToken.ID, time.Now()); err != nil {
-		return nil, err
-	}
-
-	tokenPair, err := s.jwtManager.GeneratePair(
-		user.ID.String(),
-		user.TenantID.String(),
-		user.Email,
-		userRolesToStrings(user.Roles),
-	)
-	if err != nil {
-		return nil, err
-	}
-
-	newTokenEntity := authEntity.NewRefreshToken(
-		s.clock,
-		user.ID,
-		jwt.HashToken(tokenPair.RefreshToken),
-		"",
-		"",
-		s.jwtManager.GetRefreshTokenExpiry(),
-	)
-
-	if err := s.tokenRepo.Create(ctx, newTokenEntity); err != nil {
-		return nil, err
-	}
-
-	return &RefreshResult{
-		AccessToken:  tokenPair.AccessToken,
-		RefreshToken: tokenPair.RefreshToken,
-		ExpiresIn:    tokenPair.ExpiresIn,
-		TokenType:    tokenPair.TokenType,
-	}, nil
-}
-
-func (s *AuthService) Logout(ctx context.Context, refreshToken string) error {
-	_, err := s.jwtManager.ValidateRefreshToken(refreshToken)
-	if err != nil {
-		return nil
-	}
-
-	storedToken, err := s.tokenRepo.GetByTokenHash(ctx, jwt.HashToken(refreshToken))
-	if err != nil {
-		return err
-	}
-	if storedToken != nil {
-		return s.tokenRepo.Revoke(ctx, storedToken.ID, time.Now())
-	}
-	return nil
-}
-
-func (s *AuthService) LogoutAll(ctx context.Context, userID uuid.UUID) error {
-	return s.tokenRepo.RevokeAllByUserID(ctx, userID, time.Now())
-}
-
-func (s *AuthService) ValidateToken(accessToken string) (*jwt.Claims, error) {
-	return s.jwtManager.ValidateAccessToken(accessToken)
-}
-
-func userRolesToStrings(roles []userEntity.UserRole) []string {
-	result := make([]string, len(roles))
-	for i, r := range roles {
-		result[i] = string(r)
-	}
-	return result
 }
 
 type LoginParams struct {
-	TenantID  uuid.UUID
 	Email     string
 	Password  string
-	UserAgent string
 	IPAddress string
+	Device    string
 }
 
 type LoginResult struct {
-	AccessToken  string
-	RefreshToken string
-	ExpiresIn    int
-	TokenType    string
-	User         *userEntity.User
+	User        *userEntity.AppUser
+	AccessToken string
+	ExpiresIn   int
+	TokenType   string
 }
 
-func (r *LoginResult) TokenPair() *jwt.TokenPair {
-	return &jwt.TokenPair{
-		AccessToken:  r.AccessToken,
-		RefreshToken: r.RefreshToken,
-		ExpiresIn:    r.ExpiresIn,
-		TokenType:    r.TokenType,
+// Login authenticates the user, creates a session and records the attempt.
+// It always returns a generic error to avoid account enumeration.
+func (s *AuthService) Login(ctx context.Context, params LoginParams) (LoginResult, error) {
+	user, err := s.userRepo.GetByEmail(ctx, params.Email)
+	if err != nil {
+		return LoginResult{}, err
 	}
+
+	fail := func(reason string) (LoginResult, error) {
+		_ = s.loginAttemptRepo.Create(ctx, entity.NewLoginAttempt(
+			s.clock, params.Email, companyIDOf(user), params.IPAddress, false, reason,
+		))
+		return LoginResult{}, sharedErrors.New(sharedErrors.CodeUnauthorized, "invalid credentials", 401)
+	}
+
+	if user == nil {
+		return fail("user_not_found")
+	}
+	if err := security.VerifyPassword(params.Password, user.PasswordHash); err != nil {
+		return fail("invalid_password")
+	}
+	if !user.IsActive() {
+		return fail("account_not_active")
+	}
+
+	sessionID := uuid.New()
+	token, expiresIn, err := s.jwtManager.GenerateAccessToken(
+		user.ID.String(),
+		sessionID.String(),
+		companyIDString(user.CompanyID),
+		user.Email,
+		user.RoleName,
+	)
+	if err != nil {
+		return LoginResult{}, err
+	}
+
+	session := entity.NewSession(
+		s.clock,
+		sessionID,
+		user.ID,
+		jwt.HashToken(token),
+		params.IPAddress,
+		params.Device,
+		s.jwtManager.GetAccessTokenExpiry(),
+	)
+	if err := s.sessionRepo.Create(ctx, session); err != nil {
+		return LoginResult{}, err
+	}
+
+	_ = s.loginAttemptRepo.Create(ctx, entity.NewLoginAttempt(
+		s.clock, params.Email, user.CompanyID, params.IPAddress, true, "",
+	))
+	_ = s.userRepo.RecordAccess(ctx, user.ID)
+
+	return LoginResult{
+		User:        user,
+		AccessToken: token,
+		ExpiresIn:   expiresIn,
+		TokenType:   "Bearer",
+	}, nil
 }
 
-type RefreshResult struct {
-	AccessToken  string
-	RefreshToken string
-	ExpiresIn    int
-	TokenType    string
+// Logout ends the session identified by its token hash.
+func (s *AuthService) Logout(ctx context.Context, tokenHash string) error {
+	session, err := s.sessionRepo.GetByTokenHash(ctx, tokenHash)
+	if err != nil {
+		return err
+	}
+	if session == nil {
+		return nil
+	}
+	return s.sessionRepo.End(ctx, session.ID, s.clock.NowUTC(), entity.CloseReasonManual)
+}
+
+func (s *AuthService) Me(ctx context.Context, userID uuid.UUID) (*userEntity.AppUser, error) {
+	return s.userRepo.GetByID(ctx, userID)
+}
+
+func companyIDOf(user *userEntity.AppUser) *uuid.UUID {
+	if user == nil {
+		return nil
+	}
+	return user.CompanyID
+}
+
+func companyIDString(companyID *uuid.UUID) string {
+	if companyID == nil {
+		return ""
+	}
+	return companyID.String()
 }

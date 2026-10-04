@@ -15,30 +15,75 @@ import (
 )
 
 const (
-	contextKeyTenantID = "tenant_id"
-	contextKeyUserID   = "user_id"
-	contextKeyEmail    = "email"
-	contextKeyRoles    = "roles"
+	contextKeyUserID    = "user_id"
+	contextKeyCompanyID = "company_id"
+	contextKeyEmail     = "email"
+	contextKeyRole      = "role"
+	contextKeySessionID = "session_id"
 )
 
-func WithTenantID(ctx context.Context, tenantID uuid.UUID) context.Context {
-	return context.WithValue(ctx, contextKeyTenantID, tenantID)
+// TokenHashLocalKey is the Fiber locals key where the authenticated request's
+// token hash is stored for handlers that need it (e.g. logout).
+const TokenHashLocalKey = "token_hash"
+
+// SessionReader checks whether a stored session (identified by its token hash)
+// is still active. Implemented by the auth module.
+type SessionReader interface {
+	IsActive(ctx context.Context, tokenHash string) (bool, error)
+}
+
+// PermissionChecker resolves whether a user holds a given module/operation
+// permission. Implemented by the user module (RBAC).
+type PermissionChecker interface {
+	HasPermission(ctx context.Context, userID uuid.UUID, module, operation string) (bool, error)
 }
 
 func WithUserID(ctx context.Context, userID uuid.UUID) context.Context {
 	return context.WithValue(ctx, contextKeyUserID, userID)
 }
 
-func TenantIDFromContext(ctx context.Context) (uuid.UUID, bool) {
-	value := ctx.Value(contextKeyTenantID)
+func WithCompanyID(ctx context.Context, companyID uuid.UUID) context.Context {
+	return context.WithValue(ctx, contextKeyCompanyID, companyID)
+}
+
+func WithSessionID(ctx context.Context, sessionID uuid.UUID) context.Context {
+	return context.WithValue(ctx, contextKeySessionID, sessionID)
+}
+
+func UserIDFromContext(ctx context.Context) (uuid.UUID, bool) {
+	value := ctx.Value(contextKeyUserID)
 	if value == nil {
 		return uuid.Nil, false
 	}
-	tenantID, ok := value.(uuid.UUID)
-	if !ok || tenantID == uuid.Nil {
+	userID, ok := value.(uuid.UUID)
+	if !ok || userID == uuid.Nil {
 		return uuid.Nil, false
 	}
-	return tenantID, true
+	return userID, true
+}
+
+func CompanyIDFromContext(ctx context.Context) (uuid.UUID, bool) {
+	value := ctx.Value(contextKeyCompanyID)
+	if value == nil {
+		return uuid.Nil, false
+	}
+	companyID, ok := value.(uuid.UUID)
+	if !ok || companyID == uuid.Nil {
+		return uuid.Nil, false
+	}
+	return companyID, true
+}
+
+func SessionIDFromContext(ctx context.Context) (uuid.UUID, bool) {
+	value := ctx.Value(contextKeySessionID)
+	if value == nil {
+		return uuid.Nil, false
+	}
+	sessionID, ok := value.(uuid.UUID)
+	if !ok || sessionID == uuid.Nil {
+		return uuid.Nil, false
+	}
+	return sessionID, true
 }
 
 func ErrorHandler() fiber.ErrorHandler {
@@ -71,7 +116,12 @@ func RequestID() fiber.Handler {
 	return func(c *fiber.Ctx) error {
 		requestID := c.Get("X-Request-ID")
 		if requestID == "" {
-			requestID = c.Locals("requestid").(string)
+			if id, ok := c.Locals("requestid").(string); ok {
+				requestID = id
+			}
+		}
+		if requestID == "" {
+			requestID = uuid.NewString()
 		}
 		c.Set("X-Request-ID", requestID)
 		c.Locals("request_id", requestID)
@@ -79,29 +129,15 @@ func RequestID() fiber.Handler {
 	}
 }
 
-func TenantContext() fiber.Handler {
-	return func(c *fiber.Ctx) error {
-		tenantID := c.Get("X-Tenant-ID")
-		if tenantID == "" {
-			return c.Next()
-		}
-
-		if parsed, err := uuid.Parse(tenantID); err == nil {
-			c.Locals("tenant_id", parsed)
-			c.SetUserContext(WithTenantID(c.UserContext(), parsed))
-			return c.Next()
-		}
-
-		c.Locals("tenant_id", uuid.Nil)
-		c.Locals("tenant_error", errors.ErrInvalidTenant)
-		return c.Next()
-	}
+func isPublicPath(path string) bool {
+	return path == "/health" || path == "/api/v1/auth/login"
 }
 
-func AuthRequired(jwtManager *jwt.JWTManager) fiber.Handler {
+// AuthRequired authenticates the request from the Bearer token, verifies the
+// corresponding session is active and stores the identity in the context.
+func AuthRequired(jwtManager *jwt.JWTManager, sessions SessionReader) fiber.Handler {
 	return func(c *fiber.Ctx) error {
-		path := c.Path()
-		if path == "/health" || path == "/auth/login" || path == "/auth/refresh" {
+		if isPublicPath(c.Path()) {
 			return c.Next()
 		}
 
@@ -114,48 +150,69 @@ func AuthRequired(jwtManager *jwt.JWTManager) fiber.Handler {
 		if len(parts) != 2 || !strings.EqualFold(parts[0], "Bearer") {
 			return response.Error(c, fiber.StatusUnauthorized, errors.ErrUnauthorized)
 		}
+		rawToken := strings.TrimSpace(parts[1])
 
-		claims, err := jwtManager.ValidateAccessToken(parts[1])
+		claims, err := jwtManager.ValidateAccessToken(rawToken)
 		if err != nil {
 			return response.Error(c, fiber.StatusUnauthorized, errors.ErrUnauthorized)
 		}
 
-		if claims.UserID == "" {
+		tokenHash := jwt.HashToken(rawToken)
+		active, err := sessions.IsActive(c.UserContext(), tokenHash)
+		if err != nil || !active {
 			return response.Error(c, fiber.StatusUnauthorized, errors.ErrUnauthorized)
 		}
 
-		if parsedUserID, err := uuid.Parse(claims.UserID); err == nil {
-			c.Locals("user_id", parsedUserID)
-			c.SetUserContext(WithUserID(c.UserContext(), parsedUserID))
+		userID, err := uuid.Parse(claims.UserID)
+		if err != nil {
+			return response.Error(c, fiber.StatusUnauthorized, errors.ErrUnauthorized)
 		}
-		if parsedTenantID, err := uuid.Parse(claims.TenantID); err == nil {
-			c.Locals("tenant_id", parsedTenantID)
-			c.SetUserContext(WithTenantID(c.UserContext(), parsedTenantID))
+		sessionID, err := uuid.Parse(claims.SessionID)
+		if err != nil {
+			return response.Error(c, fiber.StatusUnauthorized, errors.ErrUnauthorized)
+		}
+
+		ctx := c.UserContext()
+		ctx = WithUserID(ctx, userID)
+		ctx = WithSessionID(ctx, sessionID)
+		if companyID, err := uuid.Parse(claims.CompanyID); err == nil && companyID != uuid.Nil {
+			ctx = WithCompanyID(ctx, companyID)
+			c.Locals("company_id", companyID)
 		}
 		if claims.Email != "" {
-			c.Locals("email", claims.Email)
-			c.SetUserContext(context.WithValue(c.UserContext(), contextKeyEmail, claims.Email))
+			ctx = context.WithValue(ctx, contextKeyEmail, claims.Email)
 		}
-		if len(claims.Roles) > 0 {
-			c.Locals("roles", claims.Roles)
-			c.SetUserContext(context.WithValue(c.UserContext(), contextKeyRoles, claims.Roles))
+		if claims.Role != "" {
+			ctx = context.WithValue(ctx, contextKeyRole, claims.Role)
 		}
+		c.SetUserContext(ctx)
+
+		c.Locals("user_id", userID)
+		c.Locals("session_id", sessionID)
+		c.Locals("email", claims.Email)
+		c.Locals("role", claims.Role)
+		c.Locals(TokenHashLocalKey, tokenHash)
 
 		return c.Next()
 	}
 }
 
-func Recovery() fiber.Handler {
+// RequirePermission enforces role-based access control for a module/operation.
+func RequirePermission(checker PermissionChecker, module, operation string) fiber.Handler {
 	return func(c *fiber.Ctx) error {
-		defer func() {
-			if r := recover(); r != nil {
-				logger.L().Error("panic recovered",
-					zap.String("path", c.Path()),
-					zap.Any("panic", r),
-				)
-				_ = response.Error(c, fiber.StatusInternalServerError, errors.ErrInternal)
-			}
-		}()
+		userID, ok := UserIDFromContext(c.UserContext())
+		if !ok {
+			return response.Error(c, fiber.StatusUnauthorized, errors.ErrUnauthorized)
+		}
+
+		allowed, err := checker.HasPermission(c.UserContext(), userID, module, operation)
+		if err != nil {
+			return response.Error(c, fiber.StatusInternalServerError, err)
+		}
+		if !allowed {
+			return response.Error(c, fiber.StatusForbidden, errors.ErrForbidden)
+		}
+
 		return c.Next()
 	}
 }

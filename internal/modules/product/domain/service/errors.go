@@ -5,6 +5,7 @@ import (
 )
 
 var (
+	ErrCompanyRequired   = sharedErrors.New(sharedErrors.CodeBadRequest, "company is required", 400)
 	ErrCategoryNameTaken = sharedErrors.New(sharedErrors.CodeConflict, "a category with this name already exists", 409)
 	ErrSKUTaken          = sharedErrors.New(sharedErrors.CodeConflict, "a product with this sku already exists", 409)
 	ErrBarcodeTaken      = sharedErrors.New(sharedErrors.CodeConflict, "a product with this barcode already exists", 409)

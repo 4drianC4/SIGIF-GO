@@ -7,11 +7,10 @@ import (
 	"github.com/shopspring/decimal"
 
 	"github.com/sigif/sigif-go/internal/modules/product/domain/entity"
-	sharedErrors "github.com/sigif/sigif-go/internal/shared/errors"
 )
 
 type CreateProductParams struct {
-	TenantID      uuid.UUID
+	CompanyID     uuid.UUID
 	CategoryID    uuid.UUID
 	SKU           string
 	Barcode       string
@@ -22,15 +21,13 @@ type CreateProductParams struct {
 	SalePrice     decimal.Decimal
 }
 
-// CreateProduct registra un producto activo. Antes de persistir comprueba que la
-// categoría exista y esté activa, y que el SKU y el código de barras no se repitan en el tenant.
 func (s *CatalogService) CreateProduct(ctx context.Context, params CreateProductParams) (*entity.Product, error) {
-	if params.TenantID == uuid.Nil {
-		return nil, sharedErrors.ErrTenantRequired
+	if params.CompanyID == uuid.Nil {
+		return nil, ErrCompanyRequired
 	}
 
 	product, err := entity.NewProduct(s.clock, entity.NewProductParams{
-		TenantID:      params.TenantID,
+		CompanyID:     params.CompanyID,
 		CategoryID:    params.CategoryID,
 		SKU:           params.SKU,
 		Barcode:       params.Barcode,
@@ -44,7 +41,7 @@ func (s *CatalogService) CreateProduct(ctx context.Context, params CreateProduct
 		return nil, err
 	}
 
-	category, err := s.categories.GetByID(ctx, product.TenantID, product.CategoryID)
+	category, err := s.categories.GetByID(ctx, product.CompanyID, product.CategoryID)
 	if err != nil {
 		return nil, err
 	}
@@ -55,7 +52,7 @@ func (s *CatalogService) CreateProduct(ctx context.Context, params CreateProduct
 		return nil, ErrCategoryInactive
 	}
 
-	skuTaken, err := s.products.ExistsBySKU(ctx, product.TenantID, product.SKU)
+	skuTaken, err := s.products.ExistsBySKU(ctx, product.CompanyID, product.SKU)
 	if err != nil {
 		return nil, err
 	}
@@ -64,7 +61,7 @@ func (s *CatalogService) CreateProduct(ctx context.Context, params CreateProduct
 	}
 
 	if product.Barcode != "" {
-		barcodeTaken, err := s.products.ExistsByBarcode(ctx, product.TenantID, product.Barcode)
+		barcodeTaken, err := s.products.ExistsByBarcode(ctx, product.CompanyID, product.Barcode)
 		if err != nil {
 			return nil, err
 		}

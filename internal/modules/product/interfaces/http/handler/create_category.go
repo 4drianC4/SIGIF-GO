@@ -5,6 +5,7 @@ import (
 
 	"github.com/sigif/sigif-go/internal/modules/product/application/command"
 	"github.com/sigif/sigif-go/internal/modules/product/application/dto"
+	"github.com/sigif/sigif-go/internal/modules/product/domain/service"
 	"github.com/sigif/sigif-go/internal/modules/product/interfaces/http/dtos"
 	sharedErrors "github.com/sigif/sigif-go/internal/shared/errors"
 	"github.com/sigif/sigif-go/internal/shared/middleware"
@@ -21,13 +22,13 @@ func (h *CatalogHTTPHandler) CreateCategory(c *fiber.Ctx) error {
 		return response.Error(c, fiber.StatusBadRequest, err)
 	}
 
-	tenantID, ok := middleware.TenantIDFromContext(c.UserContext())
+	companyID, ok := middleware.CompanyIDFromContext(c.UserContext())
 	if !ok {
-		return response.Error(c, fiber.StatusBadRequest, sharedErrors.ErrTenantRequired)
+		return response.Error(c, fiber.StatusBadRequest, service.ErrCompanyRequired)
 	}
 
 	category, err := h.cmdHandler.HandleCreateCategory(c.UserContext(), command.CreateCategory{
-		TenantID:    tenantID,
+		CompanyID:   companyID,
 		Name:        req.Name,
 		Description: req.Description,
 	})

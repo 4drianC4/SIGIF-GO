@@ -16,7 +16,7 @@ var skuPattern = regexp.MustCompile(`^[A-Z0-9][A-Z0-9._-]*$`)
 
 type Product struct {
 	ID            uuid.UUID
-	TenantID      uuid.UUID
+	CompanyID     uuid.UUID
 	CategoryID    uuid.UUID
 	SKU           string
 	Barcode       string
@@ -32,7 +32,7 @@ type Product struct {
 }
 
 type NewProductParams struct {
-	TenantID      uuid.UUID
+	CompanyID     uuid.UUID
 	CategoryID    uuid.UUID
 	SKU           string
 	Barcode       string
@@ -43,7 +43,6 @@ type NewProductParams struct {
 	SalePrice     decimal.Decimal
 }
 
-// NewProduct crea un producto activo aplicando las reglas de negocio de precios y SKU.
 func NewProduct(clock clock.Clock, params NewProductParams) (*Product, error) {
 	sku := NormalizeSKU(params.SKU)
 	details := map[string]string{}
@@ -68,7 +67,7 @@ func NewProduct(clock clock.Clock, params NewProductParams) (*Product, error) {
 	now := clock.NowUTC()
 	return &Product{
 		ID:            uuid.New(),
-		TenantID:      params.TenantID,
+		CompanyID:     params.CompanyID,
 		CategoryID:    params.CategoryID,
 		SKU:           sku,
 		Barcode:       strings.TrimSpace(params.Barcode),
@@ -83,7 +82,6 @@ func NewProduct(clock clock.Clock, params NewProductParams) (*Product, error) {
 	}, nil
 }
 
-// NormalizeSKU guarda el SKU sin espacios y en mayúsculas para que "abc-1" y "ABC-1" sean el mismo.
 func NormalizeSKU(sku string) string {
 	return strings.ToUpper(strings.TrimSpace(sku))
 }

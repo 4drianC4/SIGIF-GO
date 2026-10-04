@@ -11,7 +11,7 @@ import (
 
 func (h *CatalogCommandHandler) HandleCreateCategory(ctx context.Context, cmd command.CreateCategory) (*entity.Category, error) {
 	category, err := h.service.CreateCategory(ctx, service.CreateCategoryParams{
-		TenantID:    cmd.TenantID,
+		CompanyID:   cmd.CompanyID,
 		Name:        cmd.Name,
 		Description: cmd.Description,
 	})

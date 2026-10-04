@@ -3,12 +3,12 @@ package database
 import (
 	"context"
 	"fmt"
+	"github.com/sigif/sigif-go/internal/shared/config"
 	"go.uber.org/fx"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
 	"gorm.io/gorm/schema"
-	"github.com/sigif/sigif-go/internal/shared/config"
 	"log"
 	"time"
 )

@@ -11,7 +11,7 @@ import (
 
 func (h *CatalogCommandHandler) HandleCreateProduct(ctx context.Context, cmd command.CreateProduct) (*entity.Product, error) {
 	product, err := h.service.CreateProduct(ctx, service.CreateProductParams{
-		TenantID:      cmd.TenantID,
+		CompanyID:     cmd.CompanyID,
 		CategoryID:    cmd.CategoryID,
 		SKU:           cmd.SKU,
 		Barcode:       cmd.Barcode,

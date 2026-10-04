@@ -10,18 +10,14 @@ import (
 )
 
 func (s *UserService) Activate(ctx context.Context, id uuid.UUID) error {
-	return s.updateStatus(ctx, id, func(u *entity.User) { u.Activate(s.clock) })
+	return s.changeStatus(ctx, id, entity.UserStatusActive)
 }
 
 func (s *UserService) Deactivate(ctx context.Context, id uuid.UUID) error {
-	return s.updateStatus(ctx, id, func(u *entity.User) { u.Deactivate(s.clock) })
+	return s.changeStatus(ctx, id, entity.UserStatusInactive)
 }
 
-func (s *UserService) Suspend(ctx context.Context, id uuid.UUID) error {
-	return s.updateStatus(ctx, id, func(u *entity.User) { u.Suspend(s.clock) })
-}
-
-func (s *UserService) updateStatus(ctx context.Context, id uuid.UUID, fn func(*entity.User)) error {
+func (s *UserService) changeStatus(ctx context.Context, id uuid.UUID, status entity.UserStatus) error {
 	user, err := s.repo.GetByID(ctx, id)
 	if err != nil {
 		return err
@@ -30,6 +26,14 @@ func (s *UserService) updateStatus(ctx context.Context, id uuid.UUID, fn func(*e
 		return sharedErrors.New(sharedErrors.CodeNotFound, "user not found", 404)
 	}
 
-	fn(user)
+	switch status {
+	case entity.UserStatusActive:
+		user.Activate(s.clock)
+	case entity.UserStatusInactive:
+		user.Deactivate(s.clock)
+	default:
+		return sharedErrors.New(sharedErrors.CodeBadRequest, "invalid status", 400)
+	}
+
 	return s.repo.Update(ctx, user)
 }

@@ -2,17 +2,16 @@ package command
 
 import (
 	"github.com/google/uuid"
-
-	"github.com/sigif/sigif-go/internal/modules/user/domain/entity"
 )
 
-type CreateUser struct {
-	TenantID  uuid.UUID
-	Email     string
-	Password  string
+type RegisterUser struct {
+	CompanyID *uuid.UUID
+	RoleName  string
 	FirstName string
 	LastName  string
-	Roles     []entity.UserRole
+	Email     string
+	Password  string
+	Area      string
 }
 
 type UpdateUser struct {
@@ -20,9 +19,7 @@ type UpdateUser struct {
 	FirstName string
 	LastName  string
 	Phone     string
-	AvatarURL string
-	Roles     []entity.UserRole
-	Settings  entity.UserSettings
+	Area      string
 }
 
 type ChangePassword struct {
@@ -37,5 +34,5 @@ type DeleteUser struct {
 
 type ChangeStatus struct {
 	ID     uuid.UUID
-	Action entity.UserStatus
+	Active bool
 }

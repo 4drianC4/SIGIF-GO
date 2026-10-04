@@ -1,13 +1,13 @@
 package logger
 
 import (
-	"io"
-	"os"
-	"sync"
 	"github.com/sigif/sigif-go/internal/shared/config"
 	"go.uber.org/fx"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
+	"io"
+	"os"
+	"sync"
 )
 
 var (

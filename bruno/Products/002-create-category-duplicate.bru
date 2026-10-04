@@ -5,14 +5,17 @@ meta {
 }
 
 post {
-  url: {{baseUrl}}/categories
+  url: {{baseUrl}}/api/v1/categories
   body: json
-  auth: none
+  auth: bearer
 }
 
 headers {
   Content-Type: application/json
-  Authorization: Bearer {{accessToken}}
+}
+
+auth:bearer {
+  token: {{accessToken}}
 }
 
 body:json {
@@ -22,7 +25,6 @@ body:json {
 }
 
 script:pre-request {
-  // Mismo nombre que en Create Category pero en mayúsculas: también es duplicado.
   bru.setVar('categoryNameUpper', String(bru.getVar('categoryName')).toUpperCase());
 }
 

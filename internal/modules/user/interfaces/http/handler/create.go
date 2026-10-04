@@ -2,40 +2,31 @@ package handler
 
 import (
 	"github.com/gofiber/fiber/v2"
-	"github.com/google/uuid"
 
 	"github.com/sigif/sigif-go/internal/modules/user/application/command"
 	querypkg "github.com/sigif/sigif-go/internal/modules/user/application/query"
 	"github.com/sigif/sigif-go/internal/modules/user/interfaces/http/dtos"
-	sharedErrors "github.com/sigif/sigif-go/internal/shared/errors"
 	"github.com/sigif/sigif-go/internal/shared/pagination"
 	"github.com/sigif/sigif-go/internal/shared/response"
-	sharedValidator "github.com/sigif/sigif-go/internal/shared/validator"
 )
 
 func (h *UserHTTPHandler) Create(c *fiber.Ctx) error {
-	var req dtos.CreateUserRequest
+	var req dtos.RegisterUserRequest
 	if err := c.BodyParser(&req); err != nil {
 		return response.Error(c, fiber.StatusBadRequest, err)
 	}
-	if err := sharedValidator.New().Validate(&req); err != nil {
+	if err := h.validator.Validate(&req); err != nil {
 		return response.Error(c, fiber.StatusBadRequest, err)
 	}
 
-	tenantID := dtos.TenantIDFromContext(c)
-	if tenantID == uuid.Nil {
-		return response.Error(c, fiber.StatusBadRequest, sharedErrors.ErrTenantRequired)
-	}
-	cmd := command.CreateUser{
-		TenantID:  tenantID,
-		Email:     req.Email,
-		Password:  req.Password,
+	user, err := h.cmdHandler.HandleRegister(c.UserContext(), command.RegisterUser{
 		FirstName: req.FirstName,
 		LastName:  req.LastName,
-		Roles:     req.Roles,
-	}
-
-	user, err := h.cmdHandler.HandleCreate(c.UserContext(), cmd)
+		Email:     req.Email,
+		Password:  req.Password,
+		RoleName:  req.Role,
+		Area:      req.Area,
+	})
 	if err != nil {
 		return response.Error(c, fiber.StatusInternalServerError, err)
 	}
@@ -44,14 +35,20 @@ func (h *UserHTTPHandler) Create(c *fiber.Ctx) error {
 }
 
 func (h *UserHTTPHandler) List(c *fiber.Ctx) error {
-	tenantID := dtos.TenantIDFromContext(c)
+	defaultLimit := h.cfg.Pagination.DefaultLimit
+	if defaultLimit < 1 {
+		defaultLimit = 20
+	}
+	maxLimit := h.cfg.Pagination.MaxLimit
+	if maxLimit < 1 {
+		maxLimit = 100
+	}
 
-	page, limit := pagination.Parse(c, 20, 100)
+	page, limit := pagination.Parse(c, defaultLimit, maxLimit)
 
 	users, total, err := h.queryHandler.HandleList(c.UserContext(), querypkg.ListUsers{
-		TenantID: tenantID,
-		Offset:   (page - 1) * limit,
-		Limit:    limit,
+		Offset: (page - 1) * limit,
+		Limit:  limit,
 	})
 	if err != nil {
 		return response.Error(c, fiber.StatusInternalServerError, err)
