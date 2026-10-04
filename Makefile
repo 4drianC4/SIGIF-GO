@@ -1,7 +1,7 @@
 .PHONY: help build run test lint migrate-up migrate-down docker-up docker-down docker-logs clean check-go
 
 GO_MIN_VERSION := 1.26
-PORT ?= 8080
+PORT ?= 4600
 
 check-go:
 	@set -- $$(go version | sed -E 's/.*go([0-9]+)\.([0-9]+).*/\1 \2/'); if [ "$$1" -lt 1 ] || { [ "$$1" -eq 1 ] && [ "$$2" -lt 26 ]; }; then echo "Go $(GO_MIN_VERSION)+ is required; found go$$1.$$2" >&2; exit 1; fi

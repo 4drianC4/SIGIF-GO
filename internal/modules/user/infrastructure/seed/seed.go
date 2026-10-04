@@ -131,14 +131,6 @@ func allPermIDs(ids map[string]uuid.UUID) []uuid.UUID {
 }
 
 func seedDefaultAdmin(tx *gorm.DB, cfg *config.Config, superadminID uuid.UUID) error {
-	var count int64
-	if err := tx.Model(&model.UserModel{}).Count(&count).Error; err != nil {
-		return err
-	}
-	if count > 0 {
-		return nil
-	}
-
 	email := cfg.Seed.AdminEmail
 	if email == "" {
 		email = "admin@sigif.com"
@@ -154,6 +146,23 @@ func seedDefaultAdmin(tx *gorm.DB, cfg *config.Config, superadminID uuid.UUID) e
 	lastName := cfg.Seed.AdminLastName
 	if lastName == "" {
 		lastName = "SIGIF"
+	}
+
+	var existing model.UserModel
+	err := tx.Where("email = ?", email).First(&existing).Error
+	if err == nil {
+		// Ensure the bootstrap admin is always usable: reactivate it if it was
+		// deactivated or soft-deleted during testing.
+		if existing.Status != entity.UserStatusActive.String() || existing.DeletedAt.Valid {
+			return tx.Model(&existing).Updates(map[string]any{
+				"status":     entity.UserStatusActive.String(),
+				"deleted_at": nil,
+			}).Error
+		}
+		return nil
+	}
+	if !errors.Is(err, gorm.ErrRecordNotFound) {
+		return err
 	}
 
 	hash, err := security.HashPassword(password)
