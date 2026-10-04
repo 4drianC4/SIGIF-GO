@@ -1,10 +1,6 @@
 package dtos
 
 import (
-	"github.com/gofiber/fiber/v2"
-	"github.com/google/uuid"
-
-	"github.com/sigif/sigif-go/internal/modules/customer/application/dto"
 	"github.com/sigif/sigif-go/internal/modules/customer/domain/entity"
 )
 
@@ -27,28 +23,6 @@ type UpdateCustomerRequest struct {
 
 type ChangeStatusRequest struct {
 	Status string `json:"status" validate:"required,oneof=active inactive blocked"`
-}
-
-type CustomerListResponse struct {
-	Customers []dto.Customer `json:"customers"`
-	Total     int64          `json:"total"`
-	Page      int            `json:"page"`
-	Limit     int            `json:"limit"`
-}
-
-func ToResponse(c dto.Customer) dto.Customer {
-	return c
-}
-
-func ToResponseList(customers []dto.Customer) []dto.Customer {
-	return customers
-}
-
-func TenantIDFromContext(c *fiber.Ctx) uuid.UUID {
-    if id, ok := c.Locals("company_id").(uuid.UUID); ok {
-        return id
-    }
-    return uuid.Nil
 }
 
 func DocumentTypeFromRequest(dt string) entity.DocumentType {

@@ -20,7 +20,6 @@ import (
 	"github.com/sigif/sigif-go/internal/modules/product/testutil"
 	"github.com/sigif/sigif-go/internal/shared/clock"
 	"github.com/sigif/sigif-go/internal/shared/config"
-	"github.com/sigif/sigif-go/internal/shared/events"
 	"github.com/sigif/sigif-go/internal/shared/jwt"
 	"github.com/sigif/sigif-go/internal/shared/middleware"
 	"github.com/sigif/sigif-go/internal/shared/validator"
@@ -75,7 +74,7 @@ func newTestServer(t *testing.T) *testServer {
 	categories := testutil.NewMemoryCategoryRepository()
 	clk := clock.NewMockClock(time.Date(2026, 10, 2, 12, 0, 0, 0, time.UTC))
 	svc := service.NewCatalogService(products, categories, clk)
-	h := httpHandler.NewCatalogHTTPHandler(appHandler.NewCatalogCommandHandler(svc, events.NewBus()), validator.New())
+	h := httpHandler.NewCatalogHTTPHandler(appHandler.NewCatalogCommandHandler(svc), validator.New())
 	perms := &stubPermissions{byUser: map[uuid.UUID]map[string]bool{}}
 
 	app := fiber.New()

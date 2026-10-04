@@ -9,7 +9,7 @@ import (
 )
 
 func (h *CustomerQueryHandler) HandleGet(ctx context.Context, q query.GetCustomer) (*entity.Customer, error) {
-	return h.service.GetByID(ctx, q.TenantID, q.ID)
+	return h.service.GetByID(ctx, q.CompanyID, q.ID)
 }
 
 func (h *CustomerQueryHandler) HandleList(ctx context.Context, q query.ListCustomers) ([]*entity.Customer, int64, error) {
@@ -17,5 +17,5 @@ func (h *CustomerQueryHandler) HandleList(ctx context.Context, q query.ListCusto
 		Q:      q.Q,
 		Status: q.Status,
 	}
-	return h.service.List(ctx, q.TenantID, filter, q.Offset, q.Limit)
+	return h.service.List(ctx, q.CompanyID, filter, q.Offset, q.Limit)
 }

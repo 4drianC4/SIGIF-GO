@@ -14,11 +14,11 @@ type ListFilter struct {
 }
 
 type Reader interface {
-	GetByID(ctx context.Context, tenantID, id uuid.UUID) (*entity.Customer, error)
+	GetByID(ctx context.Context, companyID, id uuid.UUID) (*entity.Customer, error)
 
-	List(ctx context.Context, tenantID uuid.UUID, filter ListFilter, offset, limit int) ([]*entity.Customer, int64, error)
+	List(ctx context.Context, companyID uuid.UUID, filter ListFilter, offset, limit int) ([]*entity.Customer, int64, error)
 
-	ExistsByDocument(ctx context.Context, tenantID uuid.UUID, docType entity.DocumentType, docNumber string) (bool, error)
+	ExistsByDocument(ctx context.Context, companyID uuid.UUID, docType entity.DocumentType, docNumber string) (bool, error)
 }
 
 type Writer interface {

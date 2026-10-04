@@ -5,12 +5,11 @@ import (
 
 	"github.com/sigif/sigif-go/internal/modules/product/application/command"
 	"github.com/sigif/sigif-go/internal/modules/product/domain/entity"
-	"github.com/sigif/sigif-go/internal/modules/product/domain/event"
 	"github.com/sigif/sigif-go/internal/modules/product/domain/service"
 )
 
 func (h *CatalogCommandHandler) HandleCreateProduct(ctx context.Context, cmd command.CreateProduct) (*entity.Product, error) {
-	product, err := h.service.CreateProduct(ctx, service.CreateProductParams{
+	return h.service.CreateProduct(ctx, service.CreateProductParams{
 		CompanyID:     cmd.CompanyID,
 		CategoryID:    cmd.CategoryID,
 		SKU:           cmd.SKU,
@@ -21,10 +20,4 @@ func (h *CatalogCommandHandler) HandleCreateProduct(ctx context.Context, cmd com
 		CostPrice:     cmd.CostPrice,
 		SalePrice:     cmd.SalePrice,
 	})
-	if err != nil {
-		return nil, err
-	}
-
-	_ = h.eventBus.Publish(ctx, event.NewProductCreatedEvent(product))
-	return product, nil
 }

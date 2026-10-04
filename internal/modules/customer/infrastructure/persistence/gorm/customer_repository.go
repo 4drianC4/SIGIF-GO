@@ -29,7 +29,7 @@ func (r *CustomerGormRepository) Create(ctx context.Context, customer *entity.Cu
 	if err := r.db.GetDB(ctx).Create(m).Error; err != nil {
 		if isUniqueViolation(err) {
 			return sharedErrors.New(sharedErrors.CodeConflict,
-				"a customer with this document already exists in this tenant", 409)
+				"a customer with this document already exists in this company", 409)
 		}
 		return err
 	}
@@ -37,10 +37,10 @@ func (r *CustomerGormRepository) Create(ctx context.Context, customer *entity.Cu
 	return nil
 }
 
-func (r *CustomerGormRepository) GetByID(ctx context.Context, tenantID, id uuid.UUID) (*entity.Customer, error) {
+func (r *CustomerGormRepository) GetByID(ctx context.Context, companyID, id uuid.UUID) (*entity.Customer, error) {
 	var m model.CustomerModel
 	err := r.db.GetDB(ctx).
-		Where("customer_id = ? AND tenant_id = ? AND deleted_at IS NULL", id, tenantID).
+		Where("customer_id = ? AND company_id = ? AND deleted_at IS NULL", id, companyID).
 		First(&m).Error
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -53,7 +53,7 @@ func (r *CustomerGormRepository) GetByID(ctx context.Context, tenantID, id uuid.
 
 func (r *CustomerGormRepository) List(
 	ctx context.Context,
-	tenantID uuid.UUID,
+	companyID uuid.UUID,
 	filter repository.ListFilter,
 	offset, limit int,
 ) ([]*entity.Customer, int64, error) {
@@ -61,7 +61,7 @@ func (r *CustomerGormRepository) List(
 	var total int64
 
 	db := r.db.GetDB(ctx).Model(&model.CustomerModel{}).
-		Where("tenant_id = ? AND deleted_at IS NULL", tenantID)
+		Where("company_id = ? AND deleted_at IS NULL", companyID)
 
 	if q := strings.TrimSpace(filter.Q); q != "" {
 		pattern := "%" + strings.ToLower(q) + "%"
@@ -97,14 +97,14 @@ func (r *CustomerGormRepository) List(
 
 func (r *CustomerGormRepository) ExistsByDocument(
 	ctx context.Context,
-	tenantID uuid.UUID,
+	companyID uuid.UUID,
 	docType entity.DocumentType,
 	docNumber string,
 ) (bool, error) {
 	var count int64
 	err := r.db.GetDB(ctx).Model(&model.CustomerModel{}).
-		Where("tenant_id = ? AND document_type = ? AND document_number = ? AND deleted_at IS NULL",
-			tenantID, string(docType), docNumber).
+		Where("company_id = ? AND document_type = ? AND document_number = ? AND deleted_at IS NULL",
+			companyID, string(docType), docNumber).
 		Count(&count).Error
 	return count > 0, err
 }
@@ -114,7 +114,7 @@ func (r *CustomerGormRepository) Update(ctx context.Context, customer *entity.Cu
 	if err := r.db.GetDB(ctx).Save(m).Error; err != nil {
 		if isUniqueViolation(err) {
 			return sharedErrors.New(sharedErrors.CodeConflict,
-				"a customer with this document already exists in this tenant", 409)
+				"a customer with this document already exists in this company", 409)
 		}
 		return err
 	}

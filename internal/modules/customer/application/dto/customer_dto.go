@@ -8,7 +8,7 @@ import (
 
 type Customer struct {
 	ID             string                `json:"id"`
-	TenantID       string                `json:"tenant_id"`
+	CompanyID      string                `json:"company_id"`
 	LegalName      string                `json:"legal_name"`
 	DocumentType   entity.DocumentType   `json:"document_type"`
 	DocumentNumber *string               `json:"document_number,omitempty"`
@@ -32,7 +32,7 @@ func FromEntity(c *entity.Customer) Customer {
 
 	return Customer{
 		ID:             c.ID.String(),
-		TenantID:       c.TenantID.String(),
+		CompanyID:      c.CompanyID.String(),
 		LegalName:      c.LegalName,
 		DocumentType:   c.DocumentType,
 		DocumentNumber: c.DocumentNumber,

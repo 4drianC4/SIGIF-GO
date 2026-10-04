@@ -7,7 +7,7 @@ import (
 )
 
 type CreateCustomer struct {
-	TenantID       uuid.UUID
+	CompanyID      uuid.UUID
 	LegalName      string
 	DocumentType   entity.DocumentType
 	DocumentNumber *string
@@ -17,7 +17,7 @@ type CreateCustomer struct {
 
 type UpdateCustomer struct {
 	ID             uuid.UUID
-	TenantID       uuid.UUID
+	CompanyID      uuid.UUID
 	LegalName      string
 	DocumentType   entity.DocumentType
 	DocumentNumber *string
@@ -27,12 +27,12 @@ type UpdateCustomer struct {
 }
 
 type DeleteCustomer struct {
-	ID       uuid.UUID
-	TenantID uuid.UUID
+	ID        uuid.UUID
+	CompanyID uuid.UUID
 }
 
 type ChangeCustomerStatus struct {
-	ID       uuid.UUID
-	TenantID uuid.UUID
-	Status   entity.CustomerStatus
+	ID        uuid.UUID
+	CompanyID uuid.UUID
+	Status    entity.CustomerStatus
 }

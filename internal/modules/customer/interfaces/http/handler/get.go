@@ -19,11 +19,14 @@ func (h *CustomerHTTPHandler) GetByID(c *fiber.Ctx) error {
 		return response.Error(c, fiber.StatusBadRequest, sharedErrors.New(sharedErrors.CodeBadRequest, "invalid customer id", 400))
 	}
 
-	tenantID := dtos.TenantIDFromContext(c)
+	companyID, err := companyIDFromContext(c)
+	if err != nil {
+		return err
+	}
 
 	customer, err := h.queryHandler.HandleGet(c.UserContext(), query.GetCustomer{
-		ID:       id,
-		TenantID: tenantID,
+		ID:        id,
+		CompanyID: companyID,
 	})
 	if err != nil {
 		return response.Error(c, fiber.StatusInternalServerError, err)
@@ -32,14 +35,25 @@ func (h *CustomerHTTPHandler) GetByID(c *fiber.Ctx) error {
 		return response.Error(c, fiber.StatusNotFound, sharedErrors.ErrNotFound)
 	}
 
-	customerDTO := dto.FromEntity(customer)
-	return response.Success(c, dtos.ToResponse(customerDTO))
+	return response.Success(c, dto.FromEntity(customer))
 }
 
 func (h *CustomerHTTPHandler) List(c *fiber.Ctx) error {
-	tenantID := dtos.TenantIDFromContext(c)
+	companyID, err := companyIDFromContext(c)
+	if err != nil {
+		return err
+	}
 
-	page, limit := pagination.Parse(c, 20, 100)
+	defaultLimit := h.cfg.Pagination.DefaultLimit
+	if defaultLimit < 1 {
+		defaultLimit = 20
+	}
+	maxLimit := h.cfg.Pagination.MaxLimit
+	if maxLimit < 1 {
+		maxLimit = 100
+	}
+
+	page, limit := pagination.Parse(c, defaultLimit, maxLimit)
 
 	qParam := c.Query("q")
 	var statusFilter *entity.CustomerStatus
@@ -51,17 +65,16 @@ func (h *CustomerHTTPHandler) List(c *fiber.Ctx) error {
 	}
 
 	customers, total, err := h.queryHandler.HandleList(c.UserContext(), query.ListCustomers{
-		TenantID: tenantID,
-		Q:        qParam,
-		Status:   statusFilter,
-		Offset:   (page - 1) * limit,
-		Limit:    limit,
+		CompanyID: companyID,
+		Q:         qParam,
+		Status:    statusFilter,
+		Offset:    (page - 1) * limit,
+		Limit:     limit,
 	})
 	if err != nil {
 		return response.Error(c, fiber.StatusInternalServerError, err)
 	}
 
 	p := pagination.New(page, limit, total)
-	dtoList := dto.FromEntityList(customers)
-	return response.Paginated(c, dtos.ToResponseList(dtoList), p)
+	return response.Paginated(c, dto.FromEntityList(customers), p)
 }

@@ -19,6 +19,8 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/sigif/sigif-go/internal/modules/auth"
+	"github.com/sigif/sigif-go/internal/modules/customer"
+	"github.com/sigif/sigif-go/internal/modules/product"
 	"github.com/sigif/sigif-go/internal/modules/user"
 	"github.com/sigif/sigif-go/internal/shared/clock"
 	"github.com/sigif/sigif-go/internal/shared/config"
@@ -27,9 +29,6 @@ import (
 	sharedLogger "github.com/sigif/sigif-go/internal/shared/logger"
 	"github.com/sigif/sigif-go/internal/shared/middleware"
 	"github.com/sigif/sigif-go/internal/shared/validator"
-	"github.com/sigif/sigif-go/internal/modules/customer"
-	"github.com/sigif/sigif-go/internal/modules/product"
-	"github.com/sigif/sigif-go/internal/shared/events"
 )
 
 func main() {
@@ -41,7 +40,6 @@ func main() {
 			jwt.NewManager,
 			validator.New,
 			newFiberApp,
-			events.NewBus,
 			fx.Annotate(clock.NewRealClock, fx.As(new(clock.Clock))),
 		),
 		user.Module,

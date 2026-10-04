@@ -12,7 +12,7 @@ import (
 
 type UpdateCustomerParams struct {
 	ID             uuid.UUID
-	TenantID       uuid.UUID
+	CompanyID      uuid.UUID
 	LegalName      string
 	DocumentType   entity.DocumentType
 	DocumentNumber *string
@@ -26,7 +26,7 @@ func (s *CustomerService) Update(ctx context.Context, params UpdateCustomerParam
 		return nil, sharedErrors.New(sharedErrors.CodeValidation, "legal_name is required", 400)
 	}
 
-	customer, err := s.repo.GetByID(ctx, params.TenantID, params.ID)
+	customer, err := s.repo.GetByID(ctx, params.CompanyID, params.ID)
 	if err != nil {
 		return nil, err
 	}
@@ -47,13 +47,13 @@ func (s *CustomerService) Update(ctx context.Context, params UpdateCustomerParam
 		params.DocumentType != customer.DocumentType
 
 	if documentChanged && newDocNumber != "" {
-		exists, err := s.repo.ExistsByDocument(ctx, params.TenantID, params.DocumentType, newDocNumber)
+		exists, err := s.repo.ExistsByDocument(ctx, params.CompanyID, params.DocumentType, newDocNumber)
 		if err != nil {
 			return nil, err
 		}
 		if exists {
 			return nil, sharedErrors.New(sharedErrors.CodeConflict,
-				"a customer with this document already exists in this tenant", 409)
+				"a customer with this document already exists in this company", 409)
 		}
 	}
 

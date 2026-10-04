@@ -3,9 +3,9 @@ package entity
 type CustomerStatus string
 
 const (
-	CustomerStatusActive CustomerStatus = "active"
+	CustomerStatusActive   CustomerStatus = "active"
 	CustomerStatusInactive CustomerStatus = "inactive"
-	CustomerStatusBlocked CustomerStatus = "blocked"
+	CustomerStatusBlocked  CustomerStatus = "blocked"
 )
 
 func (s CustomerStatus) IsValid() bool {

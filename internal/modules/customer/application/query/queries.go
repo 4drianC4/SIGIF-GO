@@ -7,14 +7,14 @@ import (
 )
 
 type GetCustomer struct {
-	ID       uuid.UUID
-	TenantID uuid.UUID
+	ID        uuid.UUID
+	CompanyID uuid.UUID
 }
 
 type ListCustomers struct {
-	TenantID uuid.UUID
-	Q        string
-	Status   *entity.CustomerStatus
-	Offset   int
-	Limit    int
+	CompanyID uuid.UUID
+	Q         string
+	Status    *entity.CustomerStatus
+	Offset    int
+	Limit     int
 }

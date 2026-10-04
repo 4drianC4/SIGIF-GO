@@ -11,9 +11,9 @@ import (
 
 func (s *CustomerService) List(
 	ctx context.Context,
-	tenantID uuid.UUID,
+	companyID uuid.UUID,
 	filter repository.ListFilter,
 	offset, limit int,
 ) ([]*entity.Customer, int64, error) {
-	return s.repo.List(ctx, tenantID, filter, offset, limit)
+	return s.repo.List(ctx, companyID, filter, offset, limit)
 }
