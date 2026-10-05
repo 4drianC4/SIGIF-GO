@@ -20,6 +20,7 @@
 | `GET` | `/api/v1/customers/` | `customers.list` | Lista clientes de la empresa con filtros y paginación. |
 | `GET` | `/api/v1/customers/:id` | `customers.read` | Obtiene un cliente por UUID. |
 | `PUT` | `/api/v1/customers/:id` | `customers.update` | Actualiza los datos editables del cliente. |
+| `PATCH` | `/api/v1/customers/:id` | `customers.update` | Actualización parcial (ver HU-08-04). |
 | `PATCH` | `/api/v1/customers/:id/status` | `customers.status` | Cambia el estado del cliente. |
 | `DELETE` | `/api/v1/customers/:id` | `customers.delete` | Da de baja lógicamente al cliente. |
 
@@ -181,6 +182,8 @@ Ninguno.
 ## 4) Actualizar cliente — `PUT /api/v1/customers/:id`
 
 Actualiza los campos editables del cliente. La operación trata los campos omitidos como vacíos/nulos; enviar los datos que se desean conservar.
+
+> Para cambiar solo algunos campos, usar `PATCH /api/v1/customers/:id` ([HU-08-04 — Edición de cliente](HU-08-04-endpoints.md)).
 
 ### Permiso
 `customers.update`
