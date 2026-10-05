@@ -1,0 +1,26 @@
+meta {
+  name: 06 Filter All Statuses
+  type: http
+  seq: 12
+}
+
+get {
+  url: {{baseUrl}}/api/v1/customers/?q={{searchTag}}&status=all
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{accessToken}}
+}
+
+tests {
+  test("devuelve clientes activos e inactivos", function() {
+    expect(res.status).to.equal(200);
+    expect(res.body.success).to.equal(true);
+    expect(res.body.data).to.be.an('array');
+    expect(res.body.meta.total).to.equal(2);
+    const statuses = res.body.data.map(function(c) { return c.status; }).sort();
+    expect(statuses).to.deep.equal(['active', 'inactive']);
+  });
+}

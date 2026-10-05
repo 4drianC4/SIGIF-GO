@@ -1,0 +1,46 @@
+meta {
+  name: Setup - Create Active Customer
+  type: http
+  seq: 2
+}
+
+post {
+  url: {{baseUrl}}/api/v1/customers/
+  body: json
+  auth: bearer
+}
+
+headers {
+  Content-Type: application/json
+}
+
+auth:bearer {
+  token: {{accessToken}}
+}
+
+body:json {
+  {
+    "legal_name": "{{searchTag}} Ferreteria Central",
+    "document_type": "tax_id",
+    "document_number": "{{searchDocument}}",
+    "phone": "+59170000001",
+    "email": "central@example.com"
+  }
+}
+
+script:pre-request {
+  const tag = 'HU0802-' + Date.now();
+  bru.setVar('searchTag', tag);
+  bru.setVar('searchDocument', String(Date.now()).slice(-10));
+}
+
+script:post-response {
+  bru.setVar('activeCustomerId', res.body && res.body.data ? res.body.data.id : '');
+}
+
+tests {
+  test("responde 201 con el cliente activo", function() {
+    expect(res.status).to.equal(201);
+    expect(res.body.data.status).to.equal('active');
+  });
+}

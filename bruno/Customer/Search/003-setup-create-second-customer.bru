@@ -1,0 +1,38 @@
+meta {
+  name: Setup - Create Customer To Deactivate
+  type: http
+  seq: 3
+}
+
+post {
+  url: {{baseUrl}}/api/v1/customers/
+  body: json
+  auth: bearer
+}
+
+headers {
+  Content-Type: application/json
+}
+
+auth:bearer {
+  token: {{accessToken}}
+}
+
+body:json {
+  {
+    "legal_name": "{{searchTag}} Ferreteria Cerrada",
+    "document_type": "tax_id",
+    "phone": "+59170000002",
+    "email": "cerrada@example.com"
+  }
+}
+
+script:post-response {
+  bru.setVar('inactiveCustomerId', res.body && res.body.data ? res.body.data.id : '');
+}
+
+tests {
+  test("responde 201", function() {
+    expect(res.status).to.equal(201);
+  });
+}
