@@ -14,8 +14,10 @@ func (h *CustomerQueryHandler) HandleGet(ctx context.Context, q query.GetCustome
 
 func (h *CustomerQueryHandler) HandleList(ctx context.Context, q query.ListCustomers) ([]*entity.Customer, int64, error) {
 	filter := repository.ListFilter{
-		Q:      q.Q,
-		Status: q.Status,
+		Q:         q.Q,
+		Status:    q.Status,
+		SortBy:    q.SortBy,
+		SortOrder: q.SortOrder,
 	}
 	return h.service.List(ctx, q.CompanyID, filter, q.Offset, q.Limit)
 }

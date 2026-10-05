@@ -1,12 +1,16 @@
 package handler
 
 import (
+	"fmt"
+	"strings"
+
 	"github.com/gofiber/fiber/v2"
 	"github.com/google/uuid"
 
 	"github.com/sigif/sigif-go/internal/modules/customer/application/dto"
 	"github.com/sigif/sigif-go/internal/modules/customer/application/query"
 	"github.com/sigif/sigif-go/internal/modules/customer/domain/entity"
+	"github.com/sigif/sigif-go/internal/modules/customer/domain/repository"
 	"github.com/sigif/sigif-go/internal/modules/customer/interfaces/http/dtos"
 	sharedErrors "github.com/sigif/sigif-go/internal/shared/errors"
 	"github.com/sigif/sigif-go/internal/shared/pagination"
@@ -21,7 +25,7 @@ func (h *CustomerHTTPHandler) GetByID(c *fiber.Ctx) error {
 
 	companyID, err := companyIDFromContext(c)
 	if err != nil {
-		return err
+		return response.Error(c, fiber.StatusBadRequest, err)
 	}
 
 	customer, err := h.queryHandler.HandleGet(c.UserContext(), query.GetCustomer{
@@ -38,10 +42,16 @@ func (h *CustomerHTTPHandler) GetByID(c *fiber.Ctx) error {
 	return response.Success(c, dto.FromEntity(customer))
 }
 
+// List searches the company's customers (HU-08-02). Without a status filter
+// only active customers are returned; status=all includes every status.
 func (h *CustomerHTTPHandler) List(c *fiber.Ctx) error {
-	companyID, err := companyIDFromContext(c)
-	if err != nil {
-		return err
+	var req dtos.ListCustomersRequest
+	if err := c.QueryParser(&req); err != nil {
+		return response.Error(c, fiber.StatusBadRequest, sharedErrors.New(sharedErrors.CodeBadRequest, "invalid query parameters", 400))
+	}
+	req.Q = strings.TrimSpace(req.Q)
+	if err := h.validator.Validate(&req); err != nil {
+		return response.Error(c, fiber.StatusBadRequest, err)
 	}
 
 	defaultLimit := h.cfg.Pagination.DefaultLimit
@@ -53,21 +63,39 @@ func (h *CustomerHTTPHandler) List(c *fiber.Ctx) error {
 		maxLimit = 100
 	}
 
-	page, limit := pagination.Parse(c, defaultLimit, maxLimit)
-
-	qParam := c.Query("q")
-	var statusFilter *entity.CustomerStatus
-	if s := c.Query("status"); s != "" {
-		st := dtos.StatusFromRequest(s)
-		if st.IsValid() {
-			statusFilter = &st
+	page, limit := 1, defaultLimit
+	if req.Page != nil {
+		page = *req.Page
+	}
+	if req.Limit != nil {
+		if *req.Limit > maxLimit {
+			return response.ValidationError(c, map[string]string{"limit": fmt.Sprintf("limit must be %d or less", maxLimit)})
 		}
+		limit = *req.Limit
+	}
+
+	var statusFilter *entity.CustomerStatus
+	switch req.Status {
+	case dtos.StatusAll:
+	case "":
+		st := entity.CustomerStatusActive
+		statusFilter = &st
+	default:
+		st := dtos.StatusFromRequest(req.Status)
+		statusFilter = &st
+	}
+
+	companyID, err := companyIDFromContext(c)
+	if err != nil {
+		return response.Error(c, fiber.StatusBadRequest, err)
 	}
 
 	customers, total, err := h.queryHandler.HandleList(c.UserContext(), query.ListCustomers{
 		CompanyID: companyID,
-		Q:         qParam,
+		Q:         req.Q,
 		Status:    statusFilter,
+		SortBy:    repository.SortField(req.SortBy),
+		SortOrder: repository.SortOrder(req.SortOrder),
 		Offset:    (page - 1) * limit,
 		Limit:     limit,
 	})
@@ -76,5 +104,5 @@ func (h *CustomerHTTPHandler) List(c *fiber.Ctx) error {
 	}
 
 	p := pagination.New(page, limit, total)
-	return response.Paginated(c, dto.FromEntityList(customers), p)
+	return response.Paginated(c, dto.SummaryFromEntityList(customers), p)
 }
