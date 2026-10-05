@@ -1,0 +1,34 @@
+meta {
+  name: Setup - Login User Without Customer Permissions
+  type: http
+  seq: 5
+}
+
+post {
+  url: {{baseUrl}}/api/v1/auth/login
+  body: json
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "email": "{{restrictedEmail}}",
+    "password": "{{restrictedPassword}}"
+  }
+}
+
+script:post-response {
+  if (res.body && res.body.data) {
+    bru.setVar('tokenWithoutPermission', res.body.data.token.access_token);
+  }
+}
+
+tests {
+  test("responde 200 con token", function() {
+    expect(res.status).to.equal(200);
+  });
+}

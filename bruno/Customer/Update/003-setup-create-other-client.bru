@@ -1,0 +1,37 @@
+meta {
+  name: Setup - Create Other Client
+  type: http
+  seq: 3
+}
+
+post {
+  url: {{baseUrl}}/api/v1/customers/
+  body: json
+  auth: bearer
+}
+
+headers {
+  Content-Type: application/json
+}
+
+auth:bearer {
+  token: {{accessToken}}
+}
+
+body:json {
+  {
+    "legal_name": "{{editTag}} Otro Cliente",
+    "document_type": "tax_id",
+    "document_number": "{{otherClientDocument}}"
+  }
+}
+
+script:pre-request {
+  bru.setVar('otherClientDocument', 'O' + String(Date.now()).slice(-9));
+}
+
+tests {
+  test("responde 201", function() {
+    expect(res.status).to.equal(201);
+  });
+}
