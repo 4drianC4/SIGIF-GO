@@ -13,6 +13,7 @@ func RegisterCustomerRoutes(router fiber.Router, h *handler.CustomerHTTPHandler,
 	customers.Get("/", middleware.RequirePermission(checker, "customers", "list"), h.List)
 	customers.Get("/:id", middleware.RequirePermission(checker, "customers", "read"), h.GetByID)
 	customers.Put("/:id", middleware.RequirePermission(checker, "customers", "update"), h.Update)
+	customers.Patch("/:id", middleware.RequirePermission(checker, "customers", "update"), h.Patch)
 	customers.Patch("/:id/status", middleware.RequirePermission(checker, "customers", "status"), h.ChangeStatus)
 	customers.Delete("/:id", middleware.RequirePermission(checker, "customers", "delete"), h.Delete)
 }
