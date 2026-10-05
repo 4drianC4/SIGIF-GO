@@ -27,7 +27,7 @@ func (h *CustomerHTTPHandler) ChangeStatus(c *fiber.Ctx) error {
 
 	companyID, err := companyIDFromContext(c)
 	if err != nil {
-		return err
+		return response.Error(c, fiber.StatusBadRequest, err)
 	}
 
 	cmd := command.ChangeCustomerStatus{
