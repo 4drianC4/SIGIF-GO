@@ -25,6 +25,20 @@ type ChangeStatusRequest struct {
 	Status string `json:"status" validate:"required,oneof=active inactive blocked"`
 }
 
+// StatusAll lists customers in every status.
+const StatusAll = "all"
+
+// ListCustomersRequest holds the query string of GET /customers. Page and
+// limit are pointers so an explicit 0 is rejected instead of defaulted.
+type ListCustomersRequest struct {
+	Q         string `json:"q" query:"q" validate:"max=100"`
+	Status    string `json:"status" query:"status" validate:"omitempty,oneof=active inactive blocked all"`
+	Page      *int   `json:"page" query:"page" validate:"omitempty,min=1"`
+	Limit     *int   `json:"limit" query:"limit" validate:"omitempty,min=1"`
+	SortBy    string `json:"sort_by" query:"sort_by" validate:"omitempty,oneof=legal_name created_at"`
+	SortOrder string `json:"sort_order" query:"sort_order" validate:"omitempty,oneof=asc desc"`
+}
+
 func DocumentTypeFromRequest(dt string) entity.DocumentType {
 	if dt == "" {
 		return entity.DocumentTypeNationalID

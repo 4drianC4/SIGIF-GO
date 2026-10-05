@@ -1,0 +1,22 @@
+meta {
+  name: 14 Without Permission (403)
+  type: http
+  seq: 20
+}
+
+get {
+  url: {{baseUrl}}/api/v1/customers/
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{tokenWithoutPermission}}
+}
+
+tests {
+  test("responde 403 FORBIDDEN sin customers.list", function() {
+    expect(res.status).to.equal(403);
+    expect(res.body.error.code).to.equal('FORBIDDEN');
+  });
+}

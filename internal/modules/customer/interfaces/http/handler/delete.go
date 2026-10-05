@@ -17,7 +17,7 @@ func (h *CustomerHTTPHandler) Delete(c *fiber.Ctx) error {
 
 	companyID, err := companyIDFromContext(c)
 	if err != nil {
-		return err
+		return response.Error(c, fiber.StatusBadRequest, err)
 	}
 
 	if err := h.cmdHandler.HandleDelete(c.UserContext(), command.DeleteCustomer{

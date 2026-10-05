@@ -8,7 +8,6 @@ import (
 	"github.com/sigif/sigif-go/internal/shared/config"
 	"github.com/sigif/sigif-go/internal/shared/errors"
 	"github.com/sigif/sigif-go/internal/shared/middleware"
-	"github.com/sigif/sigif-go/internal/shared/response"
 	"github.com/sigif/sigif-go/internal/shared/validator"
 )
 
@@ -33,12 +32,12 @@ func NewCustomerHTTPHandler(
 	}
 }
 
-// companyIDFromContext returns the authenticated user's company, or a 400 error.
+// companyIDFromContext returns the authenticated user's company, or a 400
+// error the caller must write with response.Error.
 func companyIDFromContext(c *fiber.Ctx) (uuid.UUID, error) {
 	companyID, ok := middleware.CompanyIDFromContext(c.UserContext())
 	if !ok {
-		return uuid.Nil, response.Error(c, fiber.StatusBadRequest,
-			errors.New(errors.CodeBadRequest, "company is required", fiber.StatusBadRequest))
+		return uuid.Nil, errors.New(errors.CodeBadRequest, "company is required", fiber.StatusBadRequest)
 	}
 	return companyID, nil
 }

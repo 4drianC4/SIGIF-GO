@@ -8,9 +8,38 @@ import (
 	"github.com/sigif/sigif-go/internal/modules/customer/domain/entity"
 )
 
+type SortField string
+
+const (
+	SortByLegalName SortField = "legal_name"
+	SortByCreatedAt SortField = "created_at"
+)
+
+func (f SortField) IsValid() bool {
+	switch f {
+	case SortByLegalName, SortByCreatedAt:
+		return true
+	}
+	return false
+}
+
+type SortOrder string
+
+const (
+	SortAsc  SortOrder = "asc"
+	SortDesc SortOrder = "desc"
+)
+
+func (o SortOrder) IsValid() bool {
+	return o == SortAsc || o == SortDesc
+}
+
+// ListFilter narrows a customer listing. A nil Status means every status.
 type ListFilter struct {
-	Q      string
-	Status *entity.CustomerStatus
+	Q         string
+	Status    *entity.CustomerStatus
+	SortBy    SortField
+	SortOrder SortOrder
 }
 
 type Reader interface {
