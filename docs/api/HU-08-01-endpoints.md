@@ -121,61 +121,10 @@ Ninguno.
 
 Lista únicamente clientes no eliminados de la empresa autenticada.
 
+> El contrato vigente de este endpoint (búsqueda, filtros, orden, paginación, validación y forma de los ítems) se define en [HU-08-02 — Búsqueda de clientes](HU-08-02-endpoints.md).
+
 ### Permiso
 `customers.list`
-
-### Params de ruta
-Ninguno.
-
-### Query params
-
-| Parámetro | Obligatorio / por defecto | Tipo | Descripción |
-|---|---|---|---|
-| `page` | Opcional, por defecto `1` | integer | Página solicitada. Valores menores que 1 se ajustan a 1. |
-| `limit` | Opcional, por defecto `20` | integer | Tamaño de página; valores menores que 1 o mayores que el máximo se ajustan al valor por defecto. Máximo: configurable. |
-| `q` | Opcional | string | Búsqueda parcial en nombre legal, documento, teléfono o email. |
-| `status` | Opcional | enum | `active` \| `inactive` \| `blocked`. Un valor inválido se ignora actualmente. |
-
-### Respuesta exitosa
-
-**`200 OK`**
-
-```json
-{
-  "success": true,
-  "data": [
-    {
-      "id": "f7e8862e-b6d2-4a08-a3cf-0d2f57f158e2",
-      "company_id": "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
-      "legal_name": "Comercial Ejemplo",
-      "document_type": "tax_id",
-      "document_number": "1020304050",
-      "phone": "+59170000000",
-      "email": "contacto@ejemplo.com",
-      "credit_limit": "0",
-      "credit_balance": "0",
-      "points_accrued": 0,
-      "status": "active",
-      "created_at": "2026-10-03T12:00:00Z"
-    }
-  ],
-  "meta": {
-    "page": 1,
-    "limit": 20,
-    "total": 1,
-    "total_pages": 1
-  }
-}
-```
-
-### Códigos de error
-
-| Code | HTTP | Causa |
-|---|---|---|
-| `BAD_REQUEST` | 400 | El token no tiene empresa (`company is required`). |
-| `UNAUTHORIZED` | 401 | Falta el token o es inválido/expiró. |
-| `FORBIDDEN` | 403 | El usuario no tiene el permiso `customers.list`. |
-| `INTERNAL_ERROR` | 500 | Error inesperado de persistencia. |
 
 ---
 
@@ -410,8 +359,7 @@ Los campos opcionales nulos se omiten cuando están etiquetados con `omitempty`.
 - La lista siempre restringe resultados a la empresa autenticada y excluye clientes con soft delete.
 - El soft delete establece `deleted_at` y cambia el estado a `inactive`.
 - Al omitir `document_type` al crear, se usa `national_id`. Al omitirlo al actualizar, también se convierte a `national_id`; por tanto, puede cambiar el tipo previamente almacenado.
-- En la lista, un valor inválido de `status` se ignora en lugar de devolver 400.
-- `page < 1` se ajusta a 1. `limit < 1` o `limit > max` se ajusta al valor predeterminado.
+- En la lista, los parámetros inválidos (`status`, `page`, `limit`, etc.) responden 400; ver HU-08-02.
 - Un usuario sin empresa (claim `company_id` ausente) recibe `400 company is required` en todas las rutas.
 
 ---
