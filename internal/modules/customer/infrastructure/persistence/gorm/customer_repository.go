@@ -11,10 +11,10 @@ import (
 
 	"github.com/sigif/sigif-go/internal/modules/customer/domain/entity"
 	"github.com/sigif/sigif-go/internal/modules/customer/domain/repository"
+	"github.com/sigif/sigif-go/internal/modules/customer/domain/service"
 	"github.com/sigif/sigif-go/internal/modules/customer/infrastructure/persistence/mapper"
 	"github.com/sigif/sigif-go/internal/modules/customer/infrastructure/persistence/model"
 	sharedDatabase "github.com/sigif/sigif-go/internal/shared/database"
-	sharedErrors "github.com/sigif/sigif-go/internal/shared/errors"
 )
 
 type CustomerGormRepository struct {
@@ -29,8 +29,7 @@ func (r *CustomerGormRepository) Create(ctx context.Context, customer *entity.Cu
 	m := mapper.ToModel(customer)
 	if err := r.db.GetDB(ctx).Create(m).Error; err != nil {
 		if isUniqueViolation(err) {
-			return sharedErrors.New(sharedErrors.CodeConflict,
-				"a customer with this document already exists in this company", 409)
+			return service.ErrDocumentTaken
 		}
 		return err
 	}
@@ -131,16 +130,31 @@ func (r *CustomerGormRepository) ExistsByDocument(
 	return count > 0, err
 }
 
+// Update writes every column except the keys and created_at, only on the
+// customer's own non-deleted row. Unlike Save it never falls back to INSERT.
 func (r *CustomerGormRepository) Update(ctx context.Context, customer *entity.Customer) error {
 	m := mapper.ToModel(customer)
-	if err := r.db.GetDB(ctx).Save(m).Error; err != nil {
-		if isUniqueViolation(err) {
-			return sharedErrors.New(sharedErrors.CodeConflict,
-				"a customer with this document already exists in this company", 409)
+	result := r.db.GetDB(ctx).Model(m).
+		Where("company_id = ? AND deleted_at IS NULL", m.CompanyID).
+		Select("*").
+		Omit("customer_id", "company_id", "created_at").
+		Updates(m)
+	if result.Error != nil {
+		if isUniqueViolation(result.Error) {
+			return service.ErrDocumentTaken
 		}
-		return err
+		return result.Error
+	}
+	if result.RowsAffected == 0 {
+		return service.ErrCustomerNotFound
 	}
 	return nil
+}
+
+func (r *CustomerGormRepository) WithinTransaction(ctx context.Context, fn func(ctx context.Context) error) error {
+	return r.db.GetDB(ctx).Transaction(func(tx *gorm.DB) error {
+		return fn(sharedDatabase.WithTx(ctx, tx))
+	})
 }
 
 func isUniqueViolation(err error) bool {
