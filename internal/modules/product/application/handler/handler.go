@@ -16,3 +16,11 @@ func NewCatalogCommandHandler(service *service.CatalogService, eventBus *events.
 		eventBus: eventBus,
 	}
 }
+
+type CatalogQueryHandler struct {
+	service *service.CatalogService
+}
+
+func NewCatalogQueryHandler(service *service.CatalogService) *CatalogQueryHandler {
+	return &CatalogQueryHandler{service: service}
+}
