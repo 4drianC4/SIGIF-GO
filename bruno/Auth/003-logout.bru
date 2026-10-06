@@ -7,9 +7,13 @@ meta {
 post {
   url: {{baseUrl}}/api/v1/auth/logout
   body: none
-  auth: none
+  auth: bearer
 }
 
 headers {
   Authorization: Bearer {{accessToken}}
+}
+
+auth:bearer {
+  token: {{auth}}
 }

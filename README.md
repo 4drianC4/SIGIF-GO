@@ -70,7 +70,7 @@ cp .env.example .env
 
 | Variable | Descripción | Default |
 |----------|-------------|---------|
-| `SIGIF_APP_PORT` | Puerto HTTP | 8080 |
+| `SIGIF_APP_PORT` | Puerto HTTP | 4600 |
 | `SIGIF_DATABASE_HOST` | Host PostgreSQL | localhost |
 | `SIGIF_DATABASE_USER` | Usuario PostgreSQL | sigif |
 | `SIGIF_DATABASE_PASSWORD` | Contraseña | sigif |
@@ -95,7 +95,7 @@ make migrate-up
 make run
 ```
 
-Servidor disponible en `http://localhost:8080`.
+Servidor disponible en `http://localhost:4600`.
 
 ## API Endpoints
 
@@ -183,12 +183,12 @@ El módulo `auth` consume el módulo `user` mediante un **adaptador** (`auth/app
 
 ## Bruno Collections
 
-Importa la carpeta `bruno/` en Bruno. La colección usa la variable `baseUrl` (`http://localhost:8080`) y los scripts de login persisten `accessToken` y `userId` automáticamente.
+Importa la carpeta `bruno/` en Bruno. La colección usa la variable `baseUrl` (`http://localhost:4600`) y los scripts de login persisten `accessToken` y `userId` automáticamente.
 
 ## Health Check
 
 ```bash
-curl http://localhost:8080/health
+curl http://localhost:4600/health
 ```
 
 ## License

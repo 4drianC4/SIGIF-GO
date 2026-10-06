@@ -12,7 +12,7 @@ help:
 	@echo ""
 	@echo "Available commands:"
 	@echo "  make build         - Build the application"
-	@echo "  make run [PORT=8080] - Run the application locally"
+	@echo "  make run [PORT=4600] - Run the application locally"
 	@echo "  make test          - Run tests"
 	@echo "  make lint          - Run linter"
 	@echo "  make migrate-up    - Run database migrations"

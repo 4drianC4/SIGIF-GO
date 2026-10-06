@@ -9,7 +9,7 @@
 - Empresa: los productos y categorías pertenecen a la empresa del usuario, que se toma del claim `company_id` del token. Un usuario sin empresa (por ejemplo, un superadmin global) recibe `400 company is required`.
 - Formato de respuesta exitosa: `{ "success": true, "data": ... }`.
 - Formato de respuesta de error: `{ "success": false, "error": { "code": "CODIGO", "message": "descripción", "details": { "campo": "motivo" } } }`. `details` solo aparece en errores de validación.
-- Colección Bruno: `bruno/Products/` (001–009). Cada petición incluye sus `tests`. Usa las variables de entorno `baseUrl` (`http://localhost:8080`) y `accessToken` (pegar el `access_token` del login).
+- Colección Bruno: `bruno/Products/` (001–009). Cada petición incluye sus `tests`. Usa las variables de entorno `baseUrl` (`http://localhost:4600`) y `accessToken` (pegar el `access_token` del login).
 
 ---
 
