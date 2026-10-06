@@ -20,6 +20,6 @@ WORKDIR /app
 COPY --from=builder /app/sigif-server .
 COPY --from=builder /app/configs ./configs
 
-EXPOSE 4600
+EXPOSE 8080
 
 ENTRYPOINT ["./sigif-server"]

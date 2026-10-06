@@ -20,22 +20,6 @@ services:
     networks:
       - sigif-network
 
-  redis:
-    image: redis:7-alpine
-    container_name: sigif-redis
-    restart: unless-stopped
-    ports:
-      - "6379:6379"
-    volumes:
-      - redis_data:/data
-    healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-    networks:
-      - sigif-network
-
   app:
     build:
       context: ../..
@@ -43,22 +27,18 @@ services:
     container_name: sigif-app
     environment:
       - SIGIF_APP_ENV=development
-      - SIGIF_APP_PORT=4600
+      - SIGIF_APP_PORT=8080
       - SIGIF_DATABASE_HOST=postgres
       - SIGIF_DATABASE_PORT=5432
       - SIGIF_DATABASE_USER=sigif
       - SIGIF_DATABASE_PASSWORD=sigif
       - SIGIF_DATABASE_NAME=sigif
       - SIGIF_DATABASE_SSL_MODE=disable
-      - SIGIF_REDIS_HOST=redis
-      - SIGIF_REDIS_PORT=6379
       - SIGIF_JWT_SECRET=your-super-secret-jwt-key-change-in-production
     ports:
-      - "4600:4600"
+      - "8080:8080"
     depends_on:
       postgres:
-        condition: service_healthy
-      redis:
         condition: service_healthy
     networks:
       - sigif-network
@@ -89,7 +69,6 @@ services:
 
 volumes:
   postgres_data:
-  redis_data:
 
 networks:
   sigif-network:

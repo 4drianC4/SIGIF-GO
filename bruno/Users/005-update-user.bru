@@ -1,10 +1,10 @@
 meta {
-  name: Update User
+  name: Edit User
   type: http
   seq: 5
 }
 
-put {
+patch {
   url: {{baseUrl}}/api/v1/users/{{userId}}
   body: json
   auth: bearer
@@ -23,7 +23,12 @@ body:json {
   {
     "first_name": "Juan Carlos",
     "last_name": "Pérez Gómez",
-    "phone": "+57 300 123 4567",
+    "email": "soporte@sigif.com",
+    "role": "soporte",
     "area": "Soporte técnico"
   }
+}
+
+vars:pre-request {
+  userId: 83992282-d810-4093-8c42-2df02c86f03a
 }
