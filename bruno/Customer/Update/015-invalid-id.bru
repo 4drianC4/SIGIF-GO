@@ -1,0 +1,33 @@
+meta {
+  name: 10 Invalid Id (400)
+  type: http
+  seq: 15
+}
+
+patch {
+  url: {{baseUrl}}/api/v1/customers/not-a-uuid
+  body: json
+  auth: bearer
+}
+
+headers {
+  Content-Type: application/json
+}
+
+auth:bearer {
+  token: {{accessToken}}
+}
+
+body:json {
+  {
+    "legal_name": "Intento"
+  }
+}
+
+tests {
+  test("responde 400 BAD_REQUEST por id inválido", function() {
+    expect(res.status).to.equal(400);
+    expect(res.body.error.code).to.equal('BAD_REQUEST');
+    expect(res.body.error.message).to.equal('invalid customer id');
+  });
+}

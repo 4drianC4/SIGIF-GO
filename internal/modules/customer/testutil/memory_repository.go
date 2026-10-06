@@ -10,7 +10,10 @@ import (
 
 	"github.com/sigif/sigif-go/internal/modules/customer/domain/entity"
 	"github.com/sigif/sigif-go/internal/modules/customer/domain/repository"
+	"github.com/sigif/sigif-go/internal/modules/customer/domain/service"
 )
+
+var _ repository.CustomerRepository = (*MemoryCustomerRepository)(nil)
 
 // MemoryCustomerRepository mirrors the filtering rules of the GORM repository.
 type MemoryCustomerRepository struct {
@@ -35,10 +38,36 @@ func (r *MemoryCustomerRepository) Create(_ context.Context, customer *entity.Cu
 func (r *MemoryCustomerRepository) Update(_ context.Context, customer *entity.Customer) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
+	stored, ok := r.Customers[customer.ID]
+	if !ok || stored.CompanyID != customer.CompanyID || stored.IsDeleted() {
+		return service.ErrCustomerNotFound
+	}
 	copied := *customer
 	r.Customers[customer.ID] = &copied
 	r.Writes++
 	return nil
+}
+
+func (r *MemoryCustomerRepository) WithinTransaction(ctx context.Context, fn func(ctx context.Context) error) error {
+	return fn(ctx)
+}
+
+// Get returns a copy of a stored customer, deleted ones included.
+func (r *MemoryCustomerRepository) Get(id uuid.UUID) (entity.Customer, bool) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	c, ok := r.Customers[id]
+	if !ok {
+		return entity.Customer{}, false
+	}
+	return *c, true
+}
+
+// Count returns how many customers are stored, deleted ones included.
+func (r *MemoryCustomerRepository) Count() int {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	return len(r.Customers)
 }
 
 func (r *MemoryCustomerRepository) GetByID(_ context.Context, companyID, id uuid.UUID) (*entity.Customer, error) {

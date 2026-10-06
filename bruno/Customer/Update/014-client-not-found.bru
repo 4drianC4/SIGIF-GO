@@ -1,0 +1,40 @@
+meta {
+  name: 09 Client Not Found (404)
+  type: http
+  seq: 14
+}
+
+patch {
+  url: {{baseUrl}}/api/v1/customers/{{missingClientId}}
+  body: json
+  auth: bearer
+}
+
+headers {
+  Content-Type: application/json
+}
+
+auth:bearer {
+  token: {{accessToken}}
+}
+
+body:json {
+  {
+    "legal_name": "No existe"
+  }
+}
+
+script:pre-request {
+  const hex = '0123456789abcdef';
+  let id = '';
+  for (let i = 0; i < 32; i++) id += hex[Math.floor(Math.random() * 16)];
+  bru.setVar('missingClientId', id.slice(0, 8) + '-' + id.slice(8, 12) + '-4' + id.slice(13, 16) + '-8' + id.slice(17, 20) + '-' + id.slice(20));
+}
+
+tests {
+  test("responde 404 NOT_FOUND", function() {
+    expect(res.status).to.equal(404);
+    expect(res.body.error.code).to.equal('NOT_FOUND');
+    expect(res.body.error.message).to.equal('customer not found');
+  });
+}

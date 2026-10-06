@@ -1,0 +1,27 @@
+meta {
+  name: 13 Verify Changes Persisted
+  type: http
+  seq: 18
+}
+
+get {
+  url: {{baseUrl}}/api/v1/customers/{{clientId}}
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{accessToken}}
+}
+
+tests {
+  test("GET /:id devuelve los cambios válidos y ninguno de los rechazados", function() {
+    expect(res.status).to.equal(200);
+    expect(res.body.data.id).to.equal(bru.getVar('clientId'));
+    expect(res.body.data.legal_name).to.equal(bru.getVar('editedLegalName'));
+    expect(res.body.data.email).to.equal('editado@example.com');
+    expect(res.body.data.phone).to.equal('+59171111111');
+    expect(res.body.data.document_number).to.equal(bru.getVar('originalDocument'));
+    expect(res.body.data.status).to.equal('active');
+  });
+}

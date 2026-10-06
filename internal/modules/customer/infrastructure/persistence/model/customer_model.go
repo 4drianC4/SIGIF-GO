@@ -9,10 +9,10 @@ import (
 
 type CustomerModel struct {
 	ID             uuid.UUID      `gorm:"column:customer_id;type:uuid;primaryKey;default:gen_random_uuid()"`
-	CompanyID      uuid.UUID      `gorm:"column:company_id;type:uuid;not null;index:idx_customer_company_name,priority:1;index:idx_customer_company_status,priority:1;index:idx_customer_company_document,priority:1"`
+	CompanyID      uuid.UUID      `gorm:"column:company_id;type:uuid;not null;index:idx_customer_company_name,priority:1;index:idx_customer_company_status,priority:1;index:idx_customer_company_document,priority:1;uniqueIndex:idx_customer_company_document_unique,where:deleted_at IS NULL AND document_number IS NOT NULL"`
 	LegalName      string         `gorm:"type:varchar(160);not null;index:idx_customer_company_name,priority:2"`
-	DocumentType   string         `gorm:"type:varchar(20);not null;default:'national_id';check:document_type IN ('national_id','tax_id','passport','other')"`
-	DocumentNumber *string        `gorm:"type:varchar(30);index:idx_customer_company_document,priority:2"`
+	DocumentType   string         `gorm:"type:varchar(20);not null;default:'national_id';uniqueIndex:idx_customer_company_document_unique;check:document_type IN ('national_id','tax_id','passport','other')"`
+	DocumentNumber *string        `gorm:"type:varchar(30);index:idx_customer_company_document,priority:2;uniqueIndex:idx_customer_company_document_unique"`
 	Phone          *string        `gorm:"type:varchar(30)"`
 	Email          *string        `gorm:"type:varchar(160)"`
 	Address        *string        `gorm:"type:varchar(200)"`

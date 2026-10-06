@@ -20,6 +20,7 @@
 | `GET` | `/api/v1/customers/` | `customers.list` | Lista clientes de la empresa con filtros y paginación. |
 | `GET` | `/api/v1/customers/:id` | `customers.read` | Obtiene un cliente por UUID. |
 | `PUT` | `/api/v1/customers/:id` | `customers.update` | Actualiza los datos editables del cliente. |
+| `PATCH` | `/api/v1/customers/:id` | `customers.update` | Actualización parcial (ver HU-08-04). |
 | `PATCH` | `/api/v1/customers/:id/status` | `customers.status` | Cambia el estado del cliente. |
 | `DELETE` | `/api/v1/customers/:id` | `customers.delete` | Da de baja lógicamente al cliente. |
 
@@ -182,6 +183,8 @@ Ninguno.
 
 Actualiza los campos editables del cliente. La operación trata los campos omitidos como vacíos/nulos; enviar los datos que se desean conservar.
 
+> Para cambiar solo algunos campos, usar `PATCH /api/v1/customers/:id` ([HU-08-04 — Edición de cliente](HU-08-04-endpoints.md)).
+
 ### Permiso
 `customers.update`
 
@@ -207,7 +210,7 @@ Ninguno.
 | Campo | Tipo | Obligatorio | Restricciones / notas |
 |---|---|---|---|
 | `legal_name` | string | Sí | Entre 1 y 160 caracteres. |
-| `document_type` | enum | No | `national_id` \| `tax_id` \| `passport` \| `other`. Si se omite, el handler lo convierte en `national_id`. |
+| `document_type` | enum | No | `national_id` \| `tax_id` \| `passport` \| `other`. Si se omite, se conserva el tipo actual del cliente. |
 | `document_number` | string | No | Máximo 30 caracteres. Se comprueba unicidad si cambia. |
 | `phone` | string | No | Máximo 30 caracteres. |
 | `email` | string | No | Formato email, máximo 160 caracteres. |
@@ -358,7 +361,7 @@ Los campos opcionales nulos se omiten cuando están etiquetados con `omitempty`.
 - Los IDs de cliente son UUID; los endpoints de detalle y comandos reciben el UUID en la ruta.
 - La lista siempre restringe resultados a la empresa autenticada y excluye clientes con soft delete.
 - El soft delete establece `deleted_at` y cambia el estado a `inactive`.
-- Al omitir `document_type` al crear, se usa `national_id`. Al omitirlo al actualizar, también se convierte a `national_id`; por tanto, puede cambiar el tipo previamente almacenado.
+- Al omitir `document_type` al crear, se usa `national_id`. Al omitirlo al actualizar (`PUT`), se conserva el tipo actual del cliente (corregido en HU-08-04; antes se forzaba `national_id`).
 - En la lista, los parámetros inválidos (`status`, `page`, `limit`, etc.) responden 400; ver HU-08-02.
 - Un usuario sin empresa (claim `company_id` ausente) recibe `400 company is required` en todas las rutas.
 

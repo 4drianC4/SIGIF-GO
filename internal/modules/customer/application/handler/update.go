@@ -20,3 +20,16 @@ func (h *CustomerCommandHandler) HandleUpdate(ctx context.Context, cmd command.U
 		Address:        cmd.Address,
 	})
 }
+
+func (h *CustomerCommandHandler) HandlePatch(ctx context.Context, cmd command.PatchCustomer) (*entity.Customer, error) {
+	return h.service.Patch(ctx, service.PatchCustomerParams{
+		ID:             cmd.ID,
+		CompanyID:      cmd.CompanyID,
+		LegalName:      cmd.LegalName,
+		DocumentType:   cmd.DocumentType,
+		DocumentNumber: cmd.DocumentNumber,
+		Phone:          cmd.Phone,
+		Email:          cmd.Email,
+		Address:        cmd.Address,
+	})
+}
