@@ -2,6 +2,7 @@ package gorm
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"strings"
 
@@ -51,6 +52,14 @@ func (r *CustomerGormRepository) GetByID(ctx context.Context, companyID, id uuid
 	return mapper.ToDomain(&m), nil
 }
 
+// sortColumns whitelists the columns a listing can be ordered by.
+var sortColumns = map[repository.SortField]string{
+	repository.SortByLegalName: "legal_name",
+	repository.SortByCreatedAt: "created_at",
+}
+
+// List runs the count and the page inside a single read-only, repeatable-read
+// transaction so both see the same snapshot and no write can happen.
 func (r *CustomerGormRepository) List(
 	ctx context.Context,
 	companyID uuid.UUID,
@@ -60,30 +69,43 @@ func (r *CustomerGormRepository) List(
 	var models []model.CustomerModel
 	var total int64
 
-	db := r.db.GetDB(ctx).Model(&model.CustomerModel{}).
-		Where("company_id = ? AND deleted_at IS NULL", companyID)
+	scope := func(db *gorm.DB) *gorm.DB {
+		db = db.Where("company_id = ? AND deleted_at IS NULL", companyID)
 
-	if q := strings.TrimSpace(filter.Q); q != "" {
-		pattern := "%" + strings.ToLower(q) + "%"
-		db = db.Where(
-			"LOWER(legal_name) LIKE ? OR LOWER(document_number) LIKE ? OR LOWER(phone) LIKE ? OR LOWER(email) LIKE ?",
-			pattern, pattern, pattern, pattern,
-		)
+		if q := strings.TrimSpace(filter.Q); q != "" {
+			pattern := "%" + escapeLike(strings.ToLower(q)) + "%"
+			db = db.Where(
+				"LOWER(legal_name) LIKE ? OR LOWER(document_number) LIKE ? OR LOWER(phone) LIKE ? OR LOWER(email) LIKE ?",
+				pattern, pattern, pattern, pattern,
+			)
+		}
+
+		if filter.Status != nil {
+			db = db.Where("status = ?", string(*filter.Status))
+		}
+		return db
 	}
 
-	if filter.Status != nil {
-		db = db.Where("status = ?", string(*filter.Status))
+	column, ok := sortColumns[filter.SortBy]
+	if !ok {
+		column = sortColumns[repository.SortByCreatedAt]
+	}
+	direction := "DESC"
+	if filter.SortOrder == repository.SortAsc {
+		direction = "ASC"
 	}
 
-	if err := db.Count(&total).Error; err != nil {
-		return nil, 0, err
-	}
-
-	if err := db.
-		Order("created_at DESC, customer_id DESC").
-		Offset(offset).
-		Limit(limit).
-		Find(&models).Error; err != nil {
+	err := r.db.GetDB(ctx).Transaction(func(tx *gorm.DB) error {
+		if err := tx.Model(&model.CustomerModel{}).Scopes(scope).Count(&total).Error; err != nil {
+			return err
+		}
+		return tx.Model(&model.CustomerModel{}).Scopes(scope).
+			Order(column + " " + direction + ", customer_id " + direction).
+			Offset(offset).
+			Limit(limit).
+			Find(&models).Error
+	}, &sql.TxOptions{Isolation: sql.LevelRepeatableRead, ReadOnly: true})
+	if err != nil {
 		return nil, 0, err
 	}
 
@@ -123,4 +145,9 @@ func (r *CustomerGormRepository) Update(ctx context.Context, customer *entity.Cu
 
 func isUniqueViolation(err error) bool {
 	return err != nil && strings.Contains(err.Error(), "23505")
+}
+
+// escapeLike makes user input match literally inside a LIKE pattern.
+func escapeLike(s string) string {
+	return strings.NewReplacer(`\`, `\\`, "%", `\%`, "_", `\_`).Replace(s)
 }
