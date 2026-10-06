@@ -12,6 +12,7 @@ import (
 	authModel "github.com/sigif/sigif-go/internal/modules/auth/infrastructure/persistence/model"
 	customerModel "github.com/sigif/sigif-go/internal/modules/customer/infrastructure/persistence/model"
 	productModel "github.com/sigif/sigif-go/internal/modules/product/infrastructure/persistence/model"
+	productSeed "github.com/sigif/sigif-go/internal/modules/product/infrastructure/seed"
 	userModel "github.com/sigif/sigif-go/internal/modules/user/infrastructure/persistence/model"
 	"github.com/sigif/sigif-go/internal/modules/user/infrastructure/seed"
 	"github.com/sigif/sigif-go/internal/shared/config"
@@ -50,6 +51,10 @@ func runMigrations(lc fx.Lifecycle, cfg *config.Config, log *zap.Logger, db *dat
 				log.Error("Seeding failed", zap.Error(err))
 				return err
 			}
+			if err := productSeed.Seed(ctx, db.DB); err != nil {
+				log.Error("Seeding units of measure and taxes failed", zap.Error(err))
+				return err
+			}
 
 			log.Info("Migrations completed successfully")
 			os.Exit(0)
@@ -67,6 +72,8 @@ func autoMigrate(db *gorm.DB) error {
 		&authModel.SessionModel{},
 		&authModel.LoginAttemptModel{},
 		&customerModel.CustomerModel{},
+		&productModel.UnitOfMeasureModel{},
+		&productModel.TaxModel{},
 		&productModel.CategoryModel{},
 		&productModel.ProductModel{},
 	)
