@@ -1,0 +1,35 @@
+meta {
+  name: Create Product - Invalid (400)
+  type: http
+  seq: 9
+}
+
+post {
+  url: {{baseUrl}}/api/v1/products
+  body: json
+  auth: bearer
+}
+
+headers {
+  Content-Type: application/json
+}
+
+auth:bearer {
+  token: {{accessToken}}
+}
+
+body:json {
+  {
+    "name": "",
+    "category_id": "no-es-uuid",
+    "cost": 0
+  }
+}
+
+tests {
+  test("responde 400 VALIDATION_ERROR con detalle por campo", function() {
+    expect(res.status).to.equal(400);
+    expect(res.body.error.code).to.equal('VALIDATION_ERROR');
+    ['name', 'category_id', 'unit_of_measure_id', 'sale_price'].forEach(function(f) { expect(res.body.error.details).to.have.property(f); });
+  });
+}

@@ -1,0 +1,22 @@
+meta {
+  name: Products Summary
+  type: http
+  seq: 15
+}
+
+get {
+  url: {{baseUrl}}/api/v1/products/summary
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{accessToken}}
+}
+
+tests {
+  test("devuelve los KPIs", function() {
+    expect(res.status).to.equal(200);
+    ['active_products', 'inventory_value', 'low_stock', 'no_movement_90_days'].forEach(function(k) { expect(res.body.data).to.have.property(k); });
+  });
+}

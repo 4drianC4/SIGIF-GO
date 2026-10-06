@@ -1,0 +1,52 @@
+meta {
+  name: Create Product
+  type: http
+  seq: 8
+}
+
+post {
+  url: {{baseUrl}}/api/v1/products
+  body: json
+  auth: bearer
+}
+
+headers {
+  Content-Type: application/json
+}
+
+auth:bearer {
+  token: {{accessToken}}
+}
+
+body:json {
+  {
+    "name": "{{productName}}",
+    "sku": "{{productSku}}",
+    "category_id": "{{categoryId}}",
+    "unit_of_measure_id": "{{unitId}}",
+    "cost": 4.20,
+    "sale_price": 6.00,
+    "initial_stock": 0
+  }
+}
+
+script:pre-request {
+  const now = String(Date.now());
+  bru.setVar('productName', 'Galletas María 200g ' + now);
+  bru.setVar('productSku', 'aba-' + now);
+}
+
+script:post-response {
+  bru.setVar('productId', res.body && res.body.data ? res.body.data.id : '');
+}
+
+tests {
+  test("responde 201 con status active y margen calculado", function() {
+    expect(res.status).to.equal(201);
+    expect(res.body.data.status).to.equal('active');
+    expect(res.body.data.margin).to.equal(30);
+    expect(res.body.data.cost).to.equal(4.2);
+    expect(res.body.data.price).to.equal(6);
+    expect(res.body.data.sku).to.equal(String(bru.getVar('productSku')).toUpperCase());
+  });
+}
