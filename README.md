@@ -116,7 +116,7 @@ POST   /api/v1/users                  # Registrar usuario (permiso users.create)
 GET    /api/v1/users                  # Listar usuarios (users.list)
 GET    /api/v1/users/:id              # Ver usuario (users.read)
 GET    /api/v1/users/by-email         # Buscar por email (users.read)
-PUT    /api/v1/users/:id              # Actualizar usuario (users.update)
+PATCH  /api/v1/users/:id              # Editar usuario (users.update) — mismos campos que el registro, todos opcionales
 PUT    /api/v1/users/:id/password     # Cambiar contraseña (users.change_password)
 DELETE /api/v1/users/:id              # Eliminar usuario (users.delete)
 POST   /api/v1/users/:id/activate     # Activar (users.activate)

@@ -14,11 +14,16 @@ type RegisterUserRequest struct {
 	Area      string `json:"area" validate:"omitempty,max=120"`
 }
 
-type UpdateUserRequest struct {
-	FirstName string `json:"first_name" validate:"required,min=1,max=80"`
-	LastName  string `json:"last_name" validate:"required,min=1,max=80"`
-	Phone     string `json:"phone" validate:"omitempty,max=30"`
-	Area      string `json:"area" validate:"omitempty,max=120"`
+// EditUserRequest carries the fields an administrator may edit on a user: the
+// same ones used at registration. Every field is optional; omitted fields are
+// left unchanged (JSON merge-patch semantics: send only what changes).
+type EditUserRequest struct {
+	FirstName *string `json:"first_name" validate:"omitempty,min=1,max=80"`
+	LastName  *string `json:"last_name" validate:"omitempty,min=1,max=80"`
+	Email     *string `json:"email" validate:"omitempty,email"`
+	Password  *string `json:"password" validate:"omitempty,min=8"`
+	Role      *string `json:"role" validate:"omitempty,min=1,max=60"`
+	Area      *string `json:"area" validate:"omitempty,max=120"`
 }
 
 type ChangePasswordRequest struct {

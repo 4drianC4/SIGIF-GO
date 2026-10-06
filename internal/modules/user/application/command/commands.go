@@ -14,12 +14,16 @@ type RegisterUser struct {
 	Area      string
 }
 
-type UpdateUser struct {
+// EditUser is the administrative partial update (same fields as RegisterUser,
+// all optional). Nil = leave the field unchanged.
+type EditUser struct {
 	ID        uuid.UUID
-	FirstName string
-	LastName  string
-	Phone     string
-	Area      string
+	FirstName *string
+	LastName  *string
+	Email     *string
+	Password  *string
+	RoleName  *string
+	Area      *string
 }
 
 type ChangePassword struct {

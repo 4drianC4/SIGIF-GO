@@ -74,11 +74,34 @@ func (u *AppUser) IsActive() bool {
 	return u.Status == UserStatusActive && u.DeletedAt == nil
 }
 
-func (u *AppUser) Update(firstName, lastName, phone, area string, clock clock.Clock) {
-	u.FirstName = firstName
-	u.LastName = lastName
-	u.Phone = phone
-	u.Area = area
+// EditUserParams holds the fields an administrator may edit (the same data
+// that is provided when registering a user). Nil = leave the field unchanged.
+type EditUserParams struct {
+	FirstName *string
+	LastName  *string
+	Email     *string
+	RoleID    *uuid.UUID
+	Area      *string
+}
+
+// Edit applies the provided fields onto the user (PATCH semantics).
+func (u *AppUser) Edit(params EditUserParams, clock clock.Clock) {
+	if params.FirstName != nil {
+		u.FirstName = *params.FirstName
+	}
+	if params.LastName != nil {
+		u.LastName = *params.LastName
+	}
+	if params.Email != nil {
+		u.Email = *params.Email
+		u.Username = *params.Email
+	}
+	if params.RoleID != nil {
+		u.RoleID = *params.RoleID
+	}
+	if params.Area != nil {
+		u.Area = *params.Area
+	}
 	u.UpdatedAt = clock.NowUTC()
 }
 

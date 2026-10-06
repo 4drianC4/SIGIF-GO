@@ -82,9 +82,7 @@ func (r *UserGormRepository) List(ctx context.Context, offset, limit int) ([]*en
 }
 
 func (r *UserGormRepository) Update(ctx context.Context, user *entity.AppUser) error {
-	return r.db.GetDB(ctx).Model(&model.UserModel{}).
-		Where("id = ?", user.ID).
-		Updates(mapper.UserToModel(user)).Error
+	return r.db.GetDB(ctx).Save(mapper.UserToModel(user)).Error
 }
 
 func (r *UserGormRepository) Delete(ctx context.Context, id uuid.UUID) error {

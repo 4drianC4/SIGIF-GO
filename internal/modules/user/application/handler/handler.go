@@ -39,11 +39,13 @@ func (h *UserCommandHandler) HandleRegister(ctx context.Context, cmd command.Reg
 	})
 }
 
-func (h *UserCommandHandler) HandleUpdate(ctx context.Context, cmd command.UpdateUser) (*entity.AppUser, error) {
-	return h.service.Update(ctx, cmd.ID, service.UpdateUserInput{
+func (h *UserCommandHandler) HandleEdit(ctx context.Context, cmd command.EditUser) (*entity.AppUser, error) {
+	return h.service.Edit(ctx, cmd.ID, service.EditUserInput{
 		FirstName: cmd.FirstName,
 		LastName:  cmd.LastName,
-		Phone:     cmd.Phone,
+		Email:     cmd.Email,
+		Password:  cmd.Password,
+		RoleName:  cmd.RoleName,
 		Area:      cmd.Area,
 	})
 }
