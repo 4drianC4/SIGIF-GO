@@ -519,8 +519,7 @@ func TestPutCustomerEndpointKeepsReplacingAllFields(t *testing.T) {
 	status, resp := s.send(t, fiber.MethodPut, "/api/v1/customers/"+customer.ID.String(), token, map[string]any{"legal_name": "Solo Nombre"})
 	var got customerDetail
 	_ = json.Unmarshal(resp.Data, &got)
-	if status != fiber.StatusOK || got.LegalName != "Solo Nombre" || got.Phone != nil || got.DocumentNumber != nil ||
-		got.DocumentType != "national_id" {
+	if status != fiber.StatusOK || got.LegalName != "Solo Nombre" || got.Phone != nil || got.DocumentNumber != nil {
 		t.Fatalf("PUT must keep replacing every field: %d %+v %+v", status, got, resp.Error)
 	}
 
@@ -530,4 +529,36 @@ func TestPutCustomerEndpointKeepsReplacingAllFields(t *testing.T) {
 	if status != fiber.StatusConflict || resp.Error.Code != "CONFLICT" {
 		t.Fatalf("PUT duplicate document: got %d %+v, want 409", status, resp.Error)
 	}
+}
+
+func TestPutCustomerEndpointKeepsDocumentTypeWhenOmitted(t *testing.T) {
+	s := newTestServer(t)
+	customer := s.seed(t, companyA, "Ferreteria Central", "1020304050", entity.CustomerStatusActive)
+	token := s.editor(t, companyA)
+	path := "/api/v1/customers/" + customer.ID.String()
+
+	t.Run("omitted document_type keeps the current one", func(t *testing.T) {
+		status, resp := s.send(t, fiber.MethodPut, path, token, map[string]any{
+			"legal_name": "Ferreteria Central", "document_number": "1020304050",
+		})
+		var got customerDetail
+		_ = json.Unmarshal(resp.Data, &got)
+		if status != fiber.StatusOK || got.DocumentType != "tax_id" {
+			t.Fatalf("got %d document_type %q (error %+v), want 200 tax_id", status, got.DocumentType, resp.Error)
+		}
+		if stored := s.stored(t, customer.ID); stored.DocumentType != entity.DocumentTypeTaxID {
+			t.Errorf("stored document_type = %s, want tax_id", stored.DocumentType)
+		}
+	})
+
+	t.Run("sent document_type is still applied", func(t *testing.T) {
+		status, resp := s.send(t, fiber.MethodPut, path, token, map[string]any{
+			"legal_name": "Ferreteria Central", "document_type": "passport", "document_number": "1020304050",
+		})
+		var got customerDetail
+		_ = json.Unmarshal(resp.Data, &got)
+		if status != fiber.StatusOK || got.DocumentType != "passport" {
+			t.Fatalf("got %d document_type %q (error %+v), want 200 passport", status, got.DocumentType, resp.Error)
+		}
+	})
 }

@@ -34,13 +34,17 @@ type PatchCustomerParams struct {
 	Address        *string
 }
 
-// Update replaces every editable field (PUT).
+// Update replaces every editable field (PUT). An empty DocumentType keeps the
+// customer's current document type.
 func (s *CustomerService) Update(ctx context.Context, params UpdateCustomerParams) (*entity.Customer, error) {
 	if strings.TrimSpace(params.LegalName) == "" {
 		return nil, sharedErrors.New(sharedErrors.CodeValidation, "legal_name is required", 400)
 	}
 
-	return s.update(ctx, params.CompanyID, params.ID, func(*entity.Customer) UpdateCustomerParams {
+	return s.update(ctx, params.CompanyID, params.ID, func(current *entity.Customer) UpdateCustomerParams {
+		if params.DocumentType == "" {
+			params.DocumentType = current.DocumentType
+		}
 		return params
 	})
 }

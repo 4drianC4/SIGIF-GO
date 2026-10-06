@@ -289,3 +289,4 @@ La carpeta crea sus propios datos (prefijo `HU0804-<timestamp>`), termina con un
 3. El repositorio ya no usa `Save` (que podía insertar); `Update` es estricto y responde 404 si no hay fila.
 4. El `409` de documento duplicado incluye `details.document_number` (también en `PUT` y en la violación del índice en `POST`).
 5. Índice único parcial sobre el documento (commit separado).
+6. Corrección del `PUT`: si no se envía `document_type`, se conserva el tipo actual del cliente; antes se cambiaba a `national_id` sin avisar. El resto de los campos omitidos se siguen borrando, porque el `PUT` reemplaza el recurso completo.

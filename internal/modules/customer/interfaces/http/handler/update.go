@@ -6,6 +6,7 @@ import (
 
 	"github.com/sigif/sigif-go/internal/modules/customer/application/command"
 	"github.com/sigif/sigif-go/internal/modules/customer/application/dto"
+	"github.com/sigif/sigif-go/internal/modules/customer/domain/entity"
 	"github.com/sigif/sigif-go/internal/modules/customer/interfaces/http/dtos"
 	sharedErrors "github.com/sigif/sigif-go/internal/shared/errors"
 	"github.com/sigif/sigif-go/internal/shared/response"
@@ -34,7 +35,7 @@ func (h *CustomerHTTPHandler) Update(c *fiber.Ctx) error {
 		ID:             id,
 		CompanyID:      companyID,
 		LegalName:      req.LegalName,
-		DocumentType:   dtos.DocumentTypeFromRequest(req.DocumentType),
+		DocumentType:   entity.DocumentType(req.DocumentType),
 		DocumentNumber: req.DocumentNumber,
 		Phone:          req.Phone,
 		Email:          req.Email,
