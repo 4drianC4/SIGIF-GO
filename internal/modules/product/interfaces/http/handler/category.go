@@ -27,14 +27,31 @@ func (h *CatalogHTTPHandler) CreateCategory(c *fiber.Ctx) error {
 		return response.Error(c, fiber.StatusBadRequest, service.ErrCompanyRequired)
 	}
 
-	category, err := h.cmdHandler.HandleCreateCategory(c.UserContext(), command.CreateCategory{
-		CompanyID:   companyID,
-		Name:        req.Name,
-		Description: req.Description,
+	created, err := h.cmdHandler.HandleCreateCategory(c.UserContext(), command.CreateCategory{
+		CompanyID:    companyID,
+		ParentID:     req.ParentUUID(),
+		Name:         req.Name,
+		Description:  req.Description,
+		DefaultTax:   req.DefaultTax,
+		TargetMargin: req.TargetMargin,
 	})
 	if err != nil {
 		return response.Error(c, fiber.StatusInternalServerError, err)
 	}
 
-	return response.Created(c, dto.FromCategory(category))
+	return response.Created(c, dto.FromCreatedCategory(created))
+}
+
+func (h *CatalogHTTPHandler) ListCategories(c *fiber.Ctx) error {
+	companyID, ok := middleware.CompanyIDFromContext(c.UserContext())
+	if !ok {
+		return response.Error(c, fiber.StatusBadRequest, service.ErrCompanyRequired)
+	}
+
+	categories, err := h.queryHandler.HandleListCategories(c.UserContext(), companyID)
+	if err != nil {
+		return response.Error(c, fiber.StatusInternalServerError, err)
+	}
+
+	return response.Success(c, dto.FromCategoryList(categories))
 }
