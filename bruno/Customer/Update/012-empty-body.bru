@@ -1,0 +1,31 @@
+meta {
+  name: 07 Empty Body (400)
+  type: http
+  seq: 12
+}
+
+patch {
+  url: {{baseUrl}}/api/v1/customers/{{clientId}}
+  body: json
+  auth: bearer
+}
+
+headers {
+  Content-Type: application/json
+}
+
+auth:bearer {
+  token: {{accessToken}}
+}
+
+body:json {
+  {}
+}
+
+tests {
+  test("responde 400 VALIDATION_ERROR con body vacío", function() {
+    expect(res.status).to.equal(400);
+    expect(res.body.error.code).to.equal('VALIDATION_ERROR');
+    expect(res.body.error.message).to.equal('at least one editable field is required');
+  });
+}

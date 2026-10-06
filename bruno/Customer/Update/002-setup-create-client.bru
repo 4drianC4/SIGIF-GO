@@ -1,0 +1,48 @@
+meta {
+  name: Setup - Create Client To Edit
+  type: http
+  seq: 2
+}
+
+post {
+  url: {{baseUrl}}/api/v1/customers/
+  body: json
+  auth: bearer
+}
+
+headers {
+  Content-Type: application/json
+}
+
+auth:bearer {
+  token: {{accessToken}}
+}
+
+body:json {
+  {
+    "legal_name": "{{originalLegalName}}",
+    "document_type": "tax_id",
+    "document_number": "{{originalDocument}}",
+    "phone": "{{originalPhone}}",
+    "email": "{{originalEmail}}"
+  }
+}
+
+script:pre-request {
+  const tag = 'HU0804-' + Date.now();
+  bru.setVar('editTag', tag);
+  bru.setVar('originalLegalName', tag + ' Cliente Edicion');
+  bru.setVar('originalDocument', 'E' + String(Date.now()).slice(-9));
+  bru.setVar('originalPhone', '+59170000010');
+  bru.setVar('originalEmail', 'edicion@example.com');
+}
+
+script:post-response {
+  bru.setVar('clientId', res.body && res.body.data ? res.body.data.id : '');
+}
+
+tests {
+  test("responde 201", function() {
+    expect(res.status).to.equal(201);
+  });
+}

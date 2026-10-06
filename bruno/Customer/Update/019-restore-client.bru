@@ -1,0 +1,40 @@
+meta {
+  name: 14 Restore Client
+  type: http
+  seq: 19
+}
+
+patch {
+  url: {{baseUrl}}/api/v1/customers/{{clientId}}
+  body: json
+  auth: bearer
+}
+
+headers {
+  Content-Type: application/json
+}
+
+auth:bearer {
+  token: {{accessToken}}
+}
+
+body:json {
+  {
+    "legal_name": "{{originalLegalName}}",
+    "document_type": "tax_id",
+    "document_number": "{{originalDocument}}",
+    "phone": "{{originalPhone}}",
+    "email": "{{originalEmail}}",
+    "address": null
+  }
+}
+
+tests {
+  test("deja el cliente con sus valores originales", function() {
+    expect(res.status).to.equal(200);
+    expect(res.body.data.legal_name).to.equal(bru.getVar('originalLegalName'));
+    expect(res.body.data.phone).to.equal(bru.getVar('originalPhone'));
+    expect(res.body.data.email).to.equal(bru.getVar('originalEmail'));
+    expect(res.body.data).to.not.have.property('address');
+  });
+}

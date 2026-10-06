@@ -1,0 +1,42 @@
+meta {
+  name: 02 Update Several Fields
+  type: http
+  seq: 7
+}
+
+patch {
+  url: {{baseUrl}}/api/v1/customers/{{clientId}}
+  body: json
+  auth: bearer
+}
+
+headers {
+  Content-Type: application/json
+}
+
+auth:bearer {
+  token: {{accessToken}}
+}
+
+body:json {
+  {
+    "legal_name": "{{editedLegalName}}",
+    "email": "editado@example.com",
+    "address": "Av. Ejemplo 123"
+  }
+}
+
+script:pre-request {
+  bru.setVar('editedLegalName', bru.getVar('editTag') + ' Cliente Editado SRL');
+}
+
+tests {
+  test("responde 200 con todos los campos actualizados", function() {
+    expect(res.status).to.equal(200);
+    expect(res.body.data.legal_name).to.equal(bru.getVar('editedLegalName'));
+    expect(res.body.data.email).to.equal('editado@example.com');
+    expect(res.body.data.address).to.equal('Av. Ejemplo 123');
+    expect(res.body.data.phone).to.equal('+59171111111');
+    expect(res.body.data.updated_at).to.be.a('string');
+  });
+}

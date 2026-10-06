@@ -53,10 +53,16 @@ type Reader interface {
 type Writer interface {
 	Create(ctx context.Context, customer *entity.Customer) error
 
+	// Update modifies an existing, non-deleted customer of its company and
+	// never inserts; it returns a not-found error when no row matches.
 	Update(ctx context.Context, customer *entity.Customer) error
 }
 
 type CustomerRepository interface {
 	Reader
 	Writer
+
+	// WithinTransaction runs fn in a single transaction; repository calls made
+	// with the context passed to fn take part in it.
+	WithinTransaction(ctx context.Context, fn func(ctx context.Context) error) error
 }

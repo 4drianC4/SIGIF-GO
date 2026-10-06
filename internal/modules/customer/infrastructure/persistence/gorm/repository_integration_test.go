@@ -4,6 +4,7 @@ package gorm_test
 
 import (
 	"context"
+	"errors"
 	"os"
 	"testing"
 	"time"
@@ -14,6 +15,7 @@ import (
 
 	"github.com/sigif/sigif-go/internal/modules/customer/domain/entity"
 	"github.com/sigif/sigif-go/internal/modules/customer/domain/repository"
+	"github.com/sigif/sigif-go/internal/modules/customer/domain/service"
 	customerGorm "github.com/sigif/sigif-go/internal/modules/customer/infrastructure/persistence/gorm"
 	"github.com/sigif/sigif-go/internal/modules/customer/infrastructure/persistence/model"
 	"github.com/sigif/sigif-go/internal/shared/clock"
@@ -185,5 +187,114 @@ func TestListDoesNotModifyRows(t *testing.T) {
 		if after[id] != stamp {
 			t.Errorf("customer %s changed: %s -> %s", id, stamp, after[id])
 		}
+	}
+}
+
+func newCustomer(companyID uuid.UUID, name, doc string) *entity.Customer {
+	clk := clock.NewMockClock(time.Date(2026, 10, 1, 8, 0, 0, 0, time.UTC))
+	var docPtr *string
+	if doc != "" {
+		docPtr = strPtr(doc)
+	}
+	return entity.NewCustomer(clk, companyID, name, entity.DocumentTypeTaxID, docPtr, nil, nil)
+}
+
+func countRows(t *testing.T, db *sharedDatabase.Database, companyIDs ...uuid.UUID) int64 {
+	t.Helper()
+	var count int64
+	db.DB.Unscoped().Model(&model.CustomerModel{}).Where("company_id IN ?", companyIDs).Count(&count)
+	return count
+}
+
+func TestUpdateNeverInserts(t *testing.T) {
+	db := openDatabase(t)
+	repo := customerGorm.NewCustomerGormRepository(db)
+	companyA, companyB := seedCustomers(t, db, repo)
+	ctx := context.Background()
+	before := countRows(t, db, companyA, companyB)
+
+	existing, _, err := repo.List(ctx, companyA, repository.ListFilter{Q: "Supermercado"}, 0, 1)
+	if err != nil || len(existing) != 1 {
+		t.Fatalf("seed lookup: %v %v", existing, err)
+	}
+	deleted := newCustomer(companyA, "Borrado", "")
+	if err := repo.Create(ctx, deleted); err != nil {
+		t.Fatalf("create: %v", err)
+	}
+	deleted.SoftDelete(clock.NewRealClock())
+	if err := repo.Update(ctx, deleted); err != nil {
+		t.Fatalf("soft delete: %v", err)
+	}
+	before++
+
+	missing := newCustomer(companyA, "No existe", "")
+	foreign := *existing[0]
+	foreign.CompanyID = companyB
+	deleted.LegalName = "Revivido"
+
+	for name, c := range map[string]*entity.Customer{"missing": missing, "foreign company": &foreign, "deleted": deleted} {
+		t.Run(name, func(t *testing.T) {
+			if err := repo.Update(ctx, c); !errors.Is(err, service.ErrCustomerNotFound) {
+				t.Fatalf("Update() error = %v, want ErrCustomerNotFound", err)
+			}
+		})
+	}
+
+	if after := countRows(t, db, companyA, companyB); after != before {
+		t.Errorf("rows = %d, want %d", after, before)
+	}
+}
+
+func TestUpdateKeepsKeysAndCreatedAt(t *testing.T) {
+	db := openDatabase(t)
+	repo := customerGorm.NewCustomerGormRepository(db)
+	companyA, _ := seedCustomers(t, db, repo)
+	ctx := context.Background()
+
+	found, _, _ := repo.List(ctx, companyA, repository.ListFilter{Q: "Supermercado"}, 0, 1)
+	customer := found[0]
+	createdAt := customer.CreatedAt
+	customer.Update(clock.NewRealClock(), "Supermercado Norte SRL", customer.DocumentType, customer.DocumentNumber, strPtr("+59170000000"), nil, nil)
+	customer.CreatedAt = time.Date(2000, 1, 1, 0, 0, 0, 0, time.UTC)
+
+	if err := repo.Update(ctx, customer); err != nil {
+		t.Fatalf("Update() error = %v", err)
+	}
+
+	stored, err := repo.GetByID(ctx, companyA, customer.ID)
+	if err != nil || stored == nil {
+		t.Fatalf("GetByID() = %v, %v", stored, err)
+	}
+	if stored.LegalName != "Supermercado Norte SRL" || stored.Email != nil || stored.Phone == nil {
+		t.Errorf("stored = %+v", stored)
+	}
+	if !stored.CreatedAt.Equal(createdAt) || stored.CompanyID != companyA || stored.UpdatedAt == nil {
+		t.Errorf("created_at/company_id must be kept and updated_at set: %+v", stored)
+	}
+}
+
+func TestWithinTransactionRollsBack(t *testing.T) {
+	db := openDatabase(t)
+	repo := customerGorm.NewCustomerGormRepository(db)
+	companyA, _ := seedCustomers(t, db, repo)
+	ctx := context.Background()
+	found, _, _ := repo.List(ctx, companyA, repository.ListFilter{Q: "Supermercado"}, 0, 1)
+	customer := found[0]
+	boom := errors.New("boom")
+
+	err := repo.WithinTransaction(ctx, func(ctx context.Context) error {
+		customer.LegalName = "No debe persistir"
+		if err := repo.Update(ctx, customer); err != nil {
+			return err
+		}
+		return boom
+	})
+
+	if !errors.Is(err, boom) {
+		t.Fatalf("WithinTransaction() error = %v, want boom", err)
+	}
+	stored, _ := repo.GetByID(ctx, companyA, customer.ID)
+	if stored.LegalName != "Supermercado Norte" {
+		t.Errorf("legal_name = %s, the update must be rolled back", stored.LegalName)
 	}
 }

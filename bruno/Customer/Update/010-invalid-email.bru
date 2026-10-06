@@ -1,0 +1,34 @@
+meta {
+  name: 05 Invalid Email (400)
+  type: http
+  seq: 10
+}
+
+patch {
+  url: {{baseUrl}}/api/v1/customers/{{clientId}}
+  body: json
+  auth: bearer
+}
+
+headers {
+  Content-Type: application/json
+}
+
+auth:bearer {
+  token: {{accessToken}}
+}
+
+body:json {
+  {
+    "email": "no-es-un-email"
+  }
+}
+
+tests {
+  test("responde 400 VALIDATION_ERROR por email inválido", function() {
+    expect(res.status).to.equal(400);
+    expect(res.body.success).to.equal(false);
+    expect(res.body.error.code).to.equal('VALIDATION_ERROR');
+    expect(res.body.error.details).to.have.property('email');
+  });
+}

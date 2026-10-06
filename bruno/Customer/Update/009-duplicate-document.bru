@@ -1,0 +1,34 @@
+meta {
+  name: 04 Duplicate Document (409)
+  type: http
+  seq: 9
+}
+
+patch {
+  url: {{baseUrl}}/api/v1/customers/{{clientId}}
+  body: json
+  auth: bearer
+}
+
+headers {
+  Content-Type: application/json
+}
+
+auth:bearer {
+  token: {{accessToken}}
+}
+
+body:json {
+  {
+    "document_number": "{{otherClientDocument}}",
+    "legal_name": "No debe guardarse"
+  }
+}
+
+tests {
+  test("responde 409 CONFLICT indicando el campo en conflicto", function() {
+    expect(res.status).to.equal(409);
+    expect(res.body.error.code).to.equal('CONFLICT');
+    expect(res.body.error.details).to.have.property('document_number');
+  });
+}

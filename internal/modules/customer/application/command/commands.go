@@ -26,6 +26,17 @@ type UpdateCustomer struct {
 	Address        *string
 }
 
+type PatchCustomer struct {
+	ID             uuid.UUID
+	CompanyID      uuid.UUID
+	LegalName      *string
+	DocumentType   *entity.DocumentType
+	DocumentNumber *string
+	Phone          *string
+	Email          *string
+	Address        *string
+}
+
 type DeleteCustomer struct {
 	ID        uuid.UUID
 	CompanyID uuid.UUID
