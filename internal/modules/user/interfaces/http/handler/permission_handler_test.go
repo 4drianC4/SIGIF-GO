@@ -61,6 +61,7 @@ type testServer struct {
 	app        *fiber.App
 	jwtManager *jwt.JWTManager
 	permRepo   *testutil.MemoryPermissionRepository
+	roles      *testutil.MemoryRoleRepository
 	perms      *stubPermissions
 }
 
@@ -108,8 +109,10 @@ func newTestServer(t *testing.T) *testServer {
 	app := fiber.New()
 	app.Use(middleware.AuthRequired(jwtManager, activeSessions{}))
 	router.RegisterPermissionRoutes(app.Group("/api/v1"), h, stub)
+	router.RegisterRoleRoutes(app.Group("/api/v1"),
+		httpHandler.NewRoleHTTPHandler(appHandler.NewUserQueryHandler(svc), validator.New(), cfg), stub)
 
-	return &testServer{app: app, jwtManager: jwtManager, permRepo: permRepo, perms: stub}
+	return &testServer{app: app, jwtManager: jwtManager, permRepo: permRepo, roles: roles, perms: stub}
 }
 
 func (s *testServer) token(t *testing.T, perms ...string) string {
