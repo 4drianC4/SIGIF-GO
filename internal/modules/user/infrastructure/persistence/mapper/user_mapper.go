@@ -66,3 +66,21 @@ func RoleToDomain(m *model.RoleModel) *entity.Role {
 		CreatedAt:   m.CreatedAt,
 	}
 }
+
+func PermissionToModel(p *entity.Permission) *model.PermissionModel {
+	return &model.PermissionModel{
+		ID:          p.ID,
+		Module:      p.Module,
+		Operation:   p.Operation,
+		Description: p.Description,
+	}
+}
+
+func PermissionToDomain(m *model.PermissionModel) *entity.Permission {
+	return &entity.Permission{
+		ID:          m.ID,
+		Module:      m.Module,
+		Operation:   m.Operation,
+		Description: m.Description,
+	}
+}
