@@ -57,3 +57,16 @@ type ListPermissionsRequest struct {
 	Page   *int   `json:"page" query:"page" validate:"omitempty,min=1"`
 	Limit  *int   `json:"limit" query:"limit" validate:"omitempty,min=1"`
 }
+
+// StatusAll lists roles in every status.
+const StatusAll = "all"
+
+// ListRolesRequest holds the query string of GET /roles (HU-082-02). Page and
+// limit are pointers so an explicit 0 is rejected instead of defaulted.
+type ListRolesRequest struct {
+	Q      string `json:"q" query:"q" validate:"max=100"`
+	Type   string `json:"type" query:"type" validate:"omitempty,oneof=system custom"`
+	Status string `json:"status" query:"status" validate:"omitempty,oneof=active inactive all"`
+	Page   *int   `json:"page" query:"page" validate:"omitempty,min=1"`
+	Limit  *int   `json:"limit" query:"limit" validate:"omitempty,min=1"`
+}

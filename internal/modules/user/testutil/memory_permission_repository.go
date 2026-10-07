@@ -3,6 +3,7 @@ package testutil
 import (
 	"context"
 	"sort"
+	"strings"
 	"sync"
 
 	"github.com/google/uuid"
@@ -90,21 +91,118 @@ func (r *MemoryUserRepository) ExistsByEmail(_ context.Context, email string) (b
 	return ok, nil
 }
 
-// MemoryRoleRepository is a minimal in-memory role repo for tests.
+// MemoryRoleRepository is an in-memory role repo for tests: it mirrors the
+// visibility, search, ordering and permission-count rules of the GORM
+// repository (HU-082-02).
 type MemoryRoleRepository struct {
-	byName map[string]*entity.Role
+	mu          sync.Mutex
+	Roles       map[uuid.UUID]*entity.Role
+	assignments map[uuid.UUID]map[uuid.UUID]bool
+	Writes      int
 }
 
 func NewMemoryRoleRepository() *MemoryRoleRepository {
-	return &MemoryRoleRepository{byName: map[string]*entity.Role{}}
+	return &MemoryRoleRepository{
+		Roles:       map[uuid.UUID]*entity.Role{},
+		assignments: map[uuid.UUID]map[uuid.UUID]bool{},
+	}
 }
 
-func (r *MemoryRoleRepository) GetByID(_ context.Context, _ uuid.UUID) (*entity.Role, error) {
-	return nil, nil
+// Seed stores a role directly, as the GORM seed does.
+func (r *MemoryRoleRepository) Seed(role *entity.Role) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	copied := *role
+	r.Roles[role.ID] = &copied
+	r.Writes++
+}
+
+// Grant links a role with a permission, as the role_permission table does.
+func (r *MemoryRoleRepository) Grant(roleID, permissionID uuid.UUID) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if r.assignments[roleID] == nil {
+		r.assignments[roleID] = map[uuid.UUID]bool{}
+	}
+	if !r.assignments[roleID][permissionID] {
+		r.assignments[roleID][permissionID] = true
+		r.Writes++
+	}
+}
+
+func (r *MemoryRoleRepository) GetByID(_ context.Context, id uuid.UUID) (*entity.Role, error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	role, ok := r.Roles[id]
+	if !ok {
+		return nil, nil
+	}
+	copied := *role
+	return &copied, nil
 }
 
 func (r *MemoryRoleRepository) GetByName(_ context.Context, name string) (*entity.Role, error) {
-	return r.byName[name], nil
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	for _, role := range r.Roles {
+		if role.Name == name {
+			copied := *role
+			return &copied, nil
+		}
+	}
+	return nil, nil
+}
+
+// List returns the roles visible to the filter: the global ones, plus the
+// roles of the company when it is set, ordered by name and carrying the number
+// of permissions granted to each one.
+func (r *MemoryRoleRepository) List(
+	_ context.Context,
+	filter repository.RoleListFilter,
+	offset, limit int,
+) ([]*entity.Role, int64, error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	q := strings.ToLower(strings.TrimSpace(filter.Q))
+	var matches []*entity.Role
+	for _, role := range r.Roles {
+		if filter.CompanyID == nil {
+			if role.CompanyID != nil {
+				continue
+			}
+		} else if role.CompanyID != nil && *role.CompanyID != *filter.CompanyID {
+			continue
+		}
+		if filter.Type != nil && role.Type() != *filter.Type {
+			continue
+		}
+		if filter.Status != nil && role.Status != *filter.Status {
+			continue
+		}
+		if q != "" && !strings.Contains(strings.ToLower(role.Name), q) {
+			continue
+		}
+		copied := *role
+		copied.PermissionsCount = len(r.assignments[role.ID])
+		matches = append(matches, &copied)
+	}
+
+	sort.Slice(matches, func(i, j int) bool {
+		left := strings.ToLower(matches[i].Name)
+		right := strings.ToLower(matches[j].Name)
+		if left != right {
+			return left < right
+		}
+		return matches[i].ID.String() < matches[j].ID.String()
+	})
+
+	total := int64(len(matches))
+	if offset >= len(matches) {
+		return []*entity.Role{}, total, nil
+	}
+	end := min(offset+limit, len(matches))
+	return matches[offset:end], total, nil
 }
 
 // MemoryPermissionRepository mirrors the GORM permission repository: ordering

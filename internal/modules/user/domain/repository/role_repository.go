@@ -8,10 +8,25 @@ import (
 	"github.com/sigif/sigif-go/internal/modules/user/domain/entity"
 )
 
+// RoleListFilter narrows a role listing (HU-082-02). A nil CompanyID means the
+// caller has no company and only sees the global roles; otherwise the roles of
+// the company plus the global ones are visible. A nil Type or Status leaves
+// that dimension unfiltered.
+type RoleListFilter struct {
+	CompanyID *uuid.UUID
+	Q         string
+	Type      *entity.RoleType
+	Status    *entity.RoleStatus
+}
+
 // RoleRepository is the persistence port for roles.
 type RoleRepository interface {
 	GetByID(ctx context.Context, id uuid.UUID) (*entity.Role, error)
 	GetByName(ctx context.Context, name string) (*entity.Role, error)
+
+	// List returns a page of the visible roles ordered by name, plus the total
+	// number of matching rows. Each role carries its permissions count.
+	List(ctx context.Context, filter RoleListFilter, offset, limit int) ([]*entity.Role, int64, error)
 }
 
 // PermissionRepository is the persistence port for permissions and their

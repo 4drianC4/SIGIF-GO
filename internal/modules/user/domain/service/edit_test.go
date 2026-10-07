@@ -8,6 +8,7 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/sigif/sigif-go/internal/modules/user/domain/entity"
+	"github.com/sigif/sigif-go/internal/modules/user/domain/repository"
 	"github.com/sigif/sigif-go/internal/shared/clock"
 	sharedErrors "github.com/sigif/sigif-go/internal/shared/errors"
 	"github.com/sigif/sigif-go/internal/shared/security"
@@ -91,6 +92,12 @@ func (r *memoryRoleRepo) GetByID(_ context.Context, id uuid.UUID) (*entity.Role,
 
 func (r *memoryRoleRepo) GetByName(_ context.Context, name string) (*entity.Role, error) {
 	return r.byName[name], nil
+}
+
+// List is unused by the edit flows; the listing tests live with the HTTP
+// handler.
+func (r *memoryRoleRepo) List(_ context.Context, _ repository.RoleListFilter, _, _ int) ([]*entity.Role, int64, error) {
+	return nil, 0, nil
 }
 
 type noopPermRepo struct{}

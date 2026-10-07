@@ -28,6 +28,7 @@ var Module = fx.Options(
 
 	fx.Provide(httpHandler.NewUserHTTPHandler),
 	fx.Provide(httpHandler.NewPermissionHTTPHandler),
+	fx.Provide(httpHandler.NewRoleHTTPHandler),
 
 	fx.Invoke(func(app *fiber.App, handler *httpHandler.UserHTTPHandler, checker middleware.PermissionChecker) {
 		httpRouter.RegisterUserRoutes(app.Group("/api/v1"), handler, checker)
@@ -35,5 +36,9 @@ var Module = fx.Options(
 
 	fx.Invoke(func(app *fiber.App, permissionHandler *httpHandler.PermissionHTTPHandler, checker middleware.PermissionChecker) {
 		httpRouter.RegisterPermissionRoutes(app.Group("/api/v1"), permissionHandler, checker)
+	}),
+
+	fx.Invoke(func(app *fiber.App, roleHandler *httpHandler.RoleHTTPHandler, checker middleware.PermissionChecker) {
+		httpRouter.RegisterRoleRoutes(app.Group("/api/v1"), roleHandler, checker)
 	}),
 )

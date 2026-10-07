@@ -104,6 +104,7 @@ const (
 	PermCustomersDelete     = "customers.delete"
 	PermPermissionsRead     = "permissions.read"
 	PermPermissionsCreate   = "permissions.create"
+	PermRolesList           = "roles.list"
 )
 
 // AllPermissions returns the canonical set of permissions for the implemented
@@ -157,6 +158,12 @@ func AllPermissions() []Permission {
 			ops: []struct{ op, desc string }{
 				{"read", "Consultar el catálogo de permisos"},
 				{"create", "Registrar permisos"},
+			},
+		},
+		{
+			module: "roles",
+			ops: []struct{ op, desc string }{
+				{"list", "Listar roles"},
 			},
 		},
 	}

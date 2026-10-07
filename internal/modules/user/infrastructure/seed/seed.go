@@ -94,6 +94,7 @@ func ensureRole(tx *gorm.DB, name, description string, isTemplate, isSystem bool
 		Description: description,
 		IsTemplate:  isTemplate,
 		IsSystem:    isSystem,
+		Status:      entity.RoleStatusActive.String(),
 	}
 	if err := tx.Create(&role).Error; err != nil {
 		return uuid.Nil, err

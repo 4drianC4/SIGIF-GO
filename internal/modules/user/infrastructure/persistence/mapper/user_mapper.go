@@ -63,8 +63,17 @@ func RoleToDomain(m *model.RoleModel) *entity.Role {
 		Description: m.Description,
 		IsTemplate:  m.IsTemplate,
 		IsSystem:    m.IsSystem,
+		Status:      entity.RoleStatus(m.Status),
 		CreatedAt:   m.CreatedAt,
 	}
+}
+
+// RoleListToDomain maps a listing row, including the permissions count
+// computed by the query (HU-082-02).
+func RoleListToDomain(m *model.RoleListModel) *entity.Role {
+	role := RoleToDomain(&m.RoleModel)
+	role.PermissionsCount = int(m.PermissionsCount)
+	return role
 }
 
 func PermissionToModel(p *entity.Permission) *model.PermissionModel {

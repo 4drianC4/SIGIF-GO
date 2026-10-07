@@ -6,6 +6,7 @@ import (
 	"github.com/sigif/sigif-go/internal/modules/user/application/command"
 	"github.com/sigif/sigif-go/internal/modules/user/application/query"
 	"github.com/sigif/sigif-go/internal/modules/user/domain/entity"
+	"github.com/sigif/sigif-go/internal/modules/user/domain/repository"
 	"github.com/sigif/sigif-go/internal/modules/user/domain/service"
 )
 
@@ -92,4 +93,13 @@ func (h *UserQueryHandler) HandleListPermissions(ctx context.Context, q query.Li
 
 func (h *UserQueryHandler) HandleListPermissionModules(_ context.Context, _ query.ListPermissionModules) []entity.ModuleWithOperations {
 	return h.service.PermissionModules()
+}
+
+func (h *UserQueryHandler) HandleListRoles(ctx context.Context, q query.ListRoles) ([]*entity.Role, int64, error) {
+	return h.service.ListRoles(ctx, repository.RoleListFilter{
+		CompanyID: q.CompanyID,
+		Q:         q.Q,
+		Type:      q.Type,
+		Status:    q.Status,
+	}, q.Offset, q.Limit)
 }

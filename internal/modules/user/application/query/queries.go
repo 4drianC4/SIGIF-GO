@@ -2,6 +2,8 @@ package query
 
 import (
 	"github.com/google/uuid"
+
+	"github.com/sigif/sigif-go/internal/modules/user/domain/entity"
 )
 
 type GetUser struct {
@@ -27,3 +29,14 @@ type ListPermissions struct {
 
 // ListPermissionModules asks for the catalog of modules and their operations.
 type ListPermissionModules struct{}
+
+// ListRoles filters the roles visible to the caller (HU-082-02). A nil
+// CompanyID means the caller has no company and only sees the global roles.
+type ListRoles struct {
+	CompanyID *uuid.UUID
+	Q         string
+	Type      *entity.RoleType
+	Status    *entity.RoleStatus
+	Offset    int
+	Limit     int
+}
