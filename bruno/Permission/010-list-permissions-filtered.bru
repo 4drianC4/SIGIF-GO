@@ -1,0 +1,31 @@
+meta {
+  name: List Permissions - Filtered by Module
+  type: http
+  seq: 10
+}
+
+get {
+  url: {{baseUrl}}/api/v1/permissions/?module=customers
+  body: none
+  auth: bearer
+}
+
+params:query {
+  module: customers
+}
+
+auth:bearer {
+  token: {{accessToken}}
+}
+
+tests {
+  test("responde 200 solo con permisos del módulo solicitado", function() {
+    expect(res.status).to.equal(200);
+    expect(res.body.success).to.equal(true);
+    expect(res.body.data.length).to.be.at.least(6);
+    res.body.data.forEach(function(p) {
+      expect(p.module).to.equal('customers');
+      expect(p.code).to.equal(p.module + '.' + p.operation);
+    });
+  });
+}

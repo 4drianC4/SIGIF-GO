@@ -123,6 +123,25 @@ POST   /api/v1/users/:id/activate     # Activar (users.activate)
 POST   /api/v1/users/:id/deactivate   # Desactivar (users.deactivate)
 ```
 
+### Permisos (catálogo, HU-082-01)
+
+```
+GET  /api/v1/permissions/modules   # Catálogo de módulos y operaciones (permiso permissions.read)
+GET  /api/v1/permissions           # Listar permisos; opcional ?module=<módulo> (permissions.read)
+POST /api/v1/permissions           # Registrar un permiso (permissions.create)
+```
+
+```json
+POST /api/v1/permissions
+{
+  "module": "products",
+  "operation": "export",
+  "description": "Exportar productos"
+}
+```
+
+`module` debe pertenecer al catálogo y `operation` a las operaciones soportadas del módulo. El código (`code`) se deriva del backend como `module.operation`; si se envía debe coincidir. Los pares repetidos responden `409 CONFLICT` (índice único `(module, operation)`).
+
 ### Registro de usuario
 
 ```json

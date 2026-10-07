@@ -1,0 +1,32 @@
+meta {
+  name: List Permissions
+  type: http
+  seq: 9
+}
+
+get {
+  url: {{baseUrl}}/api/v1/permissions/?page=1&limit=20
+  body: none
+  auth: bearer
+}
+
+params:query {
+  page: 1
+  limit: 20
+}
+
+auth:bearer {
+  token: {{accessToken}}
+}
+
+tests {
+  test("responde 200 paginado con los permisos registrados", function() {
+    expect(res.status).to.equal(200);
+    expect(res.body.success).to.equal(true);
+    expect(res.body.data.length).to.be.at.least(21);
+    expect(res.body.meta.total).to.be.at.least(21);
+    const codes = res.body.data.map(p => p.code);
+    expect(codes).to.include('users.create');
+    expect(codes).to.include('permissions.read');
+  });
+}
