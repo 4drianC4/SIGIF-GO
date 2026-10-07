@@ -36,7 +36,7 @@ Los tres endpoints viven en el módulo `user` (el permiso es la unidad más pequ
 | `permissions.read` | `GET /api/v1/permissions/modules`, `GET /api/v1/permissions` | `superadmin` |
 | `permissions.create` | `POST /api/v1/permissions` | `superadmin` |
 
-`permissions.read` y `permissions.create` se agregan al seed junto con los permisos existentes. El rol `superadmin` recibe automáticamente todos los permisos del catálogo (ahora 21); el rol `soporte` conserva solo `users.list` y `users.read` y por tanto responde `403`.
+`permissions.read` y `permissions.create` se agregan al seed junto con los permisos existentes. El rol `superadmin` recibe automáticamente todos los permisos del catálogo (ahora 22, incluido `roles.list` de HU-082-02); el rol `soporte` conserva solo `users.list` y `users.read` y por tanto responde `403`.
 
 ---
 
@@ -51,6 +51,7 @@ Módulos soportados (fuente de verdad: `entity.AllPermissions()` y `entity.Suppo
 | `products` | `create, read, update, delete` |
 | `customers` | `create, list, read, update, status, delete` |
 | `permissions` | `read, create` |
+| `roles` | `list` (módulo agregado por HU-082-02) |
 
 Operaciones soportadas que puede usar **cualquier** permiso nuevo (catálogo extendido de HU-082-01 + las ya sembradas):
 
@@ -78,7 +79,8 @@ Sin parámetros.
     { "module": "categories", "operations": ["read", "list", "create", "update", "delete", "export", "activate", "deactivate", "change_password", "status"] },
     { "module": "products", "operations": ["read", "list", "create", "update", "delete", "export", "activate", "deactivate", "change_password", "status"] },
     { "module": "customers", "operations": ["read", "list", "create", "update", "delete", "export", "activate", "deactivate", "change_password", "status"] },
-    { "module": "permissions", "operations": ["read", "list", "create", "update", "delete", "export", "activate", "deactivate", "change_password", "status"] }
+    { "module": "permissions", "operations": ["read", "list", "create", "update", "delete", "export", "activate", "deactivate", "change_password", "status"] },
+    { "module": "roles", "operations": ["read", "list", "create", "update", "delete", "export", "activate", "deactivate", "change_password", "status"] }
   ]
 }
 ```
@@ -274,7 +276,7 @@ curl -s -X POST "http://localhost:4600/api/v1/permissions/" \
 CREATE UNIQUE INDEX idx_permissions_module_operation ON permission (module, operation);
 ```
 
-Se declara en `PermissionModel` y lo crea `AutoMigrate` (`make migrate-up`), igual que el resto del esquema. El seed inserta `permissions.read` y `permissions.create` y le da a `superadmin` **todos** los permisos del catálogo dinámicamente (ya no se fijan 19: al sembrar un módulo nuevo, `superadmin` lo recibe). Al migrar una base existente limpia, `superadmin` pasa de 19 a 21 permisos; `soporte` se mantiene en 2.
+Se declara en `PermissionModel` y lo crea `AutoMigrate` (`make migrate-up`), igual que el resto del esquema. El seed inserta `permissions.read` y `permissions.create` y le da a `superadmin` **todos** los permisos del catálogo dinámicamente (ya no se fijan 19: al sembrar un módulo nuevo, `superadmin` lo recibe). Al migrar una base existente limpia, `superadmin` pasa de 19 a 22 permisos (21 tras HU-082-01 y 22 al sumarse `roles.list` en HU-082-02); `soporte` se mantiene en 2.
 
 ---
 
@@ -295,7 +297,7 @@ Se declara en `PermissionModel` y lo crea `AutoMigrate` (`make migrate-up`), igu
 ## Pruebas
 
 - Unitarias HTTP: `internal/modules/user/interfaces/http/handler/permission_handler_test.go` (`go test ./...`). Cubren 201+listado, 409 (incluidas variantes mayúsculas/espacios), 400 (operación inválida, módulo inexistente, campos faltantes, `code` desalineado), catálogo de módulos, filtro, paginación, 401 y 403.
-- E2E contra PostgreSQL (contenedor de desarrollo `sigif-go-dev-db`, puerto 5437): `SIGIF_DATABASE_PORT=5437 make migrate-up` + servidor con el mismo override, validando el índice creado, 21 permisos, `superadmin` = 21, y toda la matriz HTTP anterior vía `curl`.
+- E2E contra PostgreSQL (contenedor de desarrollo `sigif-go-dev-db`, puerto 5437): `SIGIF_DATABASE_PORT=5437 make migrate-up` + servidor con el mismo override, validando el índice creado, 22 permisos, `superadmin` = 22, y toda la matriz HTTP anterior vía `curl`.
 - Bruno:
 
 ```bash
