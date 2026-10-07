@@ -67,6 +67,63 @@ func (r *ProductGormRepository) GetByID(ctx context.Context, companyID, id uuid.
 	return mapper.ProductToDomain(&m), nil
 }
 
+func (r *ProductGormRepository) GetAll(ctx context.Context, companyID uuid.UUID, filters repository.ProductFilters, page, limit int) ([]*entity.Product, int64, error) {
+	db := r.db.GetDB(ctx).Model(&model.ProductModel{}).Where("company_id = ?", companyID)
+
+	if filters.Name != "" {
+		db = db.Where("LOWER(name) LIKE ?", "%"+strings.ToLower(filters.Name)+"%")
+	}
+	if filters.CategoryID != nil {
+		db = db.Where("category_id = ?", *filters.CategoryID)
+	}
+	if filters.Status != nil {
+		db = db.Where("status = ?", string(*filters.Status))
+	}
+
+	var total int64
+	if err := db.Count(&total).Error; err != nil {
+		return nil, 0, err
+	}
+
+	var ms []model.ProductModel
+	offset := (page - 1) * limit
+	if err := db.Order("name ASC").Offset(offset).Limit(limit).Find(&ms).Error; err != nil {
+		return nil, 0, err
+	}
+
+	products := make([]*entity.Product, 0, len(ms))
+	for i := range ms {
+		products = append(products, mapper.ProductToDomain(&ms[i]))
+	}
+	return products, total, nil
+}
+
+func (r *ProductGormRepository) SetStatus(ctx context.Context, companyID, id uuid.UUID, status entity.Status) error {
+	result := r.db.GetDB(ctx).Model(&model.ProductModel{}).
+		Where("company_id = ? AND id = ?", companyID, id).
+		Update("status", string(status))
+	if result.Error != nil {
+		return result.Error
+	}
+	if result.RowsAffected == 0 {
+		return service.ErrProductNotFound
+	}
+	return nil
+}
+
+func (r *ProductGormRepository) Delete(ctx context.Context, companyID, id uuid.UUID) error {
+	result := r.db.GetDB(ctx).
+		Where("company_id = ? AND id = ?", companyID, id).
+		Delete(&model.ProductModel{})
+	if result.Error != nil {
+		return result.Error
+	}
+	if result.RowsAffected == 0 {
+		return service.ErrProductNotFound
+	}
+	return nil
+}
+
 func (r *ProductGormRepository) ExistsBySKU(ctx context.Context, companyID uuid.UUID, sku string) (bool, error) {
 	var count int64
 	err := r.db.GetDB(ctx).Model(&model.ProductModel{}).

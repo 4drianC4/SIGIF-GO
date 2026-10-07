@@ -8,6 +8,7 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/sigif/sigif-go/internal/modules/product/domain/entity"
+	"github.com/sigif/sigif-go/internal/modules/product/domain/repository"
 	"github.com/sigif/sigif-go/internal/modules/product/domain/service"
 )
 
@@ -87,6 +88,62 @@ func (r *MemoryProductRepository) GetByID(_ context.Context, companyID, id uuid.
 	}
 	copied := *product
 	return &copied, nil
+}
+
+func (r *MemoryProductRepository) GetAll(_ context.Context, companyID uuid.UUID, filters repository.ProductFilters, page, limit int) ([]*entity.Product, int64, error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	var matched []*entity.Product
+	for _, p := range r.Products {
+		if p.CompanyID != companyID {
+			continue
+		}
+		if filters.Name != "" && !strings.Contains(strings.ToLower(p.Name), strings.ToLower(filters.Name)) {
+			continue
+		}
+		if filters.CategoryID != nil && p.CategoryID != *filters.CategoryID {
+			continue
+		}
+		if filters.Status != nil && p.Status != *filters.Status {
+			continue
+		}
+		copied := *p
+		matched = append(matched, &copied)
+	}
+
+	total := int64(len(matched))
+	offset := (page - 1) * limit
+	if offset >= len(matched) {
+		return []*entity.Product{}, total, nil
+	}
+	end := offset + limit
+	if end > len(matched) {
+		end = len(matched)
+	}
+	return matched[offset:end], total, nil
+}
+
+func (r *MemoryProductRepository) SetStatus(_ context.Context, companyID, id uuid.UUID, status entity.Status) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	product, ok := r.Products[id]
+	if !ok || product.CompanyID != companyID {
+		return service.ErrProductNotFound
+	}
+	product.Status = status
+	return nil
+}
+
+func (r *MemoryProductRepository) Delete(_ context.Context, companyID, id uuid.UUID) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	product, ok := r.Products[id]
+	if !ok || product.CompanyID != companyID {
+		return service.ErrProductNotFound
+	}
+	delete(r.Products, id)
+	return nil
 }
 
 func (r *MemoryProductRepository) ExistsBySKU(_ context.Context, companyID uuid.UUID, sku string) (bool, error) {

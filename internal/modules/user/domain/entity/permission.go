@@ -26,7 +26,9 @@ const (
 	PermUsersChangePassword = "users.change_password"
 	PermCategoriesCreate    = "categories.create"
 	PermProductsCreate      = "products.create"
-	PermProductsUpdate = "products.update"
+	PermProductsRead        = "products.read"
+	PermProductsUpdate      = "products.update"
+	PermProductsDelete      = "products.delete"
 	PermCustomersCreate     = "customers.create"
 	PermCustomersList       = "customers.list"
 	PermCustomersRead       = "customers.read"
@@ -65,7 +67,9 @@ func AllPermissions() []Permission {
 			module: "products",
 			ops: []struct{ op, desc string }{
 				{"create", "Registrar productos"},
-				{"update", "Actualizar productos"},
+				{"read", "Ver y listar productos"},
+				{"update", "Editar productos y cambiar estado"},
+				{"delete", "Eliminar productos permanentemente"},
 			},
 		},
 		{

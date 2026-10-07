@@ -1,0 +1,25 @@
+meta {
+  name: Reactivate Product
+  type: http
+  seq: 15
+}
+
+patch {
+  url: {{baseUrl}}/api/v1/products/{{productId}}/status
+  body: json
+  auth: bearer
+}
+
+headers {
+  Content-Type: application/json
+}
+
+auth:bearer {
+  token: {{accessToken}}
+}
+
+body:json {
+  {
+    "status": "active"
+  }
+}

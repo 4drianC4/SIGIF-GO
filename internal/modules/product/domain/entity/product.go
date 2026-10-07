@@ -133,3 +133,17 @@ func (p *Product) Update(clock clock.Clock, params UpdateProductParams) error {
 	p.UpdatedAt = clock.NowUTC()
 	return nil
 }
+
+func (p *Product) IsActive() bool {
+	return p.Status == StatusActive
+}
+
+func (p *Product) Activate(clock clock.Clock) {
+	p.Status = StatusActive
+	p.UpdatedAt = clock.NowUTC()
+}
+
+func (p *Product) Deactivate(clock clock.Clock) {
+	p.Status = StatusInactive
+	p.UpdatedAt = clock.NowUTC()
+}
