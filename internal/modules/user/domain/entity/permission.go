@@ -1,8 +1,13 @@
 package entity
 
-import "github.com/google/uuid"
+import (
+	"slices"
+
+	"github.com/google/uuid"
+)
 
 // Permission is the smallest unit of authorization: a module + an operation.
+// Its code is the canonical "module.operation" key (Key).
 type Permission struct {
 	ID          uuid.UUID
 	Module      string
@@ -10,8 +15,70 @@ type Permission struct {
 	Description string
 }
 
+// Key returns the unique code that identifies the permission from the backend.
 func (p *Permission) Key() string {
 	return p.Module + "." + p.Operation
+}
+
+// SupportedOperations is the catalog of operations a permission may use. It
+// holds the operations defined by HU-082-01 (read, create, update, delete,
+// export) plus the ones already seeded for the implemented modules, so a new
+// permission never invalidates a permission granted by the seed.
+var SupportedOperations = []string{
+	"read",
+	"list",
+	"create",
+	"update",
+	"delete",
+	"export",
+	"activate",
+	"deactivate",
+	"change_password",
+	"status",
+}
+
+// IsSupportedOperation reports whether operation belongs to the catalog.
+func IsSupportedOperation(operation string) bool {
+	return slices.Contains(SupportedOperations, operation)
+}
+
+// ModuleWithOperations pairs a module of the catalog with the operations its
+// permissions may use.
+type ModuleWithOperations struct {
+	Module     string
+	Operations []string
+}
+
+// SupportedModules returns the catalog of modules a permission may belong to,
+// in seed order and without repetitions. The modules come from the same source
+// of truth as the seeded permissions.
+func SupportedModules() []string {
+	var modules []string
+	for _, p := range AllPermissions() {
+		if !slices.Contains(modules, p.Module) {
+			modules = append(modules, p.Module)
+		}
+	}
+	return modules
+}
+
+// IsSupportedModule reports whether module belongs to the catalog.
+func IsSupportedModule(module string) bool {
+	return slices.Contains(SupportedModules(), module)
+}
+
+// SupportedModuleCatalog returns every module of the catalog together with the
+// operations a permission of that module may use.
+func SupportedModuleCatalog() []ModuleWithOperations {
+	modules := SupportedModules()
+	catalog := make([]ModuleWithOperations, 0, len(modules))
+	for _, module := range modules {
+		catalog = append(catalog, ModuleWithOperations{
+			Module:     module,
+			Operations: slices.Clone(SupportedOperations),
+		})
+	}
+	return catalog
 }
 
 // Predefined permissions for the modules currently implemented.
@@ -35,6 +102,8 @@ const (
 	PermCustomersUpdate     = "customers.update"
 	PermCustomersStatus     = "customers.status"
 	PermCustomersDelete     = "customers.delete"
+	PermPermissionsRead     = "permissions.read"
+	PermPermissionsCreate   = "permissions.create"
 )
 
 // AllPermissions returns the canonical set of permissions for the implemented
@@ -81,6 +150,13 @@ func AllPermissions() []Permission {
 				{"update", "Actualizar clientes"},
 				{"status", "Cambiar estado de clientes"},
 				{"delete", "Eliminar clientes"},
+			},
+		},
+		{
+			module: "permissions",
+			ops: []struct{ op, desc string }{
+				{"read", "Consultar el catálogo de permisos"},
+				{"create", "Registrar permisos"},
 			},
 		},
 	}

@@ -76,3 +76,20 @@ func (h *UserQueryHandler) HandleGetByEmail(ctx context.Context, q query.GetUser
 func (h *UserQueryHandler) HandleList(ctx context.Context, q query.ListUsers) ([]*entity.AppUser, int64, error) {
 	return h.service.List(ctx, q.Offset, q.Limit)
 }
+
+func (h *UserCommandHandler) HandleCreatePermission(ctx context.Context, cmd command.CreatePermission) (*entity.Permission, error) {
+	return h.service.CreatePermission(ctx, service.CreatePermissionParams{
+		Module:      cmd.Module,
+		Operation:   cmd.Operation,
+		Code:        cmd.Code,
+		Description: cmd.Description,
+	})
+}
+
+func (h *UserQueryHandler) HandleListPermissions(ctx context.Context, q query.ListPermissions) ([]*entity.Permission, int64, error) {
+	return h.service.ListPermissions(ctx, q.Module, q.Offset, q.Limit)
+}
+
+func (h *UserQueryHandler) HandleListPermissionModules(_ context.Context, _ query.ListPermissionModules) []entity.ModuleWithOperations {
+	return h.service.PermissionModules()
+}

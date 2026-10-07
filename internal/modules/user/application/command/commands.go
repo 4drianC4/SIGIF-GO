@@ -40,3 +40,12 @@ type ChangeStatus struct {
 	ID     uuid.UUID
 	Active bool
 }
+
+// CreatePermission registers a permission of the catalog (HU-082-01). Code is
+// optional: when sent it must match module.operation.
+type CreatePermission struct {
+	Module      string
+	Operation   string
+	Code        string
+	Description string
+}
