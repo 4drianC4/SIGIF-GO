@@ -89,3 +89,61 @@ func NormalizeSKU(sku string) string {
 func hasAtMostTwoDecimals(d decimal.Decimal) bool {
 	return d.Equal(d.Round(2))
 }
+
+type UpdateProductParams struct {
+	CategoryID    uuid.UUID
+	SKU           string
+	Barcode       string
+	Name          string
+	Description   string
+	UnitOfMeasure UnitOfMeasure
+	CostPrice     decimal.Decimal
+	SalePrice     decimal.Decimal
+}
+
+func (p *Product) Update(clock clock.Clock, params UpdateProductParams) error {
+	sku := NormalizeSKU(params.SKU)
+	details := map[string]string{}
+
+	if !skuPattern.MatchString(sku) {
+		details["sku"] = "solo puede contener letras, números, '.', '-' y '_', y debe empezar por letra o número"
+	}
+	if params.CostPrice.IsNegative() {
+		details["cost_price"] = "no puede ser negativo"
+	} else if !hasAtMostTwoDecimals(params.CostPrice) {
+		details["cost_price"] = "admite como máximo 2 decimales"
+	}
+	if !params.SalePrice.IsPositive() {
+		details["sale_price"] = "debe ser mayor que 0"
+	} else if !hasAtMostTwoDecimals(params.SalePrice) {
+		details["sale_price"] = "admite como máximo 2 decimales"
+	}
+	if len(details) > 0 {
+		return sharedErrors.New(sharedErrors.CodeValidation, "validation failed", 400).WithDetails(details)
+	}
+
+	p.CategoryID = params.CategoryID
+	p.SKU = sku
+	p.Barcode = strings.TrimSpace(params.Barcode)
+	p.Name = NormalizeName(params.Name)
+	p.Description = strings.TrimSpace(params.Description)
+	p.UnitOfMeasure = params.UnitOfMeasure
+	p.CostPrice = params.CostPrice
+	p.SalePrice = params.SalePrice
+	p.UpdatedAt = clock.NowUTC()
+	return nil
+}
+
+func (p *Product) IsActive() bool {
+	return p.Status == StatusActive
+}
+
+func (p *Product) Activate(clock clock.Clock) {
+	p.Status = StatusActive
+	p.UpdatedAt = clock.NowUTC()
+}
+
+func (p *Product) Deactivate(clock clock.Clock) {
+	p.Status = StatusInactive
+	p.UpdatedAt = clock.NowUTC()
+}

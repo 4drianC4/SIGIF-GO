@@ -61,3 +61,11 @@ func FromProduct(p *entity.Product) Product {
 		UpdatedAt:     p.UpdatedAt.Format(timeLayout),
 	}
 }
+
+func FromProductList(products []*entity.Product) []Product {
+	result := make([]Product, 0, len(products))
+	for _, p := range products {
+		result = append(result, FromProduct(p))
+	}
+	return result
+}
