@@ -99,6 +99,18 @@ func (noopPermRepo) HasPermission(_ context.Context, _ uuid.UUID, _, _ string) (
 	return false, nil
 }
 
+func (noopPermRepo) List(_ context.Context, _ string, _, _ int) ([]*entity.Permission, int64, error) {
+	return nil, 0, nil
+}
+
+func (noopPermRepo) GetByModuleOperation(_ context.Context, _, _ string) (*entity.Permission, error) {
+	return nil, nil
+}
+
+func (noopPermRepo) Create(_ context.Context, _ *entity.Permission) error {
+	return nil
+}
+
 func seedTestUser(t *testing.T, email string) *entity.AppUser {
 	t.Helper()
 	hash, err := security.HashPassword("password123")
