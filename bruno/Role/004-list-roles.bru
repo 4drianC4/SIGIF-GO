@@ -1,0 +1,53 @@
+meta {
+  name: List Roles
+  type: http
+  seq: 4
+}
+
+get {
+  url: {{baseUrl}}/api/v1/roles/
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{accessToken}}
+}
+
+tests {
+  test("responde 200 paginado con los roles visibles", function() {
+    expect(res.status).to.equal(200);
+    expect(res.body.success).to.equal(true);
+    expect(res.body.data).to.be.an('array');
+    expect(res.body.data.length).to.be.at.least(2);
+    expect(res.body.meta.page).to.equal(1);
+    expect(res.body.meta.limit).to.be.at.least(1);
+    expect(res.body.meta.total).to.be.at.least(2);
+    const names = res.body.data.map(r => r.name);
+    expect(names).to.include('superadmin');
+    expect(names).to.include('soporte');
+  });
+
+  test("cada rol trae todos los campos del contrato", function() {
+    res.body.data.forEach(function(r) {
+      expect(r.id).to.be.a('string');
+      expect(r.name).to.be.a('string');
+      expect(['system', 'custom']).to.include(r.type);
+      expect(['active', 'inactive']).to.include(r.status);
+      expect(r.permissions_count).to.be.a('number');
+      expect(r.created_at).to.be.a('string');
+      if (r.type === 'system') {
+        expect(r.company_id).to.equal(null);
+      } else {
+        expect(r.company_id).to.equal(bru.getVar('companyId'));
+      }
+    });
+  });
+
+  test("el superadmin tiene todos los permisos del catálogo", function() {
+    const superadmin = res.body.data.find(r => r.name === 'superadmin');
+    expect(superadmin.permissions_count).to.be.at.least(22);
+    const soporte = res.body.data.find(r => r.name === 'soporte');
+    expect(soporte.permissions_count).to.equal(2);
+  });
+}

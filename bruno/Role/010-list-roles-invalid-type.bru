@@ -1,0 +1,27 @@
+meta {
+  name: List Roles - Invalid Type (400)
+  type: http
+  seq: 10
+}
+
+get {
+  url: {{baseUrl}}/api/v1/roles/?type=xyz
+  body: none
+  auth: bearer
+}
+
+params:query {
+  type: xyz
+}
+
+auth:bearer {
+  token: {{accessToken}}
+}
+
+tests {
+  test("rechaza con 400 y details.type", function() {
+    expect(res.status).to.equal(400);
+    expect(res.body.error.code).to.equal('VALIDATION_ERROR');
+    expect(res.body.error.details).to.have.property('type');
+  });
+}

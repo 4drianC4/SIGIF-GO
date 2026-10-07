@@ -1,0 +1,35 @@
+meta {
+  name: List Roles - Pagination
+  type: http
+  seq: 13
+}
+
+get {
+  url: {{baseUrl}}/api/v1/roles/?page=1&limit=1
+  body: none
+  auth: bearer
+}
+
+params:query {
+  page: 1
+  limit: 1
+}
+
+auth:bearer {
+  token: {{accessToken}}
+}
+
+tests {
+  test("responde 200 con un elemento por página y el conteo total", function() {
+    expect(res.status).to.equal(200);
+    expect(res.body.success).to.equal(true);
+    expect(res.body.meta.page).to.equal(1);
+    expect(res.body.meta.limit).to.equal(1);
+    expect(res.body.meta.total).to.be.at.least(2);
+    expect(res.body.meta.total_pages).to.be.at.least(2);
+    expect(res.body.data.length).to.be.at.most(1);
+    res.body.data.forEach(function(r) {
+      expect(r.permissions_count).to.be.a('number');
+    });
+  });
+}

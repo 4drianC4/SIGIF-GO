@@ -1,0 +1,35 @@
+meta {
+  name: List Roles - Type System
+  type: http
+  seq: 7
+}
+
+get {
+  url: {{baseUrl}}/api/v1/roles/?type=system
+  body: none
+  auth: bearer
+}
+
+params:query {
+  type: system
+}
+
+auth:bearer {
+  token: {{accessToken}}
+}
+
+tests {
+  test("responde 200 solo con roles del sistema y sin empresa", function() {
+    expect(res.status).to.equal(200);
+    expect(res.body.success).to.equal(true);
+    expect(res.body.data).to.be.an('array');
+    expect(res.body.meta.total).to.be.at.least(2);
+    const names = res.body.data.map(r => r.name);
+    expect(names).to.include('superadmin');
+    expect(names).to.include('soporte');
+    res.body.data.forEach(function(r) {
+      expect(r.type).to.equal('system');
+      expect(r.company_id).to.equal(null);
+    });
+  });
+}

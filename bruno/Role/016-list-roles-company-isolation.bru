@@ -1,0 +1,41 @@
+meta {
+  name: List Roles - Company Isolation
+  type: http
+  seq: 16
+}
+
+get {
+  url: {{baseUrl}}/api/v1/roles/?limit=100
+  body: none
+  auth: bearer
+}
+
+params:query {
+  limit: 100
+}
+
+auth:bearer {
+  token: {{accessToken}}
+}
+
+tests {
+  test("todos los roles pertenecen a la empresa del token o son del sistema", function() {
+    expect(res.status).to.equal(200);
+    expect(res.body.success).to.equal(true);
+    expect(res.body.data).to.be.an('array');
+    expect(res.body.data.length).to.equal(res.body.meta.total);
+    res.body.data.forEach(function(r) {
+      if (r.company_id !== null) {
+        expect(r.company_id).to.equal(bru.getVar('companyId'));
+      }
+    });
+  });
+
+  test("los roles del sistema se listan con company_id nulo", function() {
+    const system = res.body.data.filter(r => r.type === 'system');
+    expect(system.length).to.be.at.least(2);
+    system.forEach(function(r) {
+      expect(r.company_id).to.equal(null);
+    });
+  });
+}

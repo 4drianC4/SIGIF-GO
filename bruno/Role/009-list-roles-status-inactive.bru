@@ -1,0 +1,36 @@
+meta {
+  name: List Roles - Status Inactive
+  type: http
+  seq: 9
+}
+
+get {
+  url: {{baseUrl}}/api/v1/roles/?status=inactive
+  body: none
+  auth: bearer
+}
+
+params:query {
+  status: inactive
+}
+
+auth:bearer {
+  token: {{accessToken}}
+}
+
+tests {
+  test("responde 200 solo con roles inactivos", function() {
+    expect(res.status).to.equal(200);
+    expect(res.body.success).to.equal(true);
+    expect(res.body.data).to.be.an('array');
+    res.body.data.forEach(function(r) {
+      expect(r.status).to.equal('inactive');
+    });
+  });
+
+  test("los roles del sistema activos quedan fuera del filtro", function() {
+    const names = res.body.data.map(r => r.name);
+    expect(names).to.not.include('superadmin');
+    expect(names).to.not.include('soporte');
+  });
+}
