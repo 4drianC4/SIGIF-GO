@@ -1,0 +1,60 @@
+meta {
+  name: Update Product
+  type: http
+  seq: 10
+}
+
+put {
+  url: {{baseUrl}}/api/v1/products/{{productId}}
+  body: json
+  auth: bearer
+}
+
+headers {
+  Content-Type: application/json
+}
+
+auth:bearer {
+  token: {{accessToken}}
+}
+
+body:json {
+  {
+    "category_id": "{{categoryId}}",
+    "sku": "{{productSku}}-edit",
+    "barcode": "{{productBarcode}}",
+    "name": "Coca Cola 600ml Editada",
+    "description": "Botella PET 600ml actualizada",
+    "unit_of_measure": "unit",
+    "cost_price": 3.50,
+    "sale_price": "6.00"
+  }
+}
+
+tests {
+  test("responde 200 con el producto actualizado", function() {
+    expect(res.status).to.equal(200);
+    expect(res.body.success).to.equal(true);
+  });
+  
+  test("el id no cambia tras la edición", function() {
+    expect(res.body.data.id).to.equal(bru.getVar('productId'));
+  });
+  
+  test("normaliza el SKU a mayúsculas y los precios a 2 decimales", function() {
+    const expectedSku = (String(bru.getVar('productSku')) + '-edit').toUpperCase();
+    expect(res.body.data.sku).to.equal(expectedSku);
+    expect(res.body.data.cost_price).to.equal('3.50');
+    expect(res.body.data.sale_price).to.equal('6.00');
+  });
+  
+  test("el estado sigue siendo activo", function() {
+    expect(res.body.data.status).to.equal('active');
+  });
+  
+  test("updated_at es más reciente que created_at", function() {
+    const created = new Date(res.body.data.created_at).getTime();
+    const updated = new Date(res.body.data.updated_at).getTime();
+    expect(updated).to.be.at.least(created);
+  });
+}

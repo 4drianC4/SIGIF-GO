@@ -103,7 +103,7 @@ func (s *testServer) token(t *testing.T, companyID string, perms ...string) stri
 
 func (s *testServer) manager(t *testing.T, companyID string) string {
 	t.Helper()
-	return s.token(t, companyID, "categories.create", "products.create")
+	return s.token(t, companyID, "categories.create", "products.create", "products.update")
 }
 
 func (s *testServer) post(t *testing.T, path, token string, body any) (int, apiResponse) {
@@ -117,6 +117,36 @@ func (s *testServer) post(t *testing.T, path, token string, body any) (int, apiR
 	}
 
 	req := httptest.NewRequest(fiber.MethodPost, path, bytes.NewReader(raw))
+	req.Header.Set("Content-Type", "application/json")
+	if token != "" {
+		req.Header.Set("Authorization", "Bearer "+token)
+	}
+
+	resp, err := s.app.Test(req)
+	if err != nil {
+		t.Fatalf("app.Test() error = %v", err)
+	}
+	defer resp.Body.Close()
+
+	payload, _ := io.ReadAll(resp.Body)
+	var parsed apiResponse
+	if err := json.Unmarshal(payload, &parsed); err != nil {
+		t.Fatalf("response is not JSON (%d): %s", resp.StatusCode, payload)
+	}
+	return resp.StatusCode, parsed
+}
+
+func (s *testServer) put(t *testing.T, path, token string, body any) (int, apiResponse) {
+	t.Helper()
+	var raw []byte
+	switch b := body.(type) {
+	case string:
+		raw = []byte(b)
+	default:
+		raw, _ = json.Marshal(b)
+	}
+
+	req := httptest.NewRequest(fiber.MethodPut, path, bytes.NewReader(raw))
 	req.Header.Set("Content-Type", "application/json")
 	if token != "" {
 		req.Header.Set("Authorization", "Bearer "+token)
@@ -396,5 +426,225 @@ func TestCatalogEndpointsRequireCompanyInToken(t *testing.T) {
 		if status != fiber.StatusBadRequest || resp.Error == nil || resp.Error.Message != "company is required" {
 			t.Fatalf("%s: got %d %+v, want 400 company is required", path, status, resp.Error)
 		}
+	}
+}
+
+func TestUpdateProductEndpointValid(t *testing.T) {
+	s := newTestServer(t)
+	token := s.manager(t, companyA)
+	categoryID := s.createCategory(t, token, "Bebidas")
+
+	status, resp := s.post(t, "/api/v1/products", token, productBody(categoryID))
+	if status != fiber.StatusCreated {
+		t.Fatalf("create status = %d (%+v)", status, resp.Error)
+	}
+	var created map[string]any
+	_ = json.Unmarshal(resp.Data, &created)
+	productID := created["id"].(string)
+
+	updateBody := map[string]any{
+		"category_id":     categoryID,
+		"sku":             "pepsi-500",
+		"name":            "Pepsi 500ml",
+		"unit_of_measure": "unit",
+		"cost_price":      2.50,
+		"sale_price":      "4.00",
+	}
+	status, resp = s.put(t, "/api/v1/products/"+productID, token, updateBody)
+
+	if status != fiber.StatusOK {
+		t.Fatalf("update status = %d, want 200 (error %+v)", status, resp.Error)
+	}
+	var product map[string]any
+	_ = json.Unmarshal(resp.Data, &product)
+
+	if product["id"] != productID {
+		t.Errorf("id changed: got %v, want %v", product["id"], productID)
+	}
+	if product["sku"] != "PEPSI-500" {
+		t.Errorf("sku = %v, want PEPSI-500", product["sku"])
+	}
+	if product["name"] != "Pepsi 500ml" {
+		t.Errorf("name = %v, want Pepsi 500ml", product["name"])
+	}
+	if product["sale_price"] != "4.00" {
+		t.Errorf("sale_price = %v, want 4.00", product["sale_price"])
+	}
+	if product["status"] != "active" {
+		t.Errorf("status = %v, want active", product["status"])
+	}
+	if s.products.Count() != 1 {
+		t.Errorf("expected 1 product, got %d", s.products.Count())
+	}
+}
+
+func TestUpdateProductEndpointNotFound(t *testing.T) {
+	s := newTestServer(t)
+	token := s.manager(t, companyA)
+	categoryID := s.createCategory(t, token, "Bebidas")
+
+	body := map[string]any{
+		"category_id":     categoryID,
+		"sku":             "PEPSI-500",
+		"name":            "Pepsi 500ml",
+		"unit_of_measure": "unit",
+		"sale_price":      "4.00",
+	}
+	status, resp := s.put(t, "/api/v1/products/"+uuid.New().String(), token, body)
+
+	if status != fiber.StatusNotFound || resp.Error == nil || resp.Error.Code != "NOT_FOUND" {
+		t.Fatalf("got %d %+v, want 404 NOT_FOUND", status, resp.Error)
+	}
+}
+
+func TestUpdateProductEndpointInvalidID(t *testing.T) {
+	s := newTestServer(t)
+	token := s.manager(t, companyA)
+	categoryID := s.createCategory(t, token, "Bebidas")
+
+	body := map[string]any{
+		"category_id":     categoryID,
+		"sku":             "PEPSI-500",
+		"name":            "Pepsi 500ml",
+		"unit_of_measure": "unit",
+		"sale_price":      "4.00",
+	}
+	status, resp := s.put(t, "/api/v1/products/not-a-uuid", token, body)
+
+	if status != fiber.StatusBadRequest || resp.Error == nil || resp.Error.Code != "BAD_REQUEST" {
+		t.Fatalf("got %d %+v, want 400 BAD_REQUEST", status, resp.Error)
+	}
+}
+
+func TestUpdateProductEndpointInvalid(t *testing.T) {
+	s := newTestServer(t)
+	token := s.manager(t, companyA)
+	categoryID := s.createCategory(t, token, "Bebidas")
+
+	status, resp := s.post(t, "/api/v1/products", token, productBody(categoryID))
+	if status != fiber.StatusCreated {
+		t.Fatalf("create status = %d (%+v)", status, resp.Error)
+	}
+	var created map[string]any
+	_ = json.Unmarshal(resp.Data, &created)
+	productID := created["id"].(string)
+
+	tests := []struct {
+		name        string
+		mutate      func(body map[string]any)
+		wantDetails []string
+	}{
+		{
+			name:        "empty body",
+			mutate:      func(body map[string]any) { clear(body) },
+			wantDetails: []string{"category_id", "sku", "name", "unit_of_measure", "sale_price"},
+		},
+		{name: "blank name", mutate: func(body map[string]any) { body["name"] = "  " }, wantDetails: []string{"name"}},
+		{name: "unknown unit", mutate: func(body map[string]any) { body["unit_of_measure"] = "barrel" }, wantDetails: []string{"unit_of_measure"}},
+		{name: "sale price zero", mutate: func(body map[string]any) { body["sale_price"] = 0 }, wantDetails: []string{"sale_price"}},
+		{name: "negative cost", mutate: func(body map[string]any) { body["cost_price"] = -1 }, wantDetails: []string{"cost_price"}},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			body := productBody(categoryID)
+			tt.mutate(body)
+			status, resp := s.put(t, "/api/v1/products/"+productID, token, body)
+
+			if status != fiber.StatusBadRequest || resp.Error == nil || resp.Error.Code != "VALIDATION_ERROR" {
+				t.Fatalf("got %d %+v, want 400 VALIDATION_ERROR", status, resp.Error)
+			}
+			for _, field := range tt.wantDetails {
+				if _, ok := resp.Error.Details[field]; !ok {
+					t.Errorf("missing detail for %q in %v", field, resp.Error.Details)
+				}
+			}
+		})
+	}
+}
+
+func TestUpdateProductEndpointDuplicateSKU(t *testing.T) {
+	s := newTestServer(t)
+	token := s.manager(t, companyA)
+	categoryID := s.createCategory(t, token, "Bebidas")
+
+	s.post(t, "/api/v1/products", token, productBody(categoryID))
+	secondBody := productBody(categoryID)
+	secondBody["sku"] = "PEPSI-500"
+	secondBody["barcode"] = "7750182000999"
+	status, resp := s.post(t, "/api/v1/products", token, secondBody)
+	if status != fiber.StatusCreated {
+		t.Fatalf("create second status = %d (%+v)", status, resp.Error)
+	}
+	var second map[string]any
+	_ = json.Unmarshal(resp.Data, &second)
+	secondID := second["id"].(string)
+
+	updateBody := productBody(categoryID)
+	updateBody["barcode"] = "7750182000999"
+	status, resp = s.put(t, "/api/v1/products/"+secondID, token, updateBody)
+
+	if status != fiber.StatusConflict || resp.Error == nil || resp.Error.Code != "CONFLICT" {
+		t.Fatalf("got %d %+v, want 409 CONFLICT", status, resp.Error)
+	}
+}
+
+func TestUpdateProductEndpointKeepsSameSKU(t *testing.T) {
+	s := newTestServer(t)
+	token := s.manager(t, companyA)
+	categoryID := s.createCategory(t, token, "Bebidas")
+
+	status, resp := s.post(t, "/api/v1/products", token, productBody(categoryID))
+	if status != fiber.StatusCreated {
+		t.Fatalf("create status = %d (%+v)", status, resp.Error)
+	}
+	var created map[string]any
+	_ = json.Unmarshal(resp.Data, &created)
+	productID := created["id"].(string)
+
+	updateBody := productBody(categoryID)
+	updateBody["name"] = "Coca Cola 600ml editada"
+	updateBody["sale_price"] = "6.00"
+	status, resp = s.put(t, "/api/v1/products/"+productID, token, updateBody)
+
+	if status != fiber.StatusOK {
+		t.Fatalf("update with same SKU status = %d, want 200 (error %+v)", status, resp.Error)
+	}
+}
+
+func TestUpdateProductEndpointPermissions(t *testing.T) {
+	s := newTestServer(t)
+	token := s.manager(t, companyA)
+	categoryID := s.createCategory(t, token, "Bebidas")
+	status, resp := s.post(t, "/api/v1/products", token, productBody(categoryID))
+	if status != fiber.StatusCreated {
+		t.Fatalf("create status = %d (%+v)", status, resp.Error)
+	}
+	var created map[string]any
+	_ = json.Unmarshal(resp.Data, &created)
+	productID := created["id"].(string)
+
+	body := productBody(categoryID)
+	path := "/api/v1/products/" + productID
+
+	tests := []struct {
+		name   string
+		token  string
+		status int
+		code   string
+	}{
+		{name: "no token", token: "", status: 401, code: "UNAUTHORIZED"},
+		{name: "invalid token", token: "not-a-jwt", status: 401, code: "UNAUTHORIZED"},
+		{name: "no permission", token: s.token(t, companyA), status: 403, code: "FORBIDDEN"},
+		{name: "only products.create", token: s.token(t, companyA, "products.create"), status: 403, code: "FORBIDDEN"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			status, resp := s.put(t, path, tt.token, body)
+			if status != tt.status || resp.Error == nil || resp.Error.Code != tt.code {
+				t.Fatalf("got %d %+v, want %d %s", status, resp.Error, tt.status, tt.code)
+			}
+		})
 	}
 }

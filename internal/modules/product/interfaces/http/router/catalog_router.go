@@ -10,4 +10,5 @@ import (
 func RegisterCatalogRoutes(router fiber.Router, h *handler.CatalogHTTPHandler, checker middleware.PermissionChecker) {
 	router.Post("/categories", middleware.RequirePermission(checker, "categories", "create"), h.CreateCategory)
 	router.Post("/products", middleware.RequirePermission(checker, "products", "create"), h.CreateProduct)
+	router.Put("/products/:id", middleware.RequirePermission(checker, "products", "update"), h.UpdateProduct)
 }
