@@ -142,6 +142,41 @@ POST /api/v1/permissions
 
 `module` debe pertenecer al catálogo y `operation` a las operaciones soportadas del módulo. El código (`code`) se deriva del backend como `module.operation`; si se envía debe coincidir. Los pares repetidos responden `409 CONFLICT` (índice único `(module, operation)`).
 
+### Roles (listado, HU-082-02)
+
+```
+GET /api/v1/roles/   # Listar roles (permiso roles.list) — solo lectura
+```
+
+Params opcionales: `q` (búsqueda parcial e insensible a mayúsculas sobre el nombre, máx. 100), `type` (`system` | `custom`), `status` (`active` | `inactive` | `all`, por defecto `all`), `page` (≥1) y `limit` (1–100, por defecto 20).
+
+```json
+GET /api/v1/roles/?q=vendedor&type=custom&status=active&page=1&limit=20
+```
+
+Respuesta:
+
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "id": "...",
+      "company_id": null,
+      "name": "superadmin",
+      "type": "system",
+      "status": "active",
+      "permissions_count": 22,
+      "description": "Acceso total al sistema",
+      "created_at": "2026-10-05T12:00:00Z"
+    }
+  ],
+  "meta": { "page": 1, "limit": 20, "total": 4, "total_pages": 1 }
+}
+```
+
+Los roles visibles son los del sistema (`company_id` nulo) más los de la empresa del token; un usuario sin empresa solo ve los del sistema. `permissions_count` cuenta los permisos asignados a cada rol. Una lista vacía responde `200` con `data: []` y `total: 0` (nunca `404`).
+
 ### Registro de usuario
 
 ```json
