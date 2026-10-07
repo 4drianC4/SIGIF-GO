@@ -40,3 +40,20 @@ func ToResponse(u *entity.AppUser) dto.User {
 func ToResponseList(users []*entity.AppUser) []dto.User {
 	return dto.FromEntityList(users)
 }
+
+// CreatePermissionRequest is the body of POST /permissions (HU-082-01). The
+// code is optional and, when sent, must match module.operation.
+type CreatePermissionRequest struct {
+	Module      string `json:"module" validate:"required,min=1,max=60"`
+	Operation   string `json:"operation" validate:"required,min=1,max=60"`
+	Code        string `json:"code" validate:"omitempty,max=80"`
+	Description string `json:"description" validate:"omitempty,max=200"`
+}
+
+// ListPermissionsRequest holds the query string of GET /permissions. Page and
+// limit are pointers so an explicit 0 is rejected instead of defaulted.
+type ListPermissionsRequest struct {
+	Module string `json:"module" query:"module" validate:"omitempty,max=60"`
+	Page   *int   `json:"page" query:"page" validate:"omitempty,min=1"`
+	Limit  *int   `json:"limit" query:"limit" validate:"omitempty,min=1"`
+}
