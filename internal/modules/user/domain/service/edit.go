@@ -9,16 +9,15 @@ import (
 	sharedErrors "github.com/sigif/sigif-go/internal/shared/errors"
 )
 
-// EditUserInput holds the data an administrator may edit for a user: the same
-// fields that are required/allowed when registering (first_name, last_name,
-// email, password, role, area). Nil = the field is left unchanged.
+// EditUserInput holds registration fields and an optional password reset.
+// Nil leaves a field unchanged.
 type EditUserInput struct {
+	CompanyID *uuid.UUID
 	FirstName *string
 	LastName  *string
 	Email     *string
 	Password  *string
 	RoleName  *string
-	Area      *string
 }
 
 // Edit applies a partial administrative update to an existing user.
@@ -31,6 +30,11 @@ func (s *UserService) Edit(ctx context.Context, id uuid.UUID, in EditUserInput) 
 		return nil, sharedErrors.New(sharedErrors.CodeNotFound, "user not found", 404)
 	}
 
+	if in.CompanyID != nil {
+		if err := s.validateCompany(ctx, in.CompanyID); err != nil {
+			return nil, err
+		}
+	}
 	if in.Email != nil && *in.Email != user.Email {
 		exists, err := s.repo.ExistsByEmail(ctx, *in.Email)
 		if err != nil {
@@ -57,14 +61,17 @@ func (s *UserService) Edit(ctx context.Context, id uuid.UUID, in EditUserInput) 
 	}
 
 	user.Edit(entity.EditUserParams{
+		CompanyID: in.CompanyID,
 		FirstName: in.FirstName,
 		LastName:  in.LastName,
 		Email:     in.Email,
 		RoleID:    roleID,
-		Area:      in.Area,
 	}, s.clock)
 
-	if in.Password != nil && *in.Password != "" {
+	if in.RoleName != nil {
+		user.RoleName = *in.RoleName
+	}
+	if in.Password != nil {
 		if err := user.ChangePassword(*in.Password, s.clock); err != nil {
 			return nil, err
 		}

@@ -1,159 +1,93 @@
-# Reporte de endpoints — HU-02-01 Registrar usuario
+# HU-02-01 — Registrar usuario
 
-## Información general
+## POST /api/v1/users
 
-- HU: HU-02-01 — Registrar usuario (RF-02)
-- Rama: `dev`
-- Prefijo base: `/api/v1`
-- Requiere contexto autenticado del backend: la ruta exige `Authorization: Bearer <access_token>` (validado por `AuthRequired`) y el permiso `users.create` (validado por `RequirePermission`). Solo un usuario con el rol adecuado (por defecto `superadmin`) puede registrar usuarios.
-- Formato de respuesta exitosa: `{ "success": true, "data": ... }`.
-- Formato de respuesta de error: `{ "success": false, "error": { "code": "CODIGO", "message": "descripción" } }`.
-
----
-
-## Resumen rápido
-
-| Método | Ruta | Permiso | Descripción |
-|---|---|---|---|
-| `POST` | `/api/v1/users` | `users.create` | Registra un nuevo usuario. |
-
----
-
-## Autenticación / permisos (todas las rutas)
-
-| Header | Obligatorio | Descripción |
-|---|---|---|
-| `Authorization` | Sí | `Bearer <access_token>` con una sesión activa. |
-| `Content-Type` | Sí | `application/json`. |
-
-Permisos usados en esta HU: `users.create`.
-
----
-
-## 1) Registrar usuario — `POST /api/v1/users`
-
-Crea un nuevo usuario validando los datos obligatorios, verificando que no exista un email duplicado y asignando el rol indicado.
-
-### Permiso
-`users.create`
-
-### Body
+Requiere `Authorization: Bearer <access_token>`, sesión activa y permiso `users.create`. Body JSON:
 
 ```json
 {
   "first_name": "Juan",
   "last_name": "Pérez",
-  "email": "business_admin@sigif.com",
-  "password": "password123",
-  "role": "business_admin",
-  "area": "Administración del negocio"
+  "email": "juan@sigif.com",
+  "company_id": "11111111-1111-4111-8111-111111111111",
+  "role": "employee"
 }
 ```
 
-| Campo | Tipo | Obligatorio | Restricciones / notas |
-|---|---|---|---|
-| `first_name` | string | Sí | Entre 1 y 80 caracteres. |
-| `last_name` | string | Sí | Entre 1 y 80 caracteres. |
-| `email` | string | Sí | Email válido y único en el sistema. |
-| `password` | string | Sí | Mínimo 8 caracteres; se almacena hasheada con Argon2id. |
-| `role` | string | Sí | `business_admin` o `employee`. Si no existe el rol, se rechaza con `BAD_REQUEST`. |
-| `area` | string | No | Máximo 120 caracteres. |
+| Campo | Requerido | Validación |
+|---|---|---|
+| first_name | Sí | 1–80 caracteres. |
+| last_name | Sí | 1–80 caracteres. |
+| email | Sí | Email válido y único. |
+| company_id | Sí | UUID no nulo de una compañía existente y no eliminada. |
+| role | Sí | `business_admin` o `employee`; el rol debe existir. |
 
-### Respuesta exitosa
+El servidor genera una contraseña aleatoria criptográficamente segura (24 bytes, codificados como 32 caracteres base64url) y almacena únicamente el hash Argon2id. El request ya no acepta una contraseña inicial; si un cliente antiguo envía `password`, se ignora igual que otros campos fuera del DTO. `area` y `full_name` también se ignoran y no forman parte del contrato.
 
-**`201`**
+Respuesta **201**, con `Cache-Control: no-store`:
+
 ```json
 {
   "success": true,
   "data": {
     "id": "uuid",
+    "company_id": "11111111-1111-4111-8111-111111111111",
     "role_id": "uuid",
-    "role": "business_admin",
+    "role": "employee",
     "first_name": "Juan",
     "last_name": "Pérez",
-    "full_name": "Juan Pérez",
-    "username": "business_admin@sigif.com",
-    "email": "business_admin@sigif.com",
-    "area": "Administración del negocio",
+    "username": "juan@sigif.com",
+    "email": "juan@sigif.com",
     "status": "active",
-    "created_at": "2026-10-02T12:00:00Z",
-    "updated_at": "2026-10-02T12:00:00Z"
+    "created_at": "2026-10-08T12:00:00Z",
+    "updated_at": "2026-10-08T12:00:00Z",
+    "generated_password": "contraseña-generada-por-el-servidor"
   }
 }
 ```
 
-### Códigos de error
+`generated_password` se devuelve **solo al crear**, para que el administrador la entregue al usuario. No se guarda en texto plano, no aparece en GET/PATCH/login y no se envía por correo. No hay expiración ni cambio obligatorio de contraseña en este flujo.
 
-| Code | HTTP | Causa |
-|---|---|---|
-| `BAD_REQUEST` | 400 | Body ilegible, campos obligatorios faltantes o rol inexistente. |
-| `CONFLICT` | 409 | Ya existe un usuario con ese email. |
-| `FORBIDDEN` | 403 | El usuario autenticado no tiene el permiso `users.create`. |
-| `UNAUTHORIZED` | 401 | Token ausente, inválido, expirado o sesión terminada. |
-| `INTERNAL_ERROR` | 500 | Error de persistencia al guardar el usuario. |
+## GET /api/v1/companies — Opciones del selector
 
----
+Requiere sesión activa y al menos uno de los permisos `users.create` o `users.update`. No requiere parámetros ni body. Devuelve **todas** las compañías no eliminadas, incluidas las inactivas, sin paginación, ordenadas por razón social y luego ID. No limita por la compañía del administrador, pues este formulario administra usuarios globalmente.
 
-## Estructura de respuesta de entidad `User`
+Respuesta **200**:
 
 ```json
 {
-  "id": "uuid",
-  "company_id": "uuid | null",
-  "role_id": "uuid",
-  "role": "business_admin | employee",
-  "first_name": "string",
-  "last_name": "string",
-  "full_name": "string",
-  "username": "string",
-  "email": "string",
-  "phone": "string",
-  "area": "string",
-  "status": "active | inactive | invited | locked",
-  "last_access": "date | null",
-  "created_at": "date",
-  "updated_at": "date"
+  "success": true,
+  "data": [
+    {
+      "id": "11111111-1111-4111-8111-111111111111",
+      "legal_name": "Empresa Ejemplo SRL",
+      "trade_name": "Ejemplo"
+    }
+  ]
 }
 ```
 
-Los campos `company_id`, `phone`, `area` y `last_access` se omiten cuando están vacíos o son nulos. El `password_hash` nunca se expone en la respuesta.
+Si no hay compañías, `data` es `[]`. Errores: 401 sin autenticación, 403 sin permisos y 500 por persistencia.
 
----
+En el frontend, usar `trade_name || legal_name` como etiqueta y `id` como valor de cada opción. Al seleccionar, enviar ese valor en `company_id` del POST o PATCH. El backend valida su existencia nuevamente al guardar.
 
-## Tabla de errores consolidada
+## Respuesta User
 
-```json
-{
-  "success": false,
-  "error": {
-    "code": "CODIGO",
-    "message": "descripción"
-  }
-}
-```
+Incluye `id`, `company_id`, `role_id`, `role`, `first_name`, `last_name`, `username`, `email`, `phone`, `status`, `last_access`, `created_at` y `updated_at`. Los valores opcionales vacíos (`company_id`, `phone`, `last_access`) se omiten. `username` sigue sincronizado con el email; `phone` se conserva pero no se edita en estos formularios. Ya no se exponen `area` ni `full_name`. Nunca se devuelve `password_hash`.
 
-| Code | HTTP | Origen |
+## Errores
+
+| HTTP | Código | Causa |
 |---|---|---|
-| `BAD_REQUEST` | 400 | Body ilegible, campos faltantes o rol inexistente. |
-| `UNAUTHORIZED` | 401 | Token ausente, inválido, expirado o sesión terminada. |
-| `FORBIDDEN` | 403 | Sin permiso `users.create`. |
-| `CONFLICT` | 409 | Email duplicado. |
-| `INTERNAL_ERROR` | 500 | Error de persistencia. |
+| 400 | BAD_REQUEST | JSON ilegible o UUID mal formado. |
+| 400 | VALIDATION_ERROR | Campos inválidos, rol no permitido o compañía inexistente/eliminada. |
+| 401 | UNAUTHORIZED | Token ausente, inválido o sesión terminada. |
+| 403 | FORBIDDEN | Sin permiso para la operación. |
+| 409 | CONFLICT | Email ya registrado. |
+| 500 | INTERNAL_ERROR | Error de persistencia. |
 
----
+Formato: `{ "success": false, "error": { "code": "...", "message": "..." } }`. Los errores del validador pueden incluir `details`.
 
-## Casos borde / comportamiento no obvio
+## Compatibilidad y persistencia
 
-- El nuevo usuario se crea con estado `active` y `username` = `email` (no se solicita username por separado).
-- `company_id` es opcional en esta HU: el registro no exige empresa, por lo que el usuario se crea sin `company_id` (se asignará cuando exista el flujo de empresa/suscripción).
-- La validación de duplicados se basa en `email` (único global), no en `username`.
-- Si se omite `role`, la validación lo rechaza por ser obligatorio; el rol debe existir en la tabla `role`.
-- El endpoint solo permite `business_admin` y `employee`; `superadmin` se reserva para la creación interna del backend.
-- El registro no envía invitación ni contraseña temporal: el administrador define la contraseña inicial en el mismo request.
-
----
-
-## Diferencias respecto a una versión anterior (si aplica)
-
-- Antes el registro aceptaba `roles` (array) y `tenant_id`; ahora acepta un único `role` (`business_admin` o `employee`) y no requiere tenant.
-- Se eliminó el campo `settings` (idioma, tema, etc.); los datos personales se limitan a `first_name`, `last_name`, `phone` y `area`.
+Este cambio requiere actualizar los clientes que enviaban contraseña o creaban usuarios sin compañía. Los usuarios anteriores sin compañía siguen siendo legibles/editables. Se eliminó `area` del modelo y del contrato; GORM AutoMigrate no elimina la columna histórica en bases existentes. No se ejecuta un DROP destructivo. `full_name` era un valor calculado, sin columna propia.
