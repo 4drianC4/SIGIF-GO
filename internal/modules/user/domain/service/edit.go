@@ -43,6 +43,9 @@ func (s *UserService) Edit(ctx context.Context, id uuid.UUID, in EditUserInput) 
 
 	var roleID *uuid.UUID
 	if in.RoleName != nil {
+		if !entity.IsUserAssignable(*in.RoleName) {
+			return nil, sharedErrors.New(sharedErrors.CodeValidation, "invalid role", 400)
+		}
 		role, err := s.roleRepo.GetByName(ctx, *in.RoleName)
 		if err != nil {
 			return nil, err

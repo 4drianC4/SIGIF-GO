@@ -28,7 +28,11 @@ func Seed(ctx context.Context, db *gorm.DB, cfg *config.Config) error {
 		if err != nil {
 			return err
 		}
-		soporteID, err := ensureRole(tx, entity.RoleSoporte, "Soporte con acceso de solo lectura a usuarios", true, true)
+		adminID, err := ensureBusinessAdminRole(tx)
+		if err != nil {
+			return err
+		}
+		_, err = ensureRole(tx, entity.RoleEmployee, "Empleado sin permisos asignados", true, true)
 		if err != nil {
 			return err
 		}
@@ -36,7 +40,7 @@ func Seed(ctx context.Context, db *gorm.DB, cfg *config.Config) error {
 		if err := assignPermissions(tx, superadminID, allPermIDs(permIDs)); err != nil {
 			return err
 		}
-		if err := assignPermissions(tx, soporteID, []uuid.UUID{
+		if err := assignPermissions(tx, adminID, []uuid.UUID{
 			permIDs[entity.PermUsersList],
 			permIDs[entity.PermUsersRead],
 		}); err != nil {
@@ -84,6 +88,7 @@ func ensureRole(tx *gorm.DB, name, description string, isTemplate, isSystem bool
 	if err == nil {
 		return existing.ID, nil
 	}
+
 	if !errors.Is(err, gorm.ErrRecordNotFound) {
 		return uuid.Nil, err
 	}
@@ -99,6 +104,34 @@ func ensureRole(tx *gorm.DB, name, description string, isTemplate, isSystem bool
 		return uuid.Nil, err
 	}
 	return role.ID, nil
+}
+
+func ensureBusinessAdminRole(tx *gorm.DB) (uuid.UUID, error) {
+	var role model.RoleModel
+	err := tx.Where("name = ?", entity.RoleBusinessAdmin).First(&role).Error
+	if err == nil {
+		return role.ID, nil
+	}
+	if !errors.Is(err, gorm.ErrRecordNotFound) {
+		return uuid.Nil, err
+	}
+
+	// Migrate the previous role in place so existing users and permissions keep
+	// their foreign-key relationships.
+	err = tx.Where("name IN ?", []string{"soporte", "bussiness_admin"}).First(&role).Error
+	if err == nil {
+		return role.ID, tx.Model(&role).Updates(map[string]any{
+			"name":        entity.RoleBusinessAdmin,
+			"description": "Admin de negocio con acceso de solo lectura a usuarios",
+			"is_template": true,
+			"is_system":   true,
+		}).Error
+	}
+	if !errors.Is(err, gorm.ErrRecordNotFound) {
+		return uuid.Nil, err
+	}
+
+	return ensureRole(tx, entity.RoleBusinessAdmin, "Admin de negocio con acceso de solo lectura a usuarios", true, true)
 }
 
 func assignPermissions(tx *gorm.DB, roleID uuid.UUID, permissionIDs []uuid.UUID) error {

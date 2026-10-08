@@ -105,7 +105,7 @@ func TestRequirePermissionDeniesWithoutPermission(t *testing.T) {
 		return c.SendString("ok")
 	})
 
-	token, _, _ := manager.GenerateAccessToken(uuid.NewString(), uuid.NewString(), "", "u@e.com", "soporte")
+	token, _, _ := manager.GenerateAccessToken(uuid.NewString(), uuid.NewString(), "", "u@e.com", "business_admin")
 	req := httptest.NewRequest(fiber.MethodGet, "/users", nil)
 	req.Header.Set("Authorization", "Bearer "+token)
 	resp, err := app.Test(req)

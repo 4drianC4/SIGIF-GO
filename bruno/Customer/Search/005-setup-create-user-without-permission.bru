@@ -20,11 +20,11 @@ auth:bearer {
 
 body:json {
   {
-    "first_name": "Soporte",
+    "first_name": "Administración del negocio",
     "last_name": "Sin Clientes",
     "email": "{{restrictedEmail}}",
     "password": "{{restrictedPassword}}",
-    "role": "soporte"
+    "role": "business_admin"
   }
 }
 
@@ -34,7 +34,7 @@ script:pre-request {
 }
 
 tests {
-  test("responde 201 con un usuario de rol soporte", function() {
+  test("responde 201 con un usuario de rol business_admin", function() {
     expect(res.status).to.equal(201);
   });
 }

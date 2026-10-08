@@ -22,6 +22,10 @@ type RegisterUserInput struct {
 // Register creates a new user after validating uniqueness and resolving the
 // requested role by name.
 func (s *UserService) Register(ctx context.Context, in RegisterUserInput) (*entity.AppUser, error) {
+	if !entity.IsUserAssignable(in.RoleName) {
+		return nil, sharedErrors.New(sharedErrors.CodeValidation, "invalid role", 400)
+	}
+
 	role, err := s.roleRepo.GetByName(ctx, in.RoleName)
 	if err != nil {
 		return nil, err

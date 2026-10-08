@@ -13,7 +13,7 @@ Módulos implementados:
 
 - **Autenticación por tokens (JWT)** con sesiones persistidas en base de datos (`user_session`): solo se almacena el hash del token.
 - **RBAC por permisos de módulo/operación** (`users.create`, `users.list`, ...) vía middleware `RequirePermission`.
-- **Roles semilla**: `superadmin` (acceso total) y `soporte` (solo lectura de usuarios).
+- **Roles semilla**: `superadmin` (acceso total) y `business_admin` (solo lectura de usuarios).
 - **Hashing de contraseñas** con Argon2id (`password_algorithm` almacenado para migración futura).
 - **Respuestas de error genéricas** en login para evitar enumeración de cuentas.
 - **Trazabilidad**: cada login intentado se registra en `login_attempt`; cada sesión en `user_session` con IP y dispositivo.
@@ -130,14 +130,16 @@ POST /api/v1/users
 {
   "first_name": "Juan",
   "last_name": "Pérez",
-  "email": "soporte@sigif.com",
+  "email": "business_admin@sigif.com",
   "password": "password123",
-  "role": "soporte",
-  "area": "Soporte técnico"
+  "role": "business_admin",
+  "area": "Administración del negocio"
 }
 ```
 
-`role` acepta `superadmin` o `soporte`. `area` es opcional.
+`role` acepta `business_admin` o `employe`. `superadmin` se crea únicamente
+desde el seed/backend y no puede asignarse desde los endpoints de usuarios.
+`area` es opcional.
 
 ### Login
 
