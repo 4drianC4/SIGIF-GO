@@ -59,7 +59,7 @@ Edita un usuario existente con semántica de parche: **solo se aplican los campo
 | `last_name` | string | No | Entre 1 y 80 caracteres si se envía. |
 | `email` | string | No | Formato email. Si cambia, debe ser único en el sistema; al cambiarlo también se actualiza `username`. |
 | `password` | string | No | Mínimo 8 caracteres si se envía; se almacena hasheada con Argon2id. Es un restablecimiento por parte del admin: no exige la contraseña actual (para eso existe `PUT /users/:id/password` del propio usuario). |
-| `role` | string | No | `business_admin` o `employe`. Si el rol no existe, se rechaza con `VALIDATION_ERROR` (400). |
+| `role` | string | No | `business_admin` o `employee`. Si el rol no existe, se rechaza con `VALIDATION_ERROR` (400). |
 | `area` | string | No | Máximo 120 caracteres; permite vaciarlo (`""`). |
 
 ### Respuesta exitosa
@@ -108,7 +108,7 @@ Misma estructura que en HU-02-01:
   "id": "uuid",
   "company_id": "uuid | null",
   "role_id": "uuid",
-  "role": "superadmin | business_admin | employe",
+  "role": "superadmin | business_admin | employee",
   "first_name": "string",
   "last_name": "string",
   "full_name": "string",

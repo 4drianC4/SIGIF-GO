@@ -118,7 +118,7 @@ func ensureBusinessAdminRole(tx *gorm.DB) (uuid.UUID, error) {
 
 	// Migrate the previous role in place so existing users and permissions keep
 	// their foreign-key relationships.
-	err = tx.Where("name IN ?", []string{"soporte", "bussiness_admin"}).First(&role).Error
+	err = tx.Where("name IN ?", []string{"employee", "business_admin"}).First(&role).Error
 	if err == nil {
 		return role.ID, tx.Model(&role).Updates(map[string]any{
 			"name":        entity.RoleBusinessAdmin,

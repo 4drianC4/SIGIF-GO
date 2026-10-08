@@ -162,7 +162,7 @@ Cuando el usuario autenticado no tiene el permiso requerido, se responde `403 FO
   "id": "uuid",
   "company_id": "uuid | null",
   "role_id": "uuid",
-  "role": "superadmin | business_admin | employe",
+  "role": "superadmin | business_admin | employee",
   "first_name": "string",
   "last_name": "string",
   "full_name": "string",

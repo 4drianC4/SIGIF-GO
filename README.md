@@ -137,7 +137,7 @@ POST /api/v1/users
 }
 ```
 
-`role` acepta `business_admin` o `employe`. `superadmin` se crea únicamente
+`role` acepta `business_admin` o `employee`. `superadmin` se crea únicamente
 desde el seed/backend y no puede asignarse desde los endpoints de usuarios.
 `area` es opcional.
 

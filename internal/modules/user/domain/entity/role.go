@@ -10,7 +10,7 @@ import (
 const (
 	RoleSuperadmin    = "superadmin"
 	RoleBusinessAdmin = "business_admin"
-	RoleEmployee      = "employe"
+	RoleEmployee      = "employee"
 )
 
 // IsUserAssignable reports whether a role may be selected through the user

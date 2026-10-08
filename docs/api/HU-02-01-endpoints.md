@@ -56,7 +56,7 @@ Crea un nuevo usuario validando los datos obligatorios, verificando que no exist
 | `last_name` | string | Sí | Entre 1 y 80 caracteres. |
 | `email` | string | Sí | Email válido y único en el sistema. |
 | `password` | string | Sí | Mínimo 8 caracteres; se almacena hasheada con Argon2id. |
-| `role` | string | Sí | `business_admin` o `employe`. Si no existe el rol, se rechaza con `BAD_REQUEST`. |
+| `role` | string | Sí | `business_admin` o `employee`. Si no existe el rol, se rechaza con `BAD_REQUEST`. |
 | `area` | string | No | Máximo 120 caracteres. |
 
 ### Respuesta exitosa
@@ -101,7 +101,7 @@ Crea un nuevo usuario validando los datos obligatorios, verificando que no exist
   "id": "uuid",
   "company_id": "uuid | null",
   "role_id": "uuid",
-  "role": "business_admin | employe",
+  "role": "business_admin | employee",
   "first_name": "string",
   "last_name": "string",
   "full_name": "string",
@@ -148,12 +148,12 @@ Los campos `company_id`, `phone`, `area` y `last_access` se omiten cuando están
 - `company_id` es opcional en esta HU: el registro no exige empresa, por lo que el usuario se crea sin `company_id` (se asignará cuando exista el flujo de empresa/suscripción).
 - La validación de duplicados se basa en `email` (único global), no en `username`.
 - Si se omite `role`, la validación lo rechaza por ser obligatorio; el rol debe existir en la tabla `role`.
-- El endpoint solo permite `business_admin` y `employe`; `superadmin` se reserva para la creación interna del backend.
+- El endpoint solo permite `business_admin` y `employee`; `superadmin` se reserva para la creación interna del backend.
 - El registro no envía invitación ni contraseña temporal: el administrador define la contraseña inicial en el mismo request.
 
 ---
 
 ## Diferencias respecto a una versión anterior (si aplica)
 
-- Antes el registro aceptaba `roles` (array) y `tenant_id`; ahora acepta un único `role` (`business_admin` o `employe`) y no requiere tenant.
+- Antes el registro aceptaba `roles` (array) y `tenant_id`; ahora acepta un único `role` (`business_admin` o `employee`) y no requiere tenant.
 - Se eliminó el campo `settings` (idioma, tema, etc.); los datos personales se limitan a `first_name`, `last_name`, `phone` y `area`.
