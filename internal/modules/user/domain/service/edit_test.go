@@ -124,7 +124,7 @@ func setupEditService() (*UserService, *memoryUserRepo, *memoryRoleRepo) {
 		entity.RoleSuperadmin:    {ID: uuid.New(), Name: entity.RoleSuperadmin},
 		entity.RoleBusinessAdmin: {ID: uuid.New(), Name: entity.RoleBusinessAdmin},
 	}}
-	svc := NewUserService(users, roles, noopPermRepo{}, clock.NewMockClock(time.Now()))
+	svc := NewUserService(users, roles, noopPermRepo{}, clock.NewMockClock(time.Now()), &memoryCompanyRepo{})
 	return svc, users, roles
 }
 
@@ -133,7 +133,7 @@ func strPtr(s string) *string { return &s }
 func TestEditAppliesOnlyProvidedFields(t *testing.T) {
 	svc, users, roles := setupEditService()
 	existing := seedTestUser(t, "ana@sigif.com")
-	existing.Area = "Old area"
+	existing.Phone = "12345678"
 	users.byID[existing.ID] = existing
 	users.byEmail[existing.Email] = existing
 
@@ -154,8 +154,8 @@ func TestEditAppliesOnlyProvidedFields(t *testing.T) {
 	if got.RoleID != businessAdminID {
 		t.Errorf("role_id not updated to business_admin")
 	}
-	if got.Area != "Old area" {
-		t.Errorf("area = %q, want unchanged", got.Area)
+	if got.Phone != "12345678" {
+		t.Errorf("phone = %q, want unchanged", got.Phone)
 	}
 }
 

@@ -25,12 +25,12 @@ func (h *UserHTTPHandler) Edit(c *fiber.Ctx) error {
 
 	user, err := h.cmdHandler.HandleEdit(c.UserContext(), command.EditUser{
 		ID:        id,
+		CompanyID: req.CompanyID,
 		FirstName: req.FirstName,
 		LastName:  req.LastName,
 		Email:     req.Email,
 		Password:  req.Password,
 		RoleName:  req.Role,
-		Area:      req.Area,
 	})
 	if err != nil {
 		return response.Error(c, fiber.StatusInternalServerError, err)
