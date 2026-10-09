@@ -105,6 +105,7 @@ func (s *testServer) grantPermissions(t *testing.T, role *entity.Role, codes ...
 			}
 		}
 		s.roles.Grant(role.ID, p.ID)
+		s.permRepo.AssignToRole(role.ID, p.ID)
 	}
 }
 

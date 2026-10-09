@@ -62,3 +62,27 @@ func (r *Role) Type() RoleType {
 	}
 	return RoleTypeCustom
 }
+
+// IsActive reports whether the role is currently usable for assignments and
+// authorizations (HU-082-04).
+func (r *Role) IsActive() bool {
+	return r.Status == RoleStatusActive
+}
+
+// Activate makes the role available again without touching its configuration.
+func (r *Role) Activate() {
+	r.Status = RoleStatusActive
+}
+
+// Deactivate takes the role out of service. It is not a soft delete: the role
+// and its permission assignments are kept.
+func (r *Role) Deactivate() {
+	r.Status = RoleStatusInactive
+}
+
+// IsProtected reports whether the role is critical for the system and therefore
+// cannot be deactivated. Superadmin is reserved for bootstrap operations (see
+// IsUserAssignable), so its status must stay active.
+func (r *Role) IsProtected() bool {
+	return r.IsSystem && r.Name == RoleSuperadmin
+}

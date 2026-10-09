@@ -77,6 +77,16 @@ type ListRolesRequest struct {
 	Limit  *int   `json:"limit" query:"limit" validate:"omitempty,min=1"`
 }
 
+// ChangeRoleStatusRequest is the body of PATCH /roles/:id/status (HU-082-04).
+type ChangeRoleStatusRequest struct {
+	Status string `json:"status" validate:"required,oneof=active inactive"`
+}
+
+// RoleStatusFromRequest maps the request value to the role status domain type.
+func RoleStatusFromRequest(s string) entity.RoleStatus {
+	return entity.RoleStatus(s)
+}
+
 // UpdatePermissionRequest is the body of PATCH /permissions/:id. Only the
 // description is editable: module and operation define the permission code.
 type UpdatePermissionRequest struct {

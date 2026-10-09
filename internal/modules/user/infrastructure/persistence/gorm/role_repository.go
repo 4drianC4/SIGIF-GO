@@ -103,3 +103,12 @@ func (r *RoleGormRepository) List(
 func escapeLike(s string) string {
 	return strings.NewReplacer(`\`, `\\`, "%", `\%`, "_", `\_`).Replace(s)
 }
+
+// Update writes the mutable fields of a role. Only the status is persisted
+// (HU-082-04); the permission assignments in role_permission are left intact.
+func (r *RoleGormRepository) Update(ctx context.Context, role *entity.Role) error {
+	return r.db.GetDB(ctx).
+		Model(&model.RoleModel{}).
+		Where("id = ?", role.ID).
+		Update("status", role.Status.String()).Error
+}

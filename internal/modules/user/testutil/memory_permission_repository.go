@@ -153,6 +153,20 @@ func (r *MemoryRoleRepository) GetByName(_ context.Context, name string) (*entit
 	return nil, nil
 }
 
+// Update persists the mutable fields of a role (HU-082-04): only the status
+// changes, the permission assignments stay untouched.
+func (r *MemoryRoleRepository) Update(_ context.Context, role *entity.Role) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	stored, ok := r.Roles[role.ID]
+	if !ok {
+		return nil
+	}
+	stored.Status = role.Status
+	r.Writes++
+	return nil
+}
+
 // List returns the roles visible to the filter: the global ones, plus the
 // roles of the company when it is set, ordered by name and carrying the number
 // of permissions granted to each one.

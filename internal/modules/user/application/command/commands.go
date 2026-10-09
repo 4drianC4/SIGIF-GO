@@ -2,6 +2,8 @@ package command
 
 import (
 	"github.com/google/uuid"
+
+	"github.com/sigif/sigif-go/internal/modules/user/domain/entity"
 )
 
 type RegisterUser struct {
@@ -58,4 +60,11 @@ type UpdatePermission struct {
 // DeletePermission removes a permission by id.
 type DeletePermission struct {
 	ID uuid.UUID
+}
+
+// ChangeRoleStatus activates or deactivates a role (HU-082-04).
+type ChangeRoleStatus struct {
+	ID        uuid.UUID
+	CompanyID *uuid.UUID
+	Status    entity.RoleStatus
 }

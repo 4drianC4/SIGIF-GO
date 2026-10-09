@@ -100,6 +100,17 @@ func (r *memoryRoleRepo) List(_ context.Context, _ repository.RoleListFilter, _,
 	return nil, 0, nil
 }
 
+// Update persists the mutable status of a role for the status tests.
+func (r *memoryRoleRepo) Update(_ context.Context, role *entity.Role) error {
+	for _, stored := range r.byName {
+		if stored.ID == role.ID {
+			stored.Status = role.Status
+			return nil
+		}
+	}
+	return nil
+}
+
 type noopPermRepo struct{}
 
 func (noopPermRepo) HasPermission(_ context.Context, _ uuid.UUID, _, _ string) (bool, error) {
@@ -164,8 +175,8 @@ func seedTestUser(t *testing.T, email string) *entity.AppUser {
 func setupEditService() (*UserService, *memoryUserRepo, *memoryRoleRepo) {
 	users := newMemoryUserRepo()
 	roles := &memoryRoleRepo{byName: map[string]*entity.Role{
-		entity.RoleSuperadmin:    {ID: uuid.New(), Name: entity.RoleSuperadmin},
-		entity.RoleBusinessAdmin: {ID: uuid.New(), Name: entity.RoleBusinessAdmin},
+		entity.RoleSuperadmin:    {ID: uuid.New(), Name: entity.RoleSuperadmin, Status: entity.RoleStatusActive},
+		entity.RoleBusinessAdmin: {ID: uuid.New(), Name: entity.RoleBusinessAdmin, Status: entity.RoleStatusActive},
 	}}
 	svc := NewUserService(users, roles, noopPermRepo{}, clock.NewMockClock(time.Now()), &memoryCompanyRepo{})
 	return svc, users, roles

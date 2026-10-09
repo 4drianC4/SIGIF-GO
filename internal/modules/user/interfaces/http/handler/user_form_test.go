@@ -48,7 +48,7 @@ func (r *users) ExistsByEmail(_ context.Context, email string) (bool, error) {
 type roles struct{ repository.RoleRepository }
 
 func (roles) GetByName(_ context.Context, name string) (*entity.Role, error) {
-	return &entity.Role{ID: uuid.New(), Name: name}, nil
+	return &entity.Role{ID: uuid.New(), Name: name, Status: entity.RoleStatusActive}, nil
 }
 
 type companies struct {

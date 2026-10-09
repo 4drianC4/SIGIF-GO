@@ -40,6 +40,9 @@ func (s *UserService) Register(ctx context.Context, in RegisterUserInput) (*Regi
 	if role == nil {
 		return nil, sharedErrors.New(sharedErrors.CodeValidation, "invalid role", 400)
 	}
+	if !role.IsActive() {
+		return nil, ErrRoleInactive
+	}
 
 	exists, err := s.repo.ExistsByEmail(ctx, in.Email)
 	if err != nil {
