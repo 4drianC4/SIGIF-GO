@@ -66,6 +66,7 @@ func autoMigrate(db *gorm.DB) error {
 		&userModel.RoleModel{},
 		&userModel.PermissionModel{},
 		&userModel.RolePermissionModel{},
+		&userModel.UserHistoryModel{},
 		&authModel.SessionModel{},
 		&authModel.LoginAttemptModel{},
 		&customerModel.CustomerModel{},
