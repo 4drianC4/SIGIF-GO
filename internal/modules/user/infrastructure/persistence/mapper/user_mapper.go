@@ -3,11 +3,18 @@ package mapper
 import (
 	"time"
 
+	"gorm.io/gorm"
+
 	"github.com/sigif/sigif-go/internal/modules/user/domain/entity"
 	"github.com/sigif/sigif-go/internal/modules/user/infrastructure/persistence/model"
 )
 
 func UserToModel(u *entity.AppUser) *model.UserModel {
+	var deletedAt gorm.DeletedAt
+	if u.DeletedAt != nil {
+		deletedAt = gorm.DeletedAt{Time: *u.DeletedAt, Valid: true}
+	}
+
 	return &model.UserModel{
 		ID:                u.ID,
 		CompanyID:         u.CompanyID,
@@ -24,6 +31,7 @@ func UserToModel(u *entity.AppUser) *model.UserModel {
 		LastAccess:        u.LastAccess,
 		CreatedAt:         u.CreatedAt,
 		UpdatedAt:         u.UpdatedAt,
+		DeletedAt:         deletedAt,
 	}
 }
 

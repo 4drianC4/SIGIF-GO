@@ -100,12 +100,19 @@ func (u *AppUser) Edit(params EditUserParams, clock clock.Clock) {
 
 func (u *AppUser) Activate(clock clock.Clock) {
 	u.Status = UserStatusActive
+	u.DeletedAt = nil
 	u.UpdatedAt = clock.NowUTC()
 }
 
 func (u *AppUser) Deactivate(clock clock.Clock) {
+	now := clock.NowUTC()
 	u.Status = UserStatusInactive
-	u.UpdatedAt = clock.NowUTC()
+	u.DeletedAt = &now
+	u.UpdatedAt = now
+}
+
+func (u *AppUser) IsDeactivated() bool {
+	return u.Status == UserStatusInactive
 }
 
 func (u *AppUser) Lock(clock clock.Clock) {

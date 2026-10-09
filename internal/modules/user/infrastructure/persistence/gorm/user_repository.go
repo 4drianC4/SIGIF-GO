@@ -28,7 +28,7 @@ func (r *UserGormRepository) Create(ctx context.Context, user *entity.AppUser) e
 
 func (r *UserGormRepository) GetByID(ctx context.Context, id uuid.UUID) (*entity.AppUser, error) {
 	var m model.UserModel
-	err := r.db.GetDB(ctx).Where("id = ?", id).First(&m).Error
+	err := r.db.GetDB(ctx).Unscoped().Where("id = ?", id).First(&m).Error
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, nil
@@ -44,7 +44,7 @@ func (r *UserGormRepository) GetByID(ctx context.Context, id uuid.UUID) (*entity
 
 func (r *UserGormRepository) GetByEmail(ctx context.Context, email string) (*entity.AppUser, error) {
 	var m model.UserModel
-	err := r.db.GetDB(ctx).Where("email = ?", email).First(&m).Error
+	err := r.db.GetDB(ctx).Unscoped().Where("email = ?", email).First(&m).Error
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, nil
@@ -60,7 +60,7 @@ func (r *UserGormRepository) GetByEmail(ctx context.Context, email string) (*ent
 
 func (r *UserGormRepository) List(ctx context.Context, offset, limit int) ([]*entity.AppUser, int64, error) {
 	var total int64
-	db := r.db.GetDB(ctx).Model(&model.UserModel{})
+	db := r.db.GetDB(ctx).Unscoped().Model(&model.UserModel{})
 	if err := db.Count(&total).Error; err != nil {
 		return nil, 0, err
 	}
@@ -82,7 +82,7 @@ func (r *UserGormRepository) List(ctx context.Context, offset, limit int) ([]*en
 }
 
 func (r *UserGormRepository) Update(ctx context.Context, user *entity.AppUser) error {
-	return r.db.GetDB(ctx).Save(mapper.UserToModel(user)).Error
+	return r.db.GetDB(ctx).Unscoped().Save(mapper.UserToModel(user)).Error
 }
 
 func (r *UserGormRepository) Delete(ctx context.Context, id uuid.UUID) error {
@@ -91,7 +91,7 @@ func (r *UserGormRepository) Delete(ctx context.Context, id uuid.UUID) error {
 
 func (r *UserGormRepository) ExistsByEmail(ctx context.Context, email string) (bool, error) {
 	var count int64
-	err := r.db.GetDB(ctx).Model(&model.UserModel{}).Where("email = ?", email).Count(&count).Error
+	err := r.db.GetDB(ctx).Unscoped().Model(&model.UserModel{}).Where("email = ?", email).Count(&count).Error
 	return count > 0, err
 }
 
