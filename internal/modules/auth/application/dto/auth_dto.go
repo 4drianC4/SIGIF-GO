@@ -52,3 +52,21 @@ func FromUser(u *userEntity.AppUser, permissions []string) User {
 		Status:      u.Status,
 	}
 }
+
+type Permissions struct {
+	RoleID      string   `json:"role_id"`
+	Role        string   `json:"role"`
+	Permissions []string `json:"permissions"`
+}
+
+func FromPermissions(u *userEntity.AppUser, permissions []string) Permissions {
+	if permissions == nil {
+		permissions = []string{}
+	}
+
+	return Permissions{
+		RoleID:      u.RoleID.String(),
+		Role:        u.RoleName,
+		Permissions: permissions,
+	}
+}

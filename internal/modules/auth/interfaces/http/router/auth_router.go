@@ -11,4 +11,5 @@ func RegisterAuthRoutes(router fiber.Router, h *handler.AuthHTTPHandler) {
 	auth.Post("/login", h.Login)
 	auth.Post("/logout", h.Logout)
 	auth.Get("/me", h.Me)
+	auth.Get("/me/permissions", h.MePermissions)
 }
