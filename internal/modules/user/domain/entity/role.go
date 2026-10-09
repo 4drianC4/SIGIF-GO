@@ -8,8 +8,9 @@ import (
 
 // Role names seeded by the system.
 const (
-	RoleSuperadmin = "superadmin"
-	RoleSoporte    = "soporte"
+	RoleSuperadmin    = "superadmin"
+	RoleBusinessAdmin = "business_admin"
+	RoleEmployee      = "employee"
 )
 
 // RoleType tells the roles seeded by the system from the ones a company may
@@ -27,6 +28,12 @@ func (t RoleType) String() string {
 
 func (t RoleType) IsValid() bool {
 	return t == RoleTypeSystem || t == RoleTypeCustom
+}
+
+// IsUserAssignable reports whether a role may be selected through the user
+// management API. Superadmin is reserved for backend bootstrap operations.
+func IsUserAssignable(name string) bool {
+	return name == RoleBusinessAdmin || name == RoleEmployee
 }
 
 type Role struct {

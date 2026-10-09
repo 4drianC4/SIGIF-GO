@@ -1,0 +1,23 @@
+meta {
+  name: Delete System Permission (409)
+  type: http
+  seq: 15
+}
+
+delete {
+  url: {{baseUrl}}/api/v1/permissions/{{systemPermissionId}}
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{accessToken}}
+}
+
+tests {
+  test("un permiso del sistema no se puede borrar (409)", function() {
+    expect(res.status).to.equal(409);
+    expect(res.body.error.code).to.equal('CONFLICT');
+    expect(res.body.error.details.system).to.be.a('string');
+  });
+}

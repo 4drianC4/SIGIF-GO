@@ -28,7 +28,11 @@ func Seed(ctx context.Context, db *gorm.DB, cfg *config.Config) error {
 		if err != nil {
 			return err
 		}
-		soporteID, err := ensureRole(tx, entity.RoleSoporte, "Soporte con acceso de solo lectura a usuarios", true, true)
+		adminID, err := ensureBusinessAdminRole(tx)
+		if err != nil {
+			return err
+		}
+		_, err = ensureRole(tx, entity.RoleEmployee, "Empleado sin permisos asignados", true, true)
 		if err != nil {
 			return err
 		}
@@ -36,9 +40,10 @@ func Seed(ctx context.Context, db *gorm.DB, cfg *config.Config) error {
 		if err := assignPermissions(tx, superadminID, allPermIDs(permIDs)); err != nil {
 			return err
 		}
-		if err := assignPermissions(tx, soporteID, []uuid.UUID{
+		if err := assignPermissions(tx, adminID, []uuid.UUID{
 			permIDs[entity.PermUsersList],
 			permIDs[entity.PermUsersRead],
+			permIDs[entity.PermPermissionsRead],
 		}); err != nil {
 			return err
 		}
@@ -47,7 +52,7 @@ func Seed(ctx context.Context, db *gorm.DB, cfg *config.Config) error {
 			return err
 		}
 
-		return seedCompanyAndAdmin(tx, cfg, superadminID)
+		return seedCompanyAndAdmin(tx, cfg, superadminID, adminID)
 	})
 }
 
@@ -84,6 +89,7 @@ func ensureRole(tx *gorm.DB, name, description string, isTemplate, isSystem bool
 	if err == nil {
 		return existing.ID, nil
 	}
+
 	if !errors.Is(err, gorm.ErrRecordNotFound) {
 		return uuid.Nil, err
 	}
@@ -100,6 +106,34 @@ func ensureRole(tx *gorm.DB, name, description string, isTemplate, isSystem bool
 		return uuid.Nil, err
 	}
 	return role.ID, nil
+}
+
+func ensureBusinessAdminRole(tx *gorm.DB) (uuid.UUID, error) {
+	var role model.RoleModel
+	err := tx.Where("name = ?", entity.RoleBusinessAdmin).First(&role).Error
+	if err == nil {
+		return role.ID, nil
+	}
+	if !errors.Is(err, gorm.ErrRecordNotFound) {
+		return uuid.Nil, err
+	}
+
+	// Migrate the previous role in place so existing users and permissions keep
+	// their foreign-key relationships.
+	err = tx.Where("name IN ?", []string{"employee", "business_admin"}).First(&role).Error
+	if err == nil {
+		return role.ID, tx.Model(&role).Updates(map[string]any{
+			"name":        entity.RoleBusinessAdmin,
+			"description": "Admin de negocio con acceso de solo lectura a usuarios",
+			"is_template": true,
+			"is_system":   true,
+		}).Error
+	}
+	if !errors.Is(err, gorm.ErrRecordNotFound) {
+		return uuid.Nil, err
+	}
+
+	return ensureRole(tx, entity.RoleBusinessAdmin, "Admin de negocio con acceso de solo lectura a usuarios", true, true)
 }
 
 func assignPermissions(tx *gorm.DB, roleID uuid.UUID, permissionIDs []uuid.UUID) error {
@@ -185,9 +219,10 @@ func seedDefaultAdmin(tx *gorm.DB, cfg *config.Config, superadminID uuid.UUID) e
 	}).Error
 }
 
-// seedCompanyAndAdmin creates a demo company and a superadmin user linked to it
-// so business modules (product, customer) that require company_id can be used.
-func seedCompanyAndAdmin(tx *gorm.DB, cfg *config.Config, superadminID uuid.UUID) error {
+// seedCompanyAndAdmin creates a demo company with a superadmin user linked to
+// it so business modules (product, customer) that require company_id can be
+// used, plus a business_admin user that only sees the user read-only views.
+func seedCompanyAndAdmin(tx *gorm.DB, cfg *config.Config, superadminID, businessAdminID uuid.UUID) error {
 	company, err := ensureCompany(tx, cfg)
 	if err != nil {
 		return err
@@ -201,7 +236,7 @@ func seedCompanyAndAdmin(tx *gorm.DB, cfg *config.Config, superadminID uuid.UUID
 	var existing model.UserModel
 	err = tx.Where("email = ?", email).First(&existing).Error
 	if err == nil {
-		return nil
+		return seedBusinessAdminUser(tx, cfg, company, businessAdminID)
 	}
 	if !errors.Is(err, gorm.ErrRecordNotFound) {
 		return err
@@ -226,10 +261,65 @@ func seedCompanyAndAdmin(tx *gorm.DB, cfg *config.Config, superadminID uuid.UUID
 	}
 
 	companyID := company.ID
-	return tx.Create(&model.UserModel{
+	if err := tx.Create(&model.UserModel{
 		ID:                uuid.New(),
 		CompanyID:         &companyID,
 		RoleID:            superadminID,
+		FirstName:         firstName,
+		LastName:          lastName,
+		Username:          email,
+		Email:             email,
+		PasswordHash:      hash,
+		PasswordAlgorithm: security.Algorithm,
+		RequiresOTP:       false,
+		Status:            entity.UserStatusActive.String(),
+	}).Error; err != nil {
+		return err
+	}
+
+	return seedBusinessAdminUser(tx, cfg, company, businessAdminID)
+}
+
+// seedBusinessAdminUser creates the demo business_admin account so the
+// read-only views can be exercised with a user that is not superadmin.
+func seedBusinessAdminUser(tx *gorm.DB, cfg *config.Config, company *companyModel.CompanyModel, businessAdminID uuid.UUID) error {
+	email := cfg.Seed.BusinessAdminEmail
+	if email == "" {
+		email = "negocio@sigif.com"
+	}
+
+	var existing model.UserModel
+	err := tx.Where("email = ?", email).First(&existing).Error
+	if err == nil {
+		return nil
+	}
+	if !errors.Is(err, gorm.ErrRecordNotFound) {
+		return err
+	}
+
+	password := cfg.Seed.BusinessAdminPassword
+	if password == "" {
+		password = "negocio123"
+	}
+	firstName := cfg.Seed.BusinessAdminFirstName
+	if firstName == "" {
+		firstName = "Usuario"
+	}
+	lastName := cfg.Seed.BusinessAdminLastName
+	if lastName == "" {
+		lastName = "Negocio"
+	}
+
+	hash, err := security.HashPassword(password)
+	if err != nil {
+		return err
+	}
+
+	companyID := company.ID
+	return tx.Create(&model.UserModel{
+		ID:                uuid.New(),
+		CompanyID:         &companyID,
+		RoleID:            businessAdminID,
 		FirstName:         firstName,
 		LastName:          lastName,
 		Username:          email,

@@ -29,7 +29,7 @@ func (h *AuthHTTPHandler) Me(c *fiber.Ctx) error {
 		return response.Error(c, fiber.StatusUnauthorized, sharedErrors.ErrUnauthorized)
 	}
 
-	user, err := h.cmdHandler.HandleMe(c.UserContext(), command.Me{UserID: userID})
+	user, permissions, err := h.cmdHandler.HandleMe(c.UserContext(), command.Me{UserID: userID})
 	if err != nil {
 		return response.Error(c, fiber.StatusInternalServerError, err)
 	}
@@ -37,5 +37,5 @@ func (h *AuthHTTPHandler) Me(c *fiber.Ctx) error {
 		return response.Error(c, fiber.StatusNotFound, sharedErrors.ErrNotFound)
 	}
 
-	return response.Success(c, dto.FromUser(user))
+	return response.Success(c, dto.FromUser(user, permissions))
 }

@@ -93,6 +93,11 @@ type SeedConfig struct {
 	CompanyAdminPassword  string `mapstructure:"company_admin_password"`
 	CompanyAdminFirstName string `mapstructure:"company_admin_first_name"`
 	CompanyAdminLastName  string `mapstructure:"company_admin_last_name"`
+
+	BusinessAdminEmail     string `mapstructure:"business_admin_email"`
+	BusinessAdminPassword  string `mapstructure:"business_admin_password"`
+	BusinessAdminFirstName string `mapstructure:"business_admin_first_name"`
+	BusinessAdminLastName  string `mapstructure:"business_admin_last_name"`
 }
 
 var Module = fx.Provide(NewConfig)
@@ -132,6 +137,10 @@ func NewConfig() (*Config, error) {
 	_ = viper.BindEnv("seed.company_admin_password", "SIGIF_SEED_COMPANY_ADMIN_PASSWORD")
 	_ = viper.BindEnv("seed.company_admin_first_name", "SIGIF_SEED_COMPANY_ADMIN_FIRST_NAME")
 	_ = viper.BindEnv("seed.company_admin_last_name", "SIGIF_SEED_COMPANY_ADMIN_LAST_NAME")
+	_ = viper.BindEnv("seed.business_admin_email", "SIGIF_SEED_BUSINESS_ADMIN_EMAIL")
+	_ = viper.BindEnv("seed.business_admin_password", "SIGIF_SEED_BUSINESS_ADMIN_PASSWORD")
+	_ = viper.BindEnv("seed.business_admin_first_name", "SIGIF_SEED_BUSINESS_ADMIN_FIRST_NAME")
+	_ = viper.BindEnv("seed.business_admin_last_name", "SIGIF_SEED_BUSINESS_ADMIN_LAST_NAME")
 
 	// Config file is optional.
 	_ = viper.ReadInConfig()

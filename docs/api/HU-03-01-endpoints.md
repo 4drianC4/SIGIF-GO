@@ -36,7 +36,7 @@ Los permisos se comprueban con el RBAC de la base de datos (`RequirePermission`)
 | `categories.create` | `POST /api/v1/categories` | `superadmin` |
 | `products.create` | `POST /api/v1/products` | `superadmin` |
 
-Ambos permisos se añadieron al catálogo de `AllPermissions()`; `make migrate-up` los crea y se los asigna al superadmin también en bases ya existentes. El rol `soporte` no los tiene y recibe **403**. Para darlos a otro rol, asignarlos en `role_permission`.
+Ambos permisos se añadieron al catálogo de `AllPermissions()`; `make migrate-up` los crea y se los asigna a los roles sembrados también en bases ya existentes.
 
 ---
 

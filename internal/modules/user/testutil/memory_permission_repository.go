@@ -212,6 +212,7 @@ type MemoryPermissionRepository struct {
 	mu          sync.Mutex
 	byCode      map[string]*entity.Permission
 	byID        map[uuid.UUID]*entity.Permission
+	byRole      map[uuid.UUID]map[uuid.UUID]bool
 	Permissions []*entity.Permission
 }
 
@@ -219,7 +220,19 @@ func NewMemoryPermissionRepository() *MemoryPermissionRepository {
 	return &MemoryPermissionRepository{
 		byCode: map[string]*entity.Permission{},
 		byID:   map[uuid.UUID]*entity.Permission{},
+		byRole: map[uuid.UUID]map[uuid.UUID]bool{},
 	}
+}
+
+// AssignToRole records that a role holds a permission, so the delete rules can
+// be exercised in tests.
+func (r *MemoryPermissionRepository) AssignToRole(roleID, permissionID uuid.UUID) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if r.byRole[roleID] == nil {
+		r.byRole[roleID] = map[uuid.UUID]bool{}
+	}
+	r.byRole[roleID][permissionID] = true
 }
 
 // Seed stores a permission directly, as the GORM seed does.
@@ -294,4 +307,92 @@ func (r *MemoryPermissionRepository) Create(_ context.Context, permission *entit
 	copied := *permission
 	r.store(&copied)
 	return nil
+}
+
+func (r *MemoryPermissionRepository) GetByID(_ context.Context, id uuid.UUID) (*entity.Permission, error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	p, ok := r.byID[id]
+	if !ok {
+		return nil, nil
+	}
+	copied := *p
+	return &copied, nil
+}
+
+func (r *MemoryPermissionRepository) ListAll(_ context.Context, module string) ([]*entity.Permission, error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	all := make([]*entity.Permission, 0, len(r.byCode))
+	for _, p := range r.byCode {
+		if module == "" || p.Module == module {
+			all = append(all, p)
+		}
+	}
+	sort.Slice(all, func(i, j int) bool {
+		if all[i].Module != all[j].Module {
+			return all[i].Module < all[j].Module
+		}
+		return all[i].Operation < all[j].Operation
+	})
+	return all, nil
+}
+
+func (r *MemoryPermissionRepository) ListByRole(_ context.Context, roleID uuid.UUID) ([]*entity.Permission, error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	all := make([]*entity.Permission, 0, len(r.byRole[roleID]))
+	for id := range r.byRole[roleID] {
+		if p, ok := r.byID[id]; ok {
+			all = append(all, p)
+		}
+	}
+	sort.Slice(all, func(i, j int) bool {
+		if all[i].Module != all[j].Module {
+			return all[i].Module < all[j].Module
+		}
+		return all[i].Operation < all[j].Operation
+	})
+	return all, nil
+}
+
+func (r *MemoryPermissionRepository) Update(_ context.Context, permission *entity.Permission) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	stored, ok := r.byID[permission.ID]
+	if !ok {
+		return service.ErrPermissionNotFound
+	}
+	stored.Description = permission.Description
+	return nil
+}
+
+func (r *MemoryPermissionRepository) Delete(_ context.Context, id uuid.UUID) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	p, ok := r.byID[id]
+	if !ok {
+		return nil
+	}
+	delete(r.byID, id)
+	delete(r.byCode, p.Key())
+	for i, item := range r.Permissions {
+		if item.ID == id {
+			r.Permissions = append(r.Permissions[:i], r.Permissions[i+1:]...)
+			break
+		}
+	}
+	return nil
+}
+
+func (r *MemoryPermissionRepository) CountRolesByPermission(_ context.Context, permissionID uuid.UUID) (int64, error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	var count int64
+	for _, perms := range r.byRole {
+		if perms[permissionID] {
+			count++
+		}
+	}
+	return count, nil
 }

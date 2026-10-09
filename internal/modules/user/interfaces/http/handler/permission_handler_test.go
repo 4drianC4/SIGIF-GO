@@ -1,9 +1,12 @@
 package handler_test
 
 import (
+	"bytes"
 	"context"
+	"encoding/csv"
 	"encoding/json"
 	"io"
+	"net/http"
 	"net/http/httptest"
 	"strings"
 	"sync"
@@ -50,6 +53,7 @@ type permissionItem struct {
 	Operation   string `json:"operation"`
 	Code        string `json:"code"`
 	Description string `json:"description,omitempty"`
+	IsSystem    bool   `json:"is_system"`
 }
 
 type permissionModuleItem struct {
@@ -96,7 +100,7 @@ func newTestServer(t *testing.T) *testServer {
 	roles := testutil.NewMemoryRoleRepository()
 	permRepo := testutil.NewMemoryPermissionRepository()
 	clk := clock.NewMockClock(time.Date(2026, 10, 5, 12, 0, 0, 0, time.UTC))
-	svc := service.NewUserService(users, roles, permRepo, clk)
+	svc := service.NewUserService(users, roles, permRepo, clk, testutil.NewMemoryCompanyRepository())
 
 	h := httpHandler.NewPermissionHTTPHandler(
 		appHandler.NewUserCommandHandler(svc),
@@ -143,6 +147,17 @@ func (s *testServer) seedPermission(t *testing.T, module, operation, description
 	return p.Key()
 }
 
+// seedPermissionEntity stores a permission and returns it, so tests can use its
+// id.
+func (s *testServer) seedPermissionEntity(t *testing.T, module, operation, description string) *entity.Permission {
+	t.Helper()
+	p := &entity.Permission{ID: uuid.New(), Module: module, Operation: operation, Description: description}
+	if err := s.permRepo.Seed(p); err != nil {
+		t.Fatalf("seed permission %s.%s: %v", module, operation, err)
+	}
+	return p
+}
+
 func (s *testServer) do(t *testing.T, method, path, body, token string) (int, apiResponse) {
 	t.Helper()
 	var reader io.Reader
@@ -174,6 +189,25 @@ func (s *testServer) do(t *testing.T, method, path, body, token string) (int, ap
 func (s *testServer) create(t *testing.T, body, token string) (int, apiResponse) {
 	t.Helper()
 	return s.do(t, fiber.MethodPost, "/api/v1/permissions/", body, token)
+}
+
+// doRaw performs a request and returns the raw body and headers, for endpoints
+// that do not answer JSON (the CSV export).
+func (s *testServer) doRaw(t *testing.T, method, path, token string) (int, http.Header, []byte) {
+	t.Helper()
+	req := httptest.NewRequest(method, path, nil)
+	if token != "" {
+		req.Header.Set("Authorization", "Bearer "+token)
+	}
+
+	resp, err := s.app.Test(req)
+	if err != nil {
+		t.Fatalf("app.Test() error = %v", err)
+	}
+	defer resp.Body.Close()
+
+	payload, _ := io.ReadAll(resp.Body)
+	return resp.StatusCode, resp.Header, payload
 }
 
 func (s *testServer) list(t *testing.T, query, token string) (int, apiResponse, []permissionItem) {
@@ -494,6 +528,182 @@ func TestPermissionsEndpointsAuthorization(t *testing.T) {
 		status, _ := s.create(t, `{"module":"categories","operation":"export"}`, s.token(t, "permissions.create"))
 		if status != fiber.StatusCreated {
 			t.Fatalf("got %d, want 201", status)
+		}
+	})
+}
+
+func TestUpdatePermissionEndpoint(t *testing.T) {
+	s := newTestServer(t)
+	permission := s.seedPermissionEntity(t, "products", "export", "Exportar productos")
+
+	t.Run("updates the description", func(t *testing.T) {
+		status, resp := s.do(t, fiber.MethodPatch, "/api/v1/permissions/"+permission.ID.String(),
+			`{"description":"Exportar el catálogo de productos"}`, s.token(t, "permissions.update"))
+		if status != fiber.StatusOK || !resp.Success {
+			t.Fatalf("got %d %+v, want 200", status, resp.Error)
+		}
+		var updated permissionItem
+		if err := json.Unmarshal(resp.Data, &updated); err != nil {
+			t.Fatalf("data is not a permission: %s", resp.Data)
+		}
+		if updated.Description != "Exportar el catálogo de productos" {
+			t.Errorf("description = %q", updated.Description)
+		}
+		if updated.IsSystem {
+			t.Errorf("products.export should not be a system permission")
+		}
+	})
+
+	t.Run("unknown id", func(t *testing.T) {
+		status, resp := s.do(t, fiber.MethodPatch, "/api/v1/permissions/"+uuid.NewString(),
+			`{"description":"x"}`, s.token(t, "permissions.update"))
+		if status != fiber.StatusNotFound || resp.Error == nil || resp.Error.Code != "NOT_FOUND" {
+			t.Fatalf("got %d %+v, want 404 NOT_FOUND", status, resp.Error)
+		}
+	})
+
+	t.Run("missing description", func(t *testing.T) {
+		status, resp := s.do(t, fiber.MethodPatch, "/api/v1/permissions/"+permission.ID.String(),
+			`{}`, s.token(t, "permissions.update"))
+		if status != fiber.StatusBadRequest || resp.Error == nil || resp.Error.Code != "VALIDATION_ERROR" {
+			t.Fatalf("got %d %+v, want 400 VALIDATION_ERROR", status, resp.Error)
+		}
+		if _, ok := resp.Error.Details["description"]; !ok {
+			t.Errorf("missing description detail in %v", resp.Error.Details)
+		}
+	})
+
+	t.Run("forbidden without permissions.update", func(t *testing.T) {
+		status, resp := s.do(t, fiber.MethodPatch, "/api/v1/permissions/"+permission.ID.String(),
+			`{"description":"x"}`, s.token(t, "permissions.read"))
+		if status != fiber.StatusForbidden || resp.Error == nil || resp.Error.Code != "FORBIDDEN" {
+			t.Fatalf("got %d %+v, want 403 FORBIDDEN", status, resp.Error)
+		}
+	})
+}
+
+func TestDeletePermissionEndpoint(t *testing.T) {
+	s := newTestServer(t)
+	deleteToken := s.token(t, "permissions.delete")
+
+	t.Run("system permission is protected", func(t *testing.T) {
+		permission := s.seedPermissionEntity(t, "permissions", "read", "Consultar el catálogo de permisos")
+		status, resp := s.do(t, fiber.MethodDelete, "/api/v1/permissions/"+permission.ID.String(), "", deleteToken)
+		if status != fiber.StatusConflict || resp.Error == nil || resp.Error.Code != "CONFLICT" {
+			t.Fatalf("got %d %+v, want 409 CONFLICT", status, resp.Error)
+		}
+		if resp.Error.Details["system"] == "" {
+			t.Errorf("missing system detail in %v", resp.Error.Details)
+		}
+	})
+
+	t.Run("permission assigned to a role is rejected", func(t *testing.T) {
+		permission := s.seedPermissionEntity(t, "categories", "read", "Ver categorías")
+		s.permRepo.AssignToRole(uuid.New(), permission.ID)
+		status, resp := s.do(t, fiber.MethodDelete, "/api/v1/permissions/"+permission.ID.String(), "", deleteToken)
+		if status != fiber.StatusConflict || resp.Error == nil || resp.Error.Code != "CONFLICT" {
+			t.Fatalf("got %d %+v, want 409 CONFLICT", status, resp.Error)
+		}
+		if resp.Error.Details["roles"] == "" {
+			t.Errorf("missing roles detail in %v", resp.Error.Details)
+		}
+	})
+
+	t.Run("unknown id", func(t *testing.T) {
+		status, resp := s.do(t, fiber.MethodDelete, "/api/v1/permissions/"+uuid.NewString(), "", deleteToken)
+		if status != fiber.StatusNotFound || resp.Error == nil || resp.Error.Code != "NOT_FOUND" {
+			t.Fatalf("got %d %+v, want 404 NOT_FOUND", status, resp.Error)
+		}
+	})
+
+	t.Run("removes a free permission", func(t *testing.T) {
+		permission := s.seedPermissionEntity(t, "categories", "update", "Editar categorías")
+		status, _, _ := s.doRaw(t, fiber.MethodDelete, "/api/v1/permissions/"+permission.ID.String(), deleteToken)
+		if status != fiber.StatusNoContent {
+			t.Fatalf("got %d, want 204", status)
+		}
+		_, _, items := s.list(t, "module=categories", s.token(t, "permissions.read"))
+		for _, item := range items {
+			if item.Code == "categories.update" {
+				t.Fatalf("permission still listed after delete: %v", items)
+			}
+		}
+	})
+
+	t.Run("forbidden without permissions.delete", func(t *testing.T) {
+		permission := s.seedPermissionEntity(t, "customers", "delete", "Eliminar clientes")
+		status, resp := s.do(t, fiber.MethodDelete, "/api/v1/permissions/"+permission.ID.String(), "", s.token(t, "permissions.read"))
+		if status != fiber.StatusForbidden || resp.Error == nil || resp.Error.Code != "FORBIDDEN" {
+			t.Fatalf("got %d %+v, want 403 FORBIDDEN", status, resp.Error)
+		}
+	})
+}
+
+func TestExportPermissionsEndpoint(t *testing.T) {
+	s := newTestServer(t)
+	s.seedPermissionEntity(t, "products", "read", "Ver y listar productos")
+	s.seedPermissionEntity(t, "customers", "create", "Registrar clientes")
+	s.seedPermissionEntity(t, "permissions", "read", "Consultar el catálogo de permisos")
+
+	parseCSV := func(t *testing.T, body []byte) [][]string {
+		t.Helper()
+		body = bytes.TrimPrefix(body, []byte("\xEF\xBB\xBF"))
+		records, err := csv.NewReader(bytes.NewReader(body)).ReadAll()
+		if err != nil {
+			t.Fatalf("body is not CSV: %v (%s)", err, body)
+		}
+		return records
+	}
+
+	t.Run("exports the whole catalog as CSV", func(t *testing.T) {
+		status, header, body := s.doRaw(t, fiber.MethodGet, "/api/v1/permissions/export", s.token(t, "permissions.export"))
+		if status != fiber.StatusOK {
+			t.Fatalf("got %d, want 200", status)
+		}
+		if ct := header.Get("Content-Type"); !strings.HasPrefix(ct, "text/csv") {
+			t.Errorf("content-type = %q, want text/csv", ct)
+		}
+		if cd := header.Get("Content-Disposition"); !strings.Contains(cd, "attachment") {
+			t.Errorf("content-disposition = %q, want attachment", cd)
+		}
+
+		records := parseCSV(t, body)
+		if len(records) != 4 {
+			t.Fatalf("records = %d, want 4 (header + 3)", len(records))
+		}
+		if records[0][0] != "id" || records[0][5] != "is_system" {
+			t.Errorf("unexpected header %v", records[0])
+		}
+	})
+
+	t.Run("filters by module", func(t *testing.T) {
+		status, header, body := s.doRaw(t, fiber.MethodGet, "/api/v1/permissions/export?module=products", s.token(t, "permissions.export"))
+		if status != fiber.StatusOK {
+			t.Fatalf("got %d, want 200", status)
+		}
+		if cd := header.Get("Content-Disposition"); !strings.Contains(cd, "permissions_products.csv") {
+			t.Errorf("content-disposition = %q, want permissions_products.csv", cd)
+		}
+		records := parseCSV(t, body)
+		if len(records) != 2 {
+			t.Fatalf("records = %d, want 2 (header + 1)", len(records))
+		}
+		if records[1][5] != "true" {
+			t.Errorf("products.read should be a system permission, got %q", records[1][5])
+		}
+	})
+
+	t.Run("unknown module", func(t *testing.T) {
+		status, resp := s.do(t, fiber.MethodGet, "/api/v1/permissions/export?module=invoices", "", s.token(t, "permissions.export"))
+		if status != fiber.StatusBadRequest || resp.Error == nil || resp.Error.Code != "VALIDATION_ERROR" {
+			t.Fatalf("got %d %+v, want 400 VALIDATION_ERROR", status, resp.Error)
+		}
+	})
+
+	t.Run("forbidden without permissions.export", func(t *testing.T) {
+		status, resp := s.do(t, fiber.MethodGet, "/api/v1/permissions/export", "", s.token(t, "permissions.read"))
+		if status != fiber.StatusForbidden || resp.Error == nil || resp.Error.Code != "FORBIDDEN" {
+			t.Fatalf("got %d %+v, want 403 FORBIDDEN", status, resp.Error)
 		}
 	})
 }

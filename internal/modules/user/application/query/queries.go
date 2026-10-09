@@ -40,3 +40,9 @@ type ListRoles struct {
 	Offset    int
 	Limit     int
 }
+
+// ExportPermissions asks for the full permission catalog (optionally filtered
+// by module) to build the CSV export.
+type ExportPermissions struct {
+	Module string
+}

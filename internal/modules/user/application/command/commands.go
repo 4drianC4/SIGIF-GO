@@ -10,20 +10,18 @@ type RegisterUser struct {
 	FirstName string
 	LastName  string
 	Email     string
-	Password  string
-	Area      string
 }
 
-// EditUser is the administrative partial update (same fields as RegisterUser,
+// EditUser is the administrative partial update (registration fields plus an optional password reset,
 // all optional). Nil = leave the field unchanged.
 type EditUser struct {
+	CompanyID *uuid.UUID
 	ID        uuid.UUID
 	FirstName *string
 	LastName  *string
 	Email     *string
 	Password  *string
 	RoleName  *string
-	Area      *string
 }
 
 type ChangePassword struct {
@@ -48,4 +46,16 @@ type CreatePermission struct {
 	Operation   string
 	Code        string
 	Description string
+}
+
+// UpdatePermission edits a permission by id. Only the description is mutable;
+// Nil = leave it unchanged.
+type UpdatePermission struct {
+	ID          uuid.UUID
+	Description *string
+}
+
+// DeletePermission removes a permission by id.
+type DeletePermission struct {
+	ID uuid.UUID
 }

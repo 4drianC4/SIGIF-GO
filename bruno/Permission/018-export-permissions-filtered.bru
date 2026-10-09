@@ -1,0 +1,28 @@
+meta {
+  name: Export Permissions - Filtered
+  type: http
+  seq: 18
+}
+
+get {
+  url: {{baseUrl}}/api/v1/permissions/export?module=permissions
+  body: none
+  auth: bearer
+}
+
+params:query {
+  module: permissions
+}
+
+auth:bearer {
+  token: {{accessToken}}
+}
+
+tests {
+  test("respeta el filtro module en el CSV", function() {
+    expect(res.status).to.equal(200);
+    expect(res.headers['content-disposition']).to.include('permissions_permissions.csv');
+    expect(res.body).to.include('permissions.read');
+    expect(res.body).to.not.include('users.create');
+  });
+}

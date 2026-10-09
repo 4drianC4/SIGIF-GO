@@ -115,8 +115,8 @@ func (s *testServer) seedRoleDirectory(t *testing.T) {
 	superadmin := s.seedRole(t, "", entity.RoleSuperadmin, true, entity.RoleStatusActive)
 	s.grantPermissions(t, superadmin, "users.create", "users.list", "customers.list")
 
-	soporte := s.seedRole(t, "", entity.RoleSoporte, true, entity.RoleStatusActive)
-	s.grantPermissions(t, soporte, "users.list")
+	businessAdmin := s.seedRole(t, "", entity.RoleBusinessAdmin, true, entity.RoleStatusActive)
+	s.grantPermissions(t, businessAdmin, "users.list")
 
 	sellerA := s.seedRole(t, companyA, "Vendedor A", false, entity.RoleStatusActive)
 	s.grantPermissions(t, sellerA, "customers.list", "customers.read")
@@ -154,7 +154,7 @@ func TestListRolesEndpointFieldsAndPermissionCount(t *testing.T) {
 
 	wantCounts := map[string]int{
 		"superadmin":          3,
-		"soporte":             1,
+		"business_admin":      1,
 		"Vendedor A":          2,
 		"Vendedor Inactivo A": 0,
 	}
@@ -222,7 +222,7 @@ func TestListRolesEndpointSearch(t *testing.T) {
 		{name: "partial name lower case", query: "q=inactivo", want: []string{"Vendedor Inactivo A"}},
 		{name: "system role", query: "q=super", want: []string{"superadmin"}},
 		{name: "surrounding spaces are trimmed", query: "q=%20%20vendedor%20a%20%20", want: []string{"Vendedor A"}},
-		{name: "blank search lists everything", query: "q=%20%20%20", want: []string{"soporte", "superadmin", "Vendedor A", "Vendedor Inactivo A"}},
+		{name: "blank search lists everything", query: "q=%20%20%20", want: []string{"business_admin", "superadmin", "Vendedor A", "Vendedor Inactivo A"}},
 		{name: "search combined with status", query: "q=vendedor&status=inactive", want: []string{"Vendedor Inactivo A"}},
 	}
 
@@ -268,7 +268,7 @@ func TestListRolesEndpointTypeFilter(t *testing.T) {
 		query string
 		want  []string
 	}{
-		{query: "type=system", want: []string{"soporte", "superadmin"}},
+		{query: "type=system", want: []string{"business_admin", "superadmin"}},
 		{query: "type=custom", want: []string{"Vendedor A", "Vendedor Inactivo A"}},
 		{query: "type=system&q=super", want: []string{"superadmin"}},
 	}
@@ -298,10 +298,10 @@ func TestListRolesEndpointStatusFilter(t *testing.T) {
 		query string
 		want  []string
 	}{
-		{query: "status=active", want: []string{"soporte", "superadmin", "Vendedor A"}},
+		{query: "status=active", want: []string{"business_admin", "superadmin", "Vendedor A"}},
 		{query: "status=inactive", want: []string{"Vendedor Inactivo A"}},
-		{query: "status=all", want: []string{"soporte", "superadmin", "Vendedor A", "Vendedor Inactivo A"}},
-		{query: "", want: []string{"soporte", "superadmin", "Vendedor A", "Vendedor Inactivo A"}},
+		{query: "status=all", want: []string{"business_admin", "superadmin", "Vendedor A", "Vendedor Inactivo A"}},
+		{query: "", want: []string{"business_admin", "superadmin", "Vendedor A", "Vendedor Inactivo A"}},
 	}
 
 	for _, tt := range tests {

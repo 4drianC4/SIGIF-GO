@@ -4,6 +4,7 @@ import (
 	"github.com/gofiber/fiber/v2"
 	"go.uber.org/fx"
 
+	"github.com/sigif/sigif-go/internal/modules/company"
 	"github.com/sigif/sigif-go/internal/modules/user/application/handler"
 	"github.com/sigif/sigif-go/internal/modules/user/domain/repository"
 	"github.com/sigif/sigif-go/internal/modules/user/domain/service"
@@ -14,6 +15,8 @@ import (
 )
 
 var Module = fx.Options(
+	// User management requires the company catalog and its selector routes.
+	company.Module,
 	fx.Provide(
 		fx.Annotate(gorm.NewUserGormRepository, fx.As(new(repository.UserRepository))),
 		fx.Annotate(gorm.NewRoleGormRepository, fx.As(new(repository.RoleRepository))),

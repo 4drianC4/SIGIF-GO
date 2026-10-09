@@ -16,20 +16,35 @@ headers {
 }
 
 auth:bearer {
-  token: {{auth}}
+  token: {{accessToken}}
 }
 
 body:json {
   {
     "first_name": "Juan",
     "last_name": "Pérez",
-    "email": "soporte2@sigif.com",
-    "password": "password123",
-    "role": "soporte",
-    "area": "Soporte técnico"
+    "email": "admin.negocio2@sigif.com",
+    "role": "employee",
+    "company_id": "{{companyId}}"
   }
 }
 
 script:post-response {
-  bru.setVar('userId', res.body && res.body.data ? res.body.data.id : '');
+  if (res.status === 201) {
+    bru.setVar('userId', res.body.data.id);
+    bru.setVar('generatedPassword', res.body.data.generated_password);
+    bru.setVar('userPassword', res.body.data.generated_password);
+  }
+}
+
+tests {
+  test("crea usuario con empresa y contraseña generada", function() {
+    expect(res.status).to.equal(201);
+    expect(res.body.data.company_id).to.equal(bru.getVar('companyId'));
+    expect(res.body.data.role).to.equal('employee');
+    expect(res.body.data.generated_password).to.be.a('string').with.lengthOf(32);
+    expect(res.body.data).not.to.have.property('password_hash');
+    expect(res.body.data).not.to.have.property('area');
+    expect(res.body.data).not.to.have.property('full_name');
+  });
 }
