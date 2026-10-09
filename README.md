@@ -79,8 +79,10 @@ cp .env.example .env
 | `SIGIF_JWT_ACCESS_TOKEN_EXPIRY` | Expiración del token (min) | 15 |
 | `SIGIF_SEED_ADMIN_EMAIL` | Email del admin inicial | admin@sigif.com |
 | `SIGIF_SEED_ADMIN_PASSWORD` | Contraseña del admin inicial | admin123 |
+| `SIGIF_SEED_BUSINESS_ADMIN_EMAIL` | Email del `business_admin` de prueba | negocio@sigif.com |
+| `SIGIF_SEED_BUSINESS_ADMIN_PASSWORD` | Contraseña del `business_admin` de prueba | negocio123 |
 
-> El admin inicial se crea en la primera migración si no existe ningún usuario. Cambia su contraseña en producción.
+> El admin inicial se crea en la primera migración si no existe ningún usuario. Cambia su contraseña en producción. El usuario `business_admin` de prueba (`negocio@sigif.com`) permite verificar los accesos de solo lectura.
 
 ## Quick Start
 
