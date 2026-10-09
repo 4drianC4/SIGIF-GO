@@ -95,7 +95,7 @@ func newTestServer(t *testing.T) *testServer {
 	roles := testutil.NewMemoryRoleRepository()
 	permRepo := testutil.NewMemoryPermissionRepository()
 	clk := clock.NewMockClock(time.Date(2026, 10, 5, 12, 0, 0, 0, time.UTC))
-	svc := service.NewUserService(users, roles, permRepo, clk)
+	svc := service.NewUserService(users, roles, permRepo, clk, testutil.NewMemoryCompanyRepository())
 
 	h := httpHandler.NewPermissionHTTPHandler(
 		appHandler.NewUserCommandHandler(svc),

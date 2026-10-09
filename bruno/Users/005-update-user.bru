@@ -16,19 +16,32 @@ headers {
 }
 
 auth:bearer {
-  token: {{auth}}
+  token: {{accessToken}}
 }
 
 body:json {
   {
     "first_name": "Juan Carlos",
     "last_name": "Pérez Gómez",
-    "email": "soporte@sigif.com",
-    "role": "soporte",
-    "area": "Soporte técnico"
+    "email": "business_admin@sigif.com",
+    "role": "business_admin",
+    "password": "nuevaPassword123",
+    "company_id": "{{companyId}}"
   }
 }
 
-vars:pre-request {
-  userId: 83992282-d810-4093-8c42-2df02c86f03a
+script:post-response {
+  if (res.status === 200) {
+    bru.setVar('userPassword', 'nuevaPassword123');
+  }
+}
+
+tests {
+  test("edita empresa y rol sin exponer contraseña", function() {
+    expect(res.status).to.equal(200);
+    expect(res.body.data.company_id).to.equal(bru.getVar('companyId'));
+    expect(res.body.data.role).to.equal('business_admin');
+    expect(res.body.data).not.to.have.property('generated_password');
+    expect(res.body.data).not.to.have.property('password_hash');
+  });
 }

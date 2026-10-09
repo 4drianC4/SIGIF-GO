@@ -133,10 +133,10 @@ func seedTestUser(t *testing.T, email string) *entity.AppUser {
 func setupEditService() (*UserService, *memoryUserRepo, *memoryRoleRepo) {
 	users := newMemoryUserRepo()
 	roles := &memoryRoleRepo{byName: map[string]*entity.Role{
-		"superadmin": {ID: uuid.New(), Name: "superadmin"},
-		"soporte":    {ID: uuid.New(), Name: "soporte"},
+		entity.RoleSuperadmin:    {ID: uuid.New(), Name: entity.RoleSuperadmin},
+		entity.RoleBusinessAdmin: {ID: uuid.New(), Name: entity.RoleBusinessAdmin},
 	}}
-	svc := NewUserService(users, roles, noopPermRepo{}, clock.NewMockClock(time.Now()))
+	svc := NewUserService(users, roles, noopPermRepo{}, clock.NewMockClock(time.Now()), &memoryCompanyRepo{})
 	return svc, users, roles
 }
 
@@ -145,14 +145,14 @@ func strPtr(s string) *string { return &s }
 func TestEditAppliesOnlyProvidedFields(t *testing.T) {
 	svc, users, roles := setupEditService()
 	existing := seedTestUser(t, "ana@sigif.com")
-	existing.Area = "Old area"
+	existing.Phone = "12345678"
 	users.byID[existing.ID] = existing
 	users.byEmail[existing.Email] = existing
 
-	soporteID := roles.byName["soporte"].ID
+	businessAdminID := roles.byName[entity.RoleBusinessAdmin].ID
 	got, err := svc.Edit(context.Background(), existing.ID, EditUserInput{
 		FirstName: strPtr("Ana María"),
-		RoleName:  strPtr("soporte"),
+		RoleName:  strPtr(entity.RoleBusinessAdmin),
 	})
 	if err != nil {
 		t.Fatalf("Edit: %v", err)
@@ -163,11 +163,11 @@ func TestEditAppliesOnlyProvidedFields(t *testing.T) {
 	if got.LastName != "Pérez" {
 		t.Errorf("last_name = %q, want unchanged", got.LastName)
 	}
-	if got.RoleID != soporteID {
-		t.Errorf("role_id not updated to soporte")
+	if got.RoleID != businessAdminID {
+		t.Errorf("role_id not updated to business_admin")
 	}
-	if got.Area != "Old area" {
-		t.Errorf("area = %q, want unchanged", got.Area)
+	if got.Phone != "12345678" {
+		t.Errorf("phone = %q, want unchanged", got.Phone)
 	}
 }
 
@@ -208,6 +208,18 @@ func TestEditInvalidRole(t *testing.T) {
 	users.byEmail[a.Email] = a
 
 	_, err := svc.Edit(context.Background(), a.ID, EditUserInput{RoleName: strPtr("ghost")})
+	if err == nil || !sharedErrors.Is(err, sharedErrors.CodeValidation) {
+		t.Fatalf("expected VALIDATION_ERROR, got %v", err)
+	}
+}
+
+func TestEditCannotAssignSuperadmin(t *testing.T) {
+	svc, users, _ := setupEditService()
+	a := seedTestUser(t, "a@sigif.com")
+	users.byID[a.ID] = a
+	users.byEmail[a.Email] = a
+
+	_, err := svc.Edit(context.Background(), a.ID, EditUserInput{RoleName: strPtr(entity.RoleSuperadmin)})
 	if err == nil || !sharedErrors.Is(err, sharedErrors.CodeValidation) {
 		t.Fatalf("expected VALIDATION_ERROR, got %v", err)
 	}

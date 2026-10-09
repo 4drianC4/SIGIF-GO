@@ -144,7 +144,7 @@ Roles semilla:
 | Rol | Permisos |
 |---|---|
 | `superadmin` | Todos los permisos implementados. |
-| `soporte` | Solo lectura de usuarios (`users.list`, `users.read`). |
+| `business_admin` | Solo lectura de usuarios (`users.list`, `users.read`). |
 
 Cuando el usuario autenticado no tiene el permiso requerido, se responde `403 FORBIDDEN`.
 
@@ -162,7 +162,7 @@ Cuando el usuario autenticado no tiene el permiso requerido, se responde `403 FO
   "id": "uuid",
   "company_id": "uuid | null",
   "role_id": "uuid",
-  "role": "superadmin | soporte",
+  "role": "superadmin | business_admin | employee",
   "first_name": "string",
   "last_name": "string",
   "full_name": "string",

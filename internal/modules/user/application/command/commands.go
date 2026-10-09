@@ -10,20 +10,18 @@ type RegisterUser struct {
 	FirstName string
 	LastName  string
 	Email     string
-	Password  string
-	Area      string
 }
 
-// EditUser is the administrative partial update (same fields as RegisterUser,
+// EditUser is the administrative partial update (registration fields plus an optional password reset,
 // all optional). Nil = leave the field unchanged.
 type EditUser struct {
+	CompanyID *uuid.UUID
 	ID        uuid.UUID
 	FirstName *string
 	LastName  *string
 	Email     *string
 	Password  *string
 	RoleName  *string
-	Area      *string
 }
 
 type ChangePassword struct {

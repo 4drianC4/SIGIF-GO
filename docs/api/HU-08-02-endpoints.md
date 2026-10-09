@@ -31,7 +31,7 @@
 |---|---|---|
 | `customers.list` | `GET /api/v1/customers/` | `superadmin` |
 
-El permiso ya existía en `AllPermissions()` (HU-08-01); esta HU no agrega permisos. `customers.read` **no** basta para listar (ese permiso es para `GET /api/v1/customers/:id`, HU-08-03). El rol `soporte` no lo tiene y recibe **403**.
+El permiso ya existía en `AllPermissions()` (HU-08-01); esta HU no agrega permisos. `customers.read` **no** basta para listar (ese permiso es para `GET /api/v1/customers/:id`, HU-08-03). El rol `business_admin` no lo tiene y recibe **403**.
 
 ---
 
@@ -221,7 +221,7 @@ bru run Customer/Search --env development \
   --env-var companyAdminPassword=<contraseña del seed>
 ```
 
-La carpeta crea sus propios datos (dos clientes con un prefijo único `HU0802-<timestamp>` y un usuario `soporte` sin permisos de clientes), por lo que puede ejecutarse varias veces.
+La carpeta crea sus propios datos (dos clientes con un prefijo único `HU0802-<timestamp>` y un usuario `business_admin` sin permisos de clientes), por lo que puede ejecutarse varias veces.
 
 ---
 

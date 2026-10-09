@@ -44,7 +44,7 @@ Los permisos se comprueban con el RBAC de la base de datos (`RequirePermission`)
 | `customers.status` | `PATCH /api/v1/customers/:id/status` | `superadmin` |
 | `customers.delete` | `DELETE /api/v1/customers/:id` | `superadmin` |
 
-Estos permisos se añadieron al catálogo de `AllPermissions()`; `make migrate-up` los crea y se los asigna al superadmin también en bases ya existentes. El rol `soporte` no los tiene y recibe **403**. Para darlos a otro rol, asignarlos en `role_permission`.
+Estos permisos se añadieron al catálogo de `AllPermissions()`; `make migrate-up` los crea y se los asigna al superadmin también en bases ya existentes. El rol `business_admin` no los tiene y recibe **403**. Para darlos a otro rol, asignarlos en `role_permission`.
 
 ---
 
