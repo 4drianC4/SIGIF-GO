@@ -1,0 +1,32 @@
+meta {
+  name: List Roles - Status Inactive
+  type: http
+  seq: 15
+}
+
+get {
+  url: {{baseUrl}}/api/v1/roles/
+  body: none
+  auth: bearer
+}
+
+params:query {
+  status: inactive
+}
+
+auth:bearer {
+  token: {{accessToken}}
+}
+
+tests {
+  test("el rol desactivado sigue visible para poder reactivarlo", function() {
+    expect(res.status).to.equal(200);
+    expect(res.body.success).to.equal(true);
+    const employee = res.body.data.find(r => r.name === 'employee');
+    expect(employee).to.not.equal(undefined);
+    expect(employee.status).to.equal('inactive');
+    res.body.data.forEach(function(r) {
+      expect(r.status).to.equal('inactive');
+    });
+  });
+}
