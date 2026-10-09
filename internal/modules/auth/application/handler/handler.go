@@ -29,7 +29,7 @@ func (h *AuthCommandHandler) HandleLogin(ctx context.Context, cmd command.Login)
 	}
 
 	return dto.AuthResponse{
-		User: dto.FromUser(result.User),
+		User: dto.FromUser(result.User, result.Permissions),
 		Token: dto.Token{
 			AccessToken: result.AccessToken,
 			ExpiresIn:   result.ExpiresIn,
@@ -42,6 +42,6 @@ func (h *AuthCommandHandler) HandleLogout(ctx context.Context, cmd command.Logou
 	return h.service.Logout(ctx, cmd.TokenHash)
 }
 
-func (h *AuthCommandHandler) HandleMe(ctx context.Context, cmd command.Me) (*userEntity.AppUser, error) {
+func (h *AuthCommandHandler) HandleMe(ctx context.Context, cmd command.Me) (*userEntity.AppUser, []string, error) {
 	return h.service.Me(ctx, cmd.UserID)
 }

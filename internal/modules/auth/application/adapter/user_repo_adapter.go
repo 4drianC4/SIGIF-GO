@@ -31,4 +31,8 @@ func (a *userRepoAdapter) RecordAccess(ctx context.Context, userID uuid.UUID) er
 	return a.userService.RecordAccess(ctx, userID)
 }
 
+func (a *userRepoAdapter) PermissionsByRole(ctx context.Context, roleID uuid.UUID) ([]string, error) {
+	return a.userService.PermissionCodesByRole(ctx, roleID)
+}
+
 var _ authRepo.UserRepo = (*userRepoAdapter)(nil)
