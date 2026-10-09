@@ -1,0 +1,23 @@
+meta {
+  name: List Users After Deactivation
+  type: http
+  seq: 10
+}
+
+get {
+  url: {{baseUrl}}/api/v1/users?page=1&limit=100
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{accessToken}}
+}
+
+tests {
+  test("still lists the user, now as inactive", function() {
+    expect(res.status).to.equal(200);
+    const user = res.body.data.find(function(item) { return item.id === bru.getVar('deactivationUserId'); });
+    expect(user.status).to.equal('inactive');
+  });
+}

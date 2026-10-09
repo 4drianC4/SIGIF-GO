@@ -1,0 +1,37 @@
+meta {
+  name: Setup - Login Admin
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{baseUrl}}/api/v1/auth/login
+  body: json
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "email": "{{companyAdminEmail}}",
+    "password": "{{companyAdminPassword}}"
+  }
+}
+
+script:post-response {
+  if (res.body && res.body.data) {
+    bru.setVar('accessToken', res.body.data.token.access_token);
+    bru.setVar('adminId', res.body.data.user.id);
+    bru.setVar('companyId', res.body.data.user.company_id);
+  }
+}
+
+tests {
+  test("returns 200 with an access token", function() {
+    expect(res.status).to.equal(200);
+    expect(res.body.data.token.access_token).to.be.a('string');
+  });
+}

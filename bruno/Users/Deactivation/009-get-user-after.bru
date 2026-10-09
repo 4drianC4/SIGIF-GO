@@ -1,0 +1,23 @@
+meta {
+  name: Get User After Deactivation
+  type: http
+  seq: 9
+}
+
+get {
+  url: {{baseUrl}}/api/v1/users/{{deactivationUserId}}
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{accessToken}}
+}
+
+tests {
+  test("the user is kept and can still be consulted", function() {
+    expect(res.status).to.equal(200);
+    expect(res.body.data.id).to.equal(bru.getVar('deactivationUserId'));
+    expect(res.body.data.status).to.equal('inactive');
+  });
+}

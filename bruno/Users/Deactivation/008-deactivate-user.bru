@@ -1,0 +1,34 @@
+meta {
+  name: Deactivate User
+  type: http
+  seq: 8
+}
+
+post {
+  url: {{baseUrl}}/api/v1/users/{{deactivationUserId}}/deactivate
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{accessToken}}
+}
+
+tests {
+  test("returns 200 with the updated user", function() {
+    expect(res.status).to.equal(200);
+    expect(res.body.success).to.equal(true);
+    expect(res.body.data.id).to.equal(bru.getVar('deactivationUserId'));
+    expect(res.body.data.email).to.equal(bru.getVar('deactivationUserEmail'));
+    expect(res.body.data.company_id).to.equal(bru.getVar('companyId'));
+    expect(res.body.data.role).to.equal('employee');
+    expect(res.body.data.status).to.equal('inactive');
+    expect(res.body.data.updated_at).to.be.a('string');
+  });
+
+  test("never returns password data", function() {
+    expect(Object.keys(res.body.data).includes('password_hash')).to.equal(false);
+    expect(Object.keys(res.body.data).includes('password')).to.equal(false);
+    expect(Object.keys(res.body.data).includes('generated_password')).to.equal(false);
+  });
+}
