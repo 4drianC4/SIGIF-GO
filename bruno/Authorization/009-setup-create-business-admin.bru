@@ -1,0 +1,45 @@
+meta {
+  name: Setup - Create Business Admin
+  type: http
+  seq: 9
+}
+
+post {
+  url: {{baseUrl}}/api/v1/users
+  body: json
+  auth: bearer
+}
+
+headers {
+  Content-Type: application/json
+}
+
+auth:bearer {
+  token: {{accessToken}}
+}
+
+body:json {
+  {
+    "first_name": "Ana",
+    "last_name": "Pérez",
+    "email": "{{readerEmail}}",
+    "company_id": "{{companyId}}",
+    "role": "business_admin"
+  }
+}
+
+script:pre-request {
+  bru.setVar('readerEmail', 'hu08206.reader.' + Date.now() + '@example.com');
+}
+
+script:post-response {
+  if (res.status === 201) {
+    bru.setVar('readerPassword', res.body.data.generated_password);
+  }
+}
+
+tests {
+  test("returns 201", function() {
+    expect(res.status).to.equal(201);
+  });
+}

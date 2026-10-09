@@ -1,0 +1,46 @@
+meta {
+  name: Setup - Create Employee
+  type: http
+  seq: 3
+}
+
+post {
+  url: {{baseUrl}}/api/v1/users
+  body: json
+  auth: bearer
+}
+
+headers {
+  Content-Type: application/json
+}
+
+auth:bearer {
+  token: {{accessToken}}
+}
+
+body:json {
+  {
+    "first_name": "Ana",
+    "last_name": "Pérez",
+    "email": "{{employeeEmail}}",
+    "company_id": "{{companyId}}",
+    "role": "employee"
+  }
+}
+
+script:pre-request {
+  bru.setVar('employeeEmail', 'hu08206.employee.' + Date.now() + '@example.com');
+}
+
+script:post-response {
+  if (res.status === 201) {
+    bru.setVar('employeePassword', res.body.data.generated_password);
+  }
+}
+
+tests {
+  test("an authorized user can run the operation", function() {
+    expect(res.status).to.equal(201);
+    expect(res.body.data.role).to.equal('employee');
+  });
+}

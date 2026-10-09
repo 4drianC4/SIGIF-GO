@@ -1,0 +1,24 @@
+meta {
+  name: Employee Permissions
+  type: http
+  seq: 5
+}
+
+get {
+  url: {{baseUrl}}/api/v1/auth/me/permissions
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{employeeToken}}
+}
+
+tests {
+  test("a role without permissions returns an empty array", function() {
+    expect(res.status).to.equal(200);
+    expect(res.body.data.role).to.equal('employee');
+    expect(res.body.data.permissions).to.be.an('array');
+    expect(res.body.data.permissions.length).to.equal(0);
+  });
+}
