@@ -36,7 +36,7 @@ Módulos implementados:
 .
 ├── cmd/
 │   ├── server/          # Servidor HTTP
-│   └── migrate/         # AutoMigrate + seed (roles, permisos, admin)
+│   └── migrate/         # AutoMigrate + migraciones SQL versionadas + seed (roles, permisos, admin)
 ├── configs/
 │   └── config.yaml      # Configuración por defecto
 ├── deployments/docker/  # Docker Compose + Dockerfiles
@@ -88,7 +88,7 @@ cp .env.example .env
 # Infraestructura (PostgreSQL)
 make docker-up
 
-# Migraciones + seed
+# Migraciones + seed (ver docs/database-migrations.md)
 make migrate-up
 
 # Servidor

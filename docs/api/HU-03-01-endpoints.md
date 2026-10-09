@@ -20,6 +20,10 @@
 | `GET` | `/api/v1/products/summary` | `products.list` | KPIs de las tarjetas superiores. |
 | `POST` | `/api/v1/products` | `products.create` | Registra un producto (HU principal). |
 | `GET` | `/api/v1/products/validate-duplicate` | `products.create` | Valida en tiempo real si nombre, SKU o código de barras ya existen. |
+| `GET` | `/api/v1/products/:id` | `products.read` | Devuelve un producto (HU-03-03/04). |
+| `PUT` | `/api/v1/products/:id` | `products.update` | Edita un producto (HU-03-03/04). |
+| `PATCH` | `/api/v1/products/:id/status` | `products.update` | Activa o desactiva un producto (HU-03-03/04). |
+| `DELETE` | `/api/v1/products/:id` | `products.delete` | Elimina un producto (HU-03-03/04). |
 | `GET` | `/api/v1/categories` | `categories.list` | Lista todas las categorías (árbol + select). |
 | `POST` | `/api/v1/categories` | `categories.create` | Registra una categoría o subcategoría. |
 | `GET` | `/api/v1/units-of-measure` | — (solo sesión) | Lista unidades de medida (semilla). |
@@ -37,9 +41,9 @@
 - `userId`: claim `user_id` del token. Se usa para verificar el permiso contra `app_user → role → role_permission → permission`.
 - `companyId`: claim `company_id` del token. Productos y categorías se leen y guardan solo en esa empresa. Si el usuario no tiene empresa, responde `400 company is required`.
 
-Permisos usados en esta HU: `products.list`, `products.create`, `categories.list`, `categories.create`
+Permisos usados: `products.list`, `products.create`, `products.read`, `products.update`, `products.delete`, `categories.list`, `categories.create`
 
-Los cuatro se crean y se asignan al rol `superadmin` al ejecutar `make migrate-up`, también en bases ya existentes. El rol `soporte` no los tiene (403). Unidades e impuestos solo requieren sesión.
+Todos se crean y se asignan al rol `superadmin` al ejecutar `make migrate-up`, también en bases ya existentes. Los roles `business_admin` y `employee` no los tienen (403). Unidades e impuestos solo requieren sesión.
 
 ---
 
@@ -239,8 +243,9 @@ Indica si un nombre, SKU o código de barras ya existe en la empresa, para avisa
 - `name` (opcional): string — se compara sin distinguir mayúsculas ni espacios repetidos.
 - `sku` (opcional): string — se compara en mayúsculas.
 - `barcode` (opcional): string.
+- `exclude_id` (opcional): uuid — producto que se está editando; se ignora en la comparación para que no se detecte como duplicado de sí mismo.
 
-Al menos uno es obligatorio. Si hay varios repetidos, `field` indica el primero en este orden: `name`, `sku`, `barcode`.
+Al menos uno de `name`, `sku` o `barcode` es obligatorio. Si hay varios repetidos, `field` indica el primero en este orden: `name`, `sku`, `barcode`.
 
 ### Respuesta exitosa
 
@@ -261,7 +266,8 @@ Sin duplicados: `{ "exists": false, "field": null }`.
 
 | Code | HTTP | Causa |
 |---|---|---|
-| `BAD_REQUEST` | 400 | No se envió ningún parámetro (`name, sku or barcode is required`) o el usuario no tiene empresa. |
+| `BAD_REQUEST` | 400 | No se envió `name`, `sku` ni `barcode` (`name, sku or barcode is required`) o el usuario no tiene empresa. |
+| `VALIDATION_ERROR` | 400 | `exclude_id` no es UUID o un parámetro supera su longitud máxima. |
 | `UNAUTHORIZED` | 401 | Token ausente, inválido, expirado o sesión cerrada. |
 | `FORBIDDEN` | 403 | Usuario sin `products.create`. |
 
@@ -435,6 +441,148 @@ Devuelve la lista sembrada por la migración.
 
 ---
 
+## 9) Obtener producto — `GET /api/v1/products/:id`
+
+Devuelve un producto de la empresa del usuario. Endpoint de HU-03-03/04, adaptado al modelo de esta HU.
+
+### Permiso
+`products.read`
+
+### Params de ruta
+- `id`: uuid — id del producto.
+
+### Respuesta exitosa
+
+**`200`** — `data` con el shape de `Product` (igual que un elemento de `GET /api/v1/products`).
+
+### Códigos de error
+
+| Code | HTTP | Causa |
+|---|---|---|
+| `BAD_REQUEST` | 400 | `id` no es UUID (`invalid product id`) o el usuario no tiene empresa. |
+| `UNAUTHORIZED` | 401 | Token ausente, inválido, expirado o sesión cerrada. |
+| `FORBIDDEN` | 403 | Usuario sin `products.read`. |
+| `NOT_FOUND` | 404 | `product not found` (no existe, fue eliminado o es de otra empresa). |
+
+---
+
+## 10) Editar producto — `PUT /api/v1/products/:id`
+
+Reemplaza los datos editables de un producto. Endpoint de HU-03-03/04, adaptado al modelo de esta HU.
+
+### Permiso
+`products.update`
+
+### Params de ruta
+- `id`: uuid — id del producto.
+
+### Body
+
+```json
+{
+  "name": "Galletas María 200g",
+  "sku": "ABA-412",
+  "category_id": "550e8400-e29b-41d4-a716-446655440001",
+  "unit_of_measure_id": "550e8400-e29b-41d4-a716-446655440002",
+  "cost": 4.50,
+  "sale_price": 7.50,
+  "min_stock": 5
+}
+```
+
+| Campo | Tipo | Obligatorio | Restricciones / notas |
+|---|---|---|---|
+| `name` | string | Sí | Mismas reglas que al crear. Único por empresa, sin contar el propio producto. |
+| `sku` | string | No | Mismas reglas que al crear. Si se omite, el producto queda sin SKU. |
+| `category_id` | uuid | Sí | Categoría existente, de la empresa y activa. |
+| `unit_of_measure_id` | uuid | Sí | Un `id` de `GET /api/v1/units-of-measure`. |
+| `cost` | number | Sí | > 0, máximo 2 decimales. |
+| `sale_price` | number | Sí | > 0, máximo 2 decimales. |
+| `barcode` | string | No | Solo dígitos, 8–14 caracteres. Si se omite, el producto queda sin código de barras. |
+| `description` | string | No | Máximo 1000 caracteres. Si se omite, queda vacía. |
+| `min_stock` | number | No | >= 0, máximo 3 decimales. Si se omite, conserva el valor actual. |
+
+`stock` no se edita por este endpoint: solo cambia con movimientos de inventario.
+
+### Respuesta exitosa
+
+**`200`** — `data` con el shape de `Product` ya actualizado (`margin` y `stock_status` recalculados).
+
+### Códigos de error
+
+| Code | HTTP | Causa |
+|---|---|---|
+| `BAD_REQUEST` | 400 | Body no es JSON válido; `id` no es UUID; usuario sin empresa; categoría inactiva. |
+| `VALIDATION_ERROR` | 400 | Mismas validaciones que al crear. Ver `details`. |
+| `UNAUTHORIZED` | 401 | Token ausente, inválido, expirado o sesión cerrada. |
+| `FORBIDDEN` | 403 | Usuario sin `products.update`. |
+| `NOT_FOUND` | 404 | `product not found` / `category not found` / `unit of measure not found`. |
+| `CONFLICT` | 409 | `product name already exists` / `SKU already exists` / `barcode already exists` en otro producto. |
+
+---
+
+## 11) Activar o desactivar producto — `PATCH /api/v1/products/:id/status`
+
+Cambia el estado de un producto. Endpoint de HU-03-03/04.
+
+### Permiso
+`products.update`
+
+### Params de ruta
+- `id`: uuid — id del producto.
+
+### Body
+
+```json
+{
+  "status": "inactive"
+}
+```
+
+| Campo | Tipo | Obligatorio | Restricciones / notas |
+|---|---|---|---|
+| `status` | enum | Sí | `active` \| `inactive` |
+
+### Respuesta exitosa
+
+**`200`** — `data` con el shape de `Product` y el nuevo `status`.
+
+### Códigos de error
+
+| Code | HTTP | Causa |
+|---|---|---|
+| `BAD_REQUEST` | 400 | `status` distinto de `active`/`inactive`; el producto ya está en ese estado (`product is already active` / `product is already inactive`); `id` no es UUID; usuario sin empresa. |
+| `UNAUTHORIZED` | 401 | Token ausente, inválido, expirado o sesión cerrada. |
+| `FORBIDDEN` | 403 | Usuario sin `products.update`. |
+| `NOT_FOUND` | 404 | `product not found`. |
+
+---
+
+## 12) Eliminar producto — `DELETE /api/v1/products/:id`
+
+Elimina un producto con borrado lógico. Endpoint de HU-03-03/04.
+
+### Permiso
+`products.delete`
+
+### Params de ruta
+- `id`: uuid — id del producto.
+
+### Respuesta exitosa
+
+**`204`** — sin cuerpo.
+
+### Códigos de error
+
+| Code | HTTP | Causa |
+|---|---|---|
+| `BAD_REQUEST` | 400 | `id` no es UUID o el usuario no tiene empresa. |
+| `UNAUTHORIZED` | 401 | Token ausente, inválido, expirado o sesión cerrada. |
+| `FORBIDDEN` | 403 | Usuario sin `products.delete`. |
+| `NOT_FOUND` | 404 | `product not found` (incluye un producto ya eliminado). |
+
+---
+
 ## Estructura de respuesta de entidad `Product`
 
 ```json
@@ -483,11 +631,11 @@ Devuelve la lista sembrada por la migración.
 
 | Code | HTTP | Origen |
 |---|---|---|
-| `BAD_REQUEST` | 400 | JSON inválido, usuario sin empresa, categoría inactiva, `validate-duplicate` sin parámetros |
+| `BAD_REQUEST` | 400 | JSON inválido, usuario sin empresa, categoría inactiva, `validate-duplicate` sin parámetros, id de producto inválido, estado inválido o repetido |
 | `VALIDATION_ERROR` | 400 | Falla de validación de body o query (incluye `details` por campo) |
 | `UNAUTHORIZED` | 401 | Token ausente, inválido, expirado o sesión cerrada |
 | `FORBIDDEN` | 403 | Usuario sin el permiso del endpoint |
-| `NOT_FOUND` | 404 | Categoría, categoría padre, unidad de medida o impuesto inexistente |
+| `NOT_FOUND` | 404 | Producto, categoría, categoría padre, unidad de medida o impuesto inexistente |
 | `CONFLICT` | 409 | Nombre de producto, SKU, código de barras o nombre de categoría repetido |
 | `INTERNAL_ERROR` | 500 | Error no controlado |
 
@@ -512,10 +660,16 @@ Devuelve la lista sembrada por la migración.
 
 ## Diferencias respecto a una versión anterior
 
-Esta rama agrega, sobre la versión anterior de la HU (solo `POST /products` y `POST /categories`):
+Sobre la primera versión de la HU que estaba en `dev` (solo `POST /products` y `POST /categories`):
 1. Endpoints nuevos: `GET /products`, `GET /products/summary`, `GET /products/validate-duplicate`, `GET /categories`, `GET /units-of-measure`, `GET /taxes`.
 2. `POST /products` adaptado al contrato: `cost` (antes `cost_price`), `unit_of_measure_id` (antes un enum `unit_of_measure`), `initial_stock`, `sku` opcional y `name` único. Las respuestas incluyen `price`, `margin`, `stock` y `stock_status`.
 3. `POST /categories` acepta `parent_id`, `default_tax` y `target_margin`; el nombre ahora es único por nivel y no por empresa.
 4. El dinero se devuelve como número (`4.20`) en lugar de string (`"4.20"`).
 5. Tablas nuevas `units_of_measure` y `taxes`, sembradas por `make migrate-up`; permisos nuevos `products.list` y `categories.list`.
-6. Colección Bruno `bruno/Products` ampliada a 16 peticiones con tests.
+6. El esquema del catálogo se cambia con migraciones SQL versionadas, que convierten las bases existentes sin perder datos: ver `docs/database-migrations.md`.
+
+Sobre los endpoints de HU-03-03/04 que ya estaban en `dev` (`GET`, `PUT`, `PATCH .../status` y `DELETE` de `/products/:id`):
+1. `PUT /products/:id` usa los mismos campos que `POST /products`: `cost` y `unit_of_measure_id` en lugar de `cost_price` y `unit_of_measure`; `sku` es opcional; el nombre debe ser único; acepta `min_stock`.
+2. Todas las respuestas usan el shape de `Product` de este documento (`price`, `margin`, `stock`, `stock_status`, `category` expandida).
+3. El listado `GET /products` filtra con `search` (nombre, SKU o código de barras) en lugar de `name`, y requiere `products.list` en lugar de `products.read`.
+4. Colección Bruno `bruno/Products`: 21 peticiones con tests (001–016 de esta HU, 017–021 de HU-03-03/04).
