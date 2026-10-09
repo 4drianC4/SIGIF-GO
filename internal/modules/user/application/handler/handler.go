@@ -88,6 +88,18 @@ func (h *UserQueryHandler) HandleListPermissions(ctx context.Context, q query.Li
 	return h.service.ListPermissions(ctx, q.Module, q.Offset, q.Limit)
 }
 
+func (h *UserCommandHandler) HandleUpdatePermission(ctx context.Context, cmd command.UpdatePermission) (*entity.Permission, error) {
+	return h.service.UpdatePermission(ctx, cmd.ID, cmd.Description)
+}
+
+func (h *UserCommandHandler) HandleDeletePermission(ctx context.Context, cmd command.DeletePermission) error {
+	return h.service.DeletePermission(ctx, cmd.ID)
+}
+
+func (h *UserQueryHandler) HandleExportPermissions(ctx context.Context, q query.ExportPermissions) ([]*entity.Permission, error) {
+	return h.service.ExportPermissions(ctx, q.Module)
+}
+
 func (h *UserQueryHandler) HandleListPermissionModules(_ context.Context, _ query.ListPermissionModules) []entity.ModuleWithOperations {
 	return h.service.PermissionModules()
 }

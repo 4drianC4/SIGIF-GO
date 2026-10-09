@@ -47,3 +47,15 @@ type CreatePermission struct {
 	Code        string
 	Description string
 }
+
+// UpdatePermission edits a permission by id. Only the description is mutable;
+// Nil = leave it unchanged.
+type UpdatePermission struct {
+	ID          uuid.UUID
+	Description *string
+}
+
+// DeletePermission removes a permission by id.
+type DeletePermission struct {
+	ID uuid.UUID
+}

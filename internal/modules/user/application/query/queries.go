@@ -27,3 +27,9 @@ type ListPermissions struct {
 
 // ListPermissionModules asks for the catalog of modules and their operations.
 type ListPermissionModules struct{}
+
+// ExportPermissions asks for the full permission catalog (optionally filtered
+// by module) to build the CSV export.
+type ExportPermissions struct {
+	Module string
+}

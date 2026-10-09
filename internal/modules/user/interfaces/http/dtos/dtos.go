@@ -63,3 +63,14 @@ type ListPermissionsRequest struct {
 	Page   *int   `json:"page" query:"page" validate:"omitempty,min=1"`
 	Limit  *int   `json:"limit" query:"limit" validate:"omitempty,min=1"`
 }
+
+// UpdatePermissionRequest is the body of PATCH /permissions/:id. Only the
+// description is editable: module and operation define the permission code.
+type UpdatePermissionRequest struct {
+	Description *string `json:"description" validate:"required,max=200"`
+}
+
+// ExportPermissionsRequest holds the query string of GET /permissions/export.
+type ExportPermissionsRequest struct {
+	Module string `json:"module" query:"module" validate:"omitempty,max=60"`
+}
