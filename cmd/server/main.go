@@ -31,6 +31,13 @@ import (
 	"github.com/sigif/sigif-go/internal/shared/validator"
 )
 
+var modules = fx.Options(
+	user.Module,
+	auth.Module,
+	customer.Module,
+	product.Module,
+)
+
 func main() {
 	app := fx.New(
 		fx.Provide(
@@ -42,10 +49,7 @@ func main() {
 			newFiberApp,
 			fx.Annotate(clock.NewRealClock, fx.As(new(clock.Clock))),
 		),
-		user.Module,
-		auth.Module,
-		customer.Module,
-		product.Module,
+		modules,
 		fx.Invoke(registerHooks),
 		fx.Invoke(startServer),
 	)
