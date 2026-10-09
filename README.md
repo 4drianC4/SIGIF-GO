@@ -109,6 +109,7 @@ Prefijo base: `/api/v1`.
 POST /api/v1/auth/login    # Iniciar sesión (email + contraseña)
 POST /api/v1/auth/logout   # Cerrar sesión (revoca la sesión actual)
 GET  /api/v1/auth/me       # Usuario autenticado
+GET  /api/v1/auth/me/permissions   # Códigos de permiso del usuario autenticado
 ```
 
 ### Usuarios (requieren permiso)
