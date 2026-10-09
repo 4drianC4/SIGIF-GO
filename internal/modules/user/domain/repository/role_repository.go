@@ -27,6 +27,27 @@ type PermissionRepository interface {
 	// and operation, or nil when it is not registered yet.
 	GetByModuleOperation(ctx context.Context, module, operation string) (*entity.Permission, error)
 
+	// GetByID returns the permission with the given id, or nil when it does not
+	// exist.
+	GetByID(ctx context.Context, id uuid.UUID) (*entity.Permission, error)
+
+	// ListAll returns every permission of the catalog, optionally restricted to
+	// a module, ordered by module and operation (used by the CSV export).
+	ListAll(ctx context.Context, module string) ([]*entity.Permission, error)
+
+	// ListByRole returns the permissions assigned to a role, ordered by module
+	// and operation (used to expose the user's effective permissions).
+	ListByRole(ctx context.Context, roleID uuid.UUID) ([]*entity.Permission, error)
+
 	// Create stores a new permission; its code (module.operation) is unique.
 	Create(ctx context.Context, permission *entity.Permission) error
+
+	// Update persists changes to an existing permission.
+	Update(ctx context.Context, permission *entity.Permission) error
+
+	// Delete removes a permission by id.
+	Delete(ctx context.Context, id uuid.UUID) error
+
+	// CountRolesByPermission returns how many roles have the permission assigned.
+	CountRolesByPermission(ctx context.Context, permissionID uuid.UUID) (int64, error)
 }

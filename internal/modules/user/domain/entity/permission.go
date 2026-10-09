@@ -104,7 +104,29 @@ const (
 	PermCustomersDelete     = "customers.delete"
 	PermPermissionsRead     = "permissions.read"
 	PermPermissionsCreate   = "permissions.create"
+	PermPermissionsUpdate   = "permissions.update"
+	PermPermissionsDelete   = "permissions.delete"
+	PermPermissionsExport   = "permissions.export"
 )
+
+// IsSystemPermission reports whether the pair module.operation belongs to the
+// canonical seed. System permissions are protected: they cannot be deleted.
+func IsSystemPermission(module, operation string) bool {
+	return slices.ContainsFunc(AllPermissions(), func(p Permission) bool {
+		return p.Module == module && p.Operation == operation
+	})
+}
+
+// SystemPermissionKeys returns the codes (module.operation) of every permission
+// of the canonical seed, so clients can tell which ones are protected.
+func SystemPermissionKeys() []string {
+	perms := AllPermissions()
+	keys := make([]string, len(perms))
+	for i := range perms {
+		keys[i] = perms[i].Key()
+	}
+	return keys
+}
 
 // AllPermissions returns the canonical set of permissions for the implemented
 // modules. Kept as a single source of truth for seeding.
@@ -157,6 +179,9 @@ func AllPermissions() []Permission {
 			ops: []struct{ op, desc string }{
 				{"read", "Consultar el catálogo de permisos"},
 				{"create", "Registrar permisos"},
+				{"update", "Editar la descripción de un permiso"},
+				{"delete", "Eliminar permisos"},
+				{"export", "Exportar el catálogo de permisos"},
 			},
 		},
 	}

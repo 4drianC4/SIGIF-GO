@@ -111,6 +111,30 @@ func (noopPermRepo) Create(_ context.Context, _ *entity.Permission) error {
 	return nil
 }
 
+func (noopPermRepo) GetByID(_ context.Context, _ uuid.UUID) (*entity.Permission, error) {
+	return nil, nil
+}
+
+func (noopPermRepo) ListAll(_ context.Context, _ string) ([]*entity.Permission, error) {
+	return nil, nil
+}
+
+func (noopPermRepo) ListByRole(_ context.Context, _ uuid.UUID) ([]*entity.Permission, error) {
+	return nil, nil
+}
+
+func (noopPermRepo) Update(_ context.Context, _ *entity.Permission) error {
+	return nil
+}
+
+func (noopPermRepo) Delete(_ context.Context, _ uuid.UUID) error {
+	return nil
+}
+
+func (noopPermRepo) CountRolesByPermission(_ context.Context, _ uuid.UUID) (int64, error) {
+	return 0, nil
+}
+
 func seedTestUser(t *testing.T, email string) *entity.AppUser {
 	t.Helper()
 	hash, err := security.HashPassword("password123")
