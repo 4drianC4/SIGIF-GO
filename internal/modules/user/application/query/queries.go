@@ -16,3 +16,9 @@ type ListUsers struct {
 	Offset int
 	Limit  int
 }
+
+type ListUserHistory struct {
+	UserID uuid.UUID
+	Offset int
+	Limit  int
+}

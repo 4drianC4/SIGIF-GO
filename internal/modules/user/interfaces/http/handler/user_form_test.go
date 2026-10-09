@@ -17,6 +17,7 @@ import (
 	"github.com/sigif/sigif-go/internal/modules/user/domain/service"
 	httpHandler "github.com/sigif/sigif-go/internal/modules/user/interfaces/http/handler"
 	"github.com/sigif/sigif-go/internal/modules/user/interfaces/http/router"
+	"github.com/sigif/sigif-go/internal/modules/user/testutil"
 	"github.com/sigif/sigif-go/internal/shared/clock"
 	"github.com/sigif/sigif-go/internal/shared/config"
 	"github.com/sigif/sigif-go/internal/shared/middleware"
@@ -83,7 +84,8 @@ func setup(authenticated bool, operation string, empty bool) (*fiber.App, *users
 	companyID := uuid.New()
 	companyRepo := companies{id: companyID, empty: empty}
 	svc := service.NewUserService(repo, roles{}, nil, clock.NewMockClock(time.Now()), companyRepo)
-	h := httpHandler.NewUserHTTPHandler(appHandler.NewUserCommandHandler(svc), appHandler.NewUserQueryHandler(svc), validator.New(), &config.Config{})
+	history := service.NewHistoryService(testutil.NewMemoryHistoryRepository(), repo, clock.NewMockClock(time.Now()))
+	h := httpHandler.NewUserHTTPHandler(appHandler.NewUserCommandHandler(svc, history, testutil.Transactor{}), appHandler.NewUserQueryHandler(svc, history), validator.New(), &config.Config{})
 	checker := permissions{operation: operation}
 	router.RegisterUserRoutes(app.Group("/api/v1"), h, checker)
 	companyRouter.RegisterCompanyRoutes(app.Group("/api/v1"), companyHTTP.NewCompanyHTTPHandler(companyApp.NewCompanyQueryHandler(companyService.NewCompanyService(companyRepo))), checker)
