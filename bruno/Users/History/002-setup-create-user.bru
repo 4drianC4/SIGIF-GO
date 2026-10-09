@@ -1,0 +1,47 @@
+meta {
+  name: Setup - Create User
+  type: http
+  seq: 2
+}
+
+post {
+  url: {{baseUrl}}/api/v1/users
+  body: json
+  auth: bearer
+}
+
+headers {
+  Content-Type: application/json
+}
+
+auth:bearer {
+  token: {{accessToken}}
+}
+
+body:json {
+  {
+    "first_name": "Juan",
+    "last_name": "Pérez",
+    "email": "{{historyUserEmail}}",
+    "company_id": "{{companyId}}",
+    "role": "employee"
+  }
+}
+
+script:pre-request {
+  bru.setVar('historyUserEmail', 'hu0203.' + Date.now() + '@example.com');
+}
+
+script:post-response {
+  if (res.status === 201) {
+    bru.setVar('historyUserId', res.body.data.id);
+    bru.setVar('historyUserPassword', res.body.data.generated_password);
+  }
+}
+
+tests {
+  test("returns 201 with the new user", function() {
+    expect(res.status).to.equal(201);
+    expect(res.body.data.id).to.be.a('string');
+  });
+}
