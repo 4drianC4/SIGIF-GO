@@ -1,7 +1,8 @@
-.PHONY: help build run test lint migrate-up migrate-down docker-up docker-down docker-logs clean check-go
+.PHONY: help build run test lint migrate-up migrate-down migrate-status migrate-force migrate-create docker-up docker-down docker-logs clean check-go
 
 GO_MIN_VERSION := 1.26
 PORT ?= 4600
+MIGRATIONS_DIR := internal/shared/database/migrations/sql
 
 check-go:
 	@set -- $$(go version | sed -E 's/.*go([0-9]+)\.([0-9]+).*/\1 \2/'); if [ "$$1" -lt 1 ] || { [ "$$1" -eq 1 ] && [ "$$2" -lt 26 ]; }; then echo "Go $(GO_MIN_VERSION)+ is required; found go$$1.$$2" >&2; exit 1; fi
@@ -17,6 +18,9 @@ help:
 	@echo "  make lint          - Run linter"
 	@echo "  make migrate-up    - Run database migrations"
 	@echo "  make migrate-down  - Rollback last migration"
+	@echo "  make migrate-status - Show applied and pending migrations"
+	@echo "  make migrate-create NAME=add_x - Create the next migration files"
+	@echo "  make migrate-force VERSION=n - Set the version after an interrupted migration"
 	@echo "  make docker-up     - Start all services with Docker Compose"
 	@echo "  make docker-down   - Stop all Docker services"
 	@echo "  make docker-logs   - View Docker logs"
@@ -44,6 +48,22 @@ lint: check-go
 # Run migrations
 migrate-up: check-go
 	go run ./cmd/migrate
+
+migrate-down: check-go
+	go run ./cmd/migrate down
+
+migrate-status: check-go
+	go run ./cmd/migrate status
+
+migrate-force: check-go
+	@test -n "$(VERSION)" || (echo "Usage: make migrate-force VERSION=n" >&2; exit 1)
+	go run ./cmd/migrate force -- $(VERSION)
+
+migrate-create:
+	@test -n "$(NAME)" || (echo "Usage: make migrate-create NAME=short_description" >&2; exit 1)
+	@next=$$(printf "%06d" $$(( $$(ls $(MIGRATIONS_DIR)/*.up.sql 2>/dev/null | wc -l) + 1 ))); \
+	touch $(MIGRATIONS_DIR)/$${next}_$(NAME).up.sql $(MIGRATIONS_DIR)/$${next}_$(NAME).down.sql; \
+	echo "Created $(MIGRATIONS_DIR)/$${next}_$(NAME).up.sql and .down.sql"
 
 # Docker commands
 docker-up:

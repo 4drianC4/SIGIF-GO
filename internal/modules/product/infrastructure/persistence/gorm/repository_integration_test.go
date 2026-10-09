@@ -5,7 +5,6 @@ package gorm_test
 import (
 	"context"
 	"errors"
-	"os"
 	"testing"
 	"time"
 
@@ -19,9 +18,10 @@ import (
 	"github.com/sigif/sigif-go/internal/modules/product/domain/service"
 	productGorm "github.com/sigif/sigif-go/internal/modules/product/infrastructure/persistence/gorm"
 	"github.com/sigif/sigif-go/internal/modules/product/infrastructure/persistence/model"
-	"github.com/sigif/sigif-go/internal/modules/product/infrastructure/seed"
 	"github.com/sigif/sigif-go/internal/shared/clock"
 	sharedDatabase "github.com/sigif/sigif-go/internal/shared/database"
+	"github.com/sigif/sigif-go/internal/shared/database/dbtest"
+	"github.com/sigif/sigif-go/internal/shared/database/migrations"
 )
 
 type repos struct {
@@ -34,23 +34,20 @@ type repos struct {
 
 func openDatabase(t *testing.T) repos {
 	t.Helper()
-	dsn := os.Getenv("SIGIF_TEST_DATABASE_DSN")
-	if dsn == "" {
-		t.Skip("SIGIF_TEST_DATABASE_DSN no está definido")
+	dsn := dbtest.NewSchemaDSN(t)
+	if err := migrations.Up(dsn); err != nil {
+		t.Fatalf("migrations: %v", err)
 	}
 	db, err := gormlib.Open(postgres.Open(dsn), &gormlib.Config{})
 	if err != nil {
 		t.Fatalf("open database: %v", err)
 	}
-	if err := db.AutoMigrate(&model.UnitOfMeasureModel{}, &model.TaxModel{}, &model.CategoryModel{}, &model.ProductModel{}); err != nil {
-		t.Fatalf("automigrate: %v", err)
+	pool, err := db.DB()
+	if err != nil {
+		t.Fatalf("database pool: %v", err)
 	}
-	if err := seed.Seed(context.Background(), db); err != nil {
-		t.Fatalf("seed: %v", err)
-	}
-	if err := seed.Seed(context.Background(), db); err != nil {
-		t.Fatalf("seed must be idempotent: %v", err)
-	}
+	t.Cleanup(func() { _ = pool.Close() })
+
 	wrapped := &sharedDatabase.Database{DB: db}
 	return repos{
 		db:         wrapped,
