@@ -666,7 +666,7 @@ Sobre la primera versión de la HU que estaba en `dev` (solo `POST /products` y 
 3. `POST /categories` acepta `parent_id`, `default_tax` y `target_margin`; el nombre ahora es único por nivel y no por empresa.
 4. El dinero se devuelve como número (`4.20`) en lugar de string (`"4.20"`).
 5. Tablas nuevas `units_of_measure` y `taxes`, sembradas por `make migrate-up`; permisos nuevos `products.list` y `categories.list`.
-6. El esquema del catálogo se cambia con migraciones SQL versionadas, que convierten las bases existentes sin perder datos: ver `docs/database-migrations.md`.
+6. El esquema del catálogo se cambia con migraciones SQL versionadas, que convierten las bases existentes sin perder datos.
 
 Sobre los endpoints de HU-03-03/04 que ya estaban en `dev` (`GET`, `PUT`, `PATCH .../status` y `DELETE` de `/products/:id`):
 1. `PUT /products/:id` usa los mismos campos que `POST /products`: `cost` y `unit_of_measure_id` en lugar de `cost_price` y `unit_of_measure`; `sku` es opcional; el nombre debe ser único; acepta `min_stock`.

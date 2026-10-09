@@ -88,7 +88,7 @@ cp .env.example .env
 # Infraestructura (PostgreSQL)
 make docker-up
 
-# Migraciones + seed (ver docs/database-migrations.md)
+# Migraciones + seed
 make migrate-up
 
 # Servidor
