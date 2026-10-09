@@ -199,20 +199,5 @@ func AuthRequired(jwtManager *jwt.JWTManager, sessions SessionReader) fiber.Hand
 
 // RequirePermission enforces role-based access control for a module/operation.
 func RequirePermission(checker PermissionChecker, module, operation string) fiber.Handler {
-	return func(c *fiber.Ctx) error {
-		userID, ok := UserIDFromContext(c.UserContext())
-		if !ok {
-			return response.Error(c, fiber.StatusUnauthorized, errors.ErrUnauthorized)
-		}
-
-		allowed, err := checker.HasPermission(c.UserContext(), userID, module, operation)
-		if err != nil {
-			return response.Error(c, fiber.StatusInternalServerError, err)
-		}
-		if !allowed {
-			return response.Error(c, fiber.StatusForbidden, errors.ErrForbidden)
-		}
-
-		return c.Next()
-	}
+	return RequireAnyPermission(checker, module+"."+operation)
 }
