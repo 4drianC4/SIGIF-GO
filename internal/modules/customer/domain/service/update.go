@@ -12,7 +12,7 @@ import (
 
 type UpdateCustomerParams struct {
 	ID             uuid.UUID
-	TenantID       uuid.UUID
+	CompanyID      uuid.UUID
 	LegalName      string
 	DocumentType   entity.DocumentType
 	DocumentNumber *string
@@ -21,53 +21,132 @@ type UpdateCustomerParams struct {
 	Address        *string
 }
 
+// PatchCustomerParams carries a partial update: a nil field keeps the current
+// value. For optional fields an empty string clears the stored value.
+type PatchCustomerParams struct {
+	ID             uuid.UUID
+	CompanyID      uuid.UUID
+	LegalName      *string
+	DocumentType   *entity.DocumentType
+	DocumentNumber *string
+	Phone          *string
+	Email          *string
+	Address        *string
+}
+
+// Update replaces every editable field (PUT). An empty DocumentType keeps the
+// customer's current document type.
 func (s *CustomerService) Update(ctx context.Context, params UpdateCustomerParams) (*entity.Customer, error) {
 	if strings.TrimSpace(params.LegalName) == "" {
 		return nil, sharedErrors.New(sharedErrors.CodeValidation, "legal_name is required", 400)
 	}
 
-	customer, err := s.repo.GetByID(ctx, params.TenantID, params.ID)
-	if err != nil {
-		return nil, err
-	}
-	if customer == nil {
-		return nil, sharedErrors.New(sharedErrors.CodeNotFound, "customer not found", 404)
-	}
+	return s.update(ctx, params.CompanyID, params.ID, func(current *entity.Customer) UpdateCustomerParams {
+		if params.DocumentType == "" {
+			params.DocumentType = current.DocumentType
+		}
+		return params
+	})
+}
 
-	newDocNumber := ""
-	if params.DocumentNumber != nil {
-		newDocNumber = strings.TrimSpace(*params.DocumentNumber)
-	}
-	currentDocNumber := ""
-	if customer.DocumentNumber != nil {
-		currentDocNumber = *customer.DocumentNumber
-	}
+// Patch changes only the fields present in params (PATCH).
+func (s *CustomerService) Patch(ctx context.Context, params PatchCustomerParams) (*entity.Customer, error) {
+	return s.update(ctx, params.CompanyID, params.ID, func(current *entity.Customer) UpdateCustomerParams {
+		merged := UpdateCustomerParams{
+			ID:             current.ID,
+			CompanyID:      current.CompanyID,
+			LegalName:      current.LegalName,
+			DocumentType:   current.DocumentType,
+			DocumentNumber: current.DocumentNumber,
+			Phone:          current.Phone,
+			Email:          current.Email,
+			Address:        current.Address,
+		}
+		if params.LegalName != nil {
+			merged.LegalName = *params.LegalName
+		}
+		if params.DocumentType != nil {
+			merged.DocumentType = *params.DocumentType
+		}
+		if params.DocumentNumber != nil {
+			merged.DocumentNumber = params.DocumentNumber
+		}
+		if params.Phone != nil {
+			merged.Phone = params.Phone
+		}
+		if params.Email != nil {
+			merged.Email = params.Email
+		}
+		if params.Address != nil {
+			merged.Address = params.Address
+		}
+		return merged
+	})
+}
 
-	documentChanged := newDocNumber != currentDocNumber ||
-		params.DocumentType != customer.DocumentType
+// update loads the customer of the company, builds the new values from it and
+// saves them in one transaction. The document uniqueness check skips the
+// customer itself; the unique index covers concurrent requests.
+func (s *CustomerService) update(
+	ctx context.Context,
+	companyID, id uuid.UUID,
+	build func(current *entity.Customer) UpdateCustomerParams,
+) (*entity.Customer, error) {
+	var customer *entity.Customer
 
-	if documentChanged && newDocNumber != "" {
-		exists, err := s.repo.ExistsByDocument(ctx, params.TenantID, params.DocumentType, newDocNumber)
+	err := s.repo.WithinTransaction(ctx, func(ctx context.Context) error {
+		current, err := s.repo.GetByID(ctx, companyID, id)
 		if err != nil {
-			return nil, err
+			return err
 		}
-		if exists {
-			return nil, sharedErrors.New(sharedErrors.CodeConflict,
-				"a customer with this document already exists in this tenant", 409)
+		if current == nil {
+			return ErrCustomerNotFound
 		}
-	}
 
-	customer.Update(
-		s.clock,
-		params.LegalName,
-		params.DocumentType,
-		params.DocumentNumber,
-		params.Phone,
-		params.Email,
-		params.Address,
-	)
+		params := build(current)
+		if strings.TrimSpace(params.LegalName) == "" {
+			return sharedErrors.New(sharedErrors.CodeValidation, "legal_name is required", 400)
+		}
 
-	if err := s.repo.Update(ctx, customer); err != nil {
+		newDocNumber := ""
+		if params.DocumentNumber != nil {
+			newDocNumber = strings.TrimSpace(*params.DocumentNumber)
+		}
+		currentDocNumber := ""
+		if current.DocumentNumber != nil {
+			currentDocNumber = *current.DocumentNumber
+		}
+
+		documentChanged := newDocNumber != currentDocNumber ||
+			params.DocumentType != current.DocumentType
+
+		if documentChanged && newDocNumber != "" {
+			exists, err := s.repo.ExistsByDocument(ctx, companyID, params.DocumentType, newDocNumber)
+			if err != nil {
+				return err
+			}
+			if exists {
+				return ErrDocumentTaken
+			}
+		}
+
+		current.Update(
+			s.clock,
+			params.LegalName,
+			params.DocumentType,
+			params.DocumentNumber,
+			params.Phone,
+			params.Email,
+			params.Address,
+		)
+
+		if err := s.repo.Update(ctx, current); err != nil {
+			return err
+		}
+		customer = current
+		return nil
+	})
+	if err != nil {
 		return nil, err
 	}
 

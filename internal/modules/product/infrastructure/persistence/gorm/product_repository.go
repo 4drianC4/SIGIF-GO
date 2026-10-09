@@ -2,6 +2,7 @@ package gorm
 
 import (
 	"context"
+	"errors"
 	"strings"
 	"time"
 
@@ -29,37 +30,87 @@ func NewProductGormRepository(db *sharedDatabase.Database) repository.ProductRep
 
 func (r *ProductGormRepository) Create(ctx context.Context, product *entity.Product) error {
 	db := r.db.GetDB(ctx)
-	if err := db.Create(mapper.ProductToModel(product)).Error; err != nil {
-		if isDuplicateKey(db, err) {
-			switch {
-			case strings.Contains(err.Error(), "idx_products_company_name"):
-				return service.ErrProductNameTaken
-			case strings.Contains(err.Error(), "idx_products_company_barcode"):
-				return service.ErrBarcodeTaken
-			default:
-				return service.ErrSKUTaken
-			}
-		}
+	return translateDuplicate(db, db.Create(mapper.ProductToModel(product)).Error)
+}
+
+func (r *ProductGormRepository) Update(ctx context.Context, product *entity.Product) error {
+	db := r.db.GetDB(ctx)
+	return translateDuplicate(db, db.Save(mapper.ProductToModel(product)).Error)
+}
+
+func translateDuplicate(db *gorm.DB, err error) error {
+	if err == nil || !isDuplicateKey(db, err) {
 		return err
+	}
+	switch {
+	case strings.Contains(err.Error(), "idx_products_company_name"):
+		return service.ErrProductNameTaken
+	case strings.Contains(err.Error(), "idx_products_company_barcode"):
+		return service.ErrBarcodeTaken
+	default:
+		return service.ErrSKUTaken
+	}
+}
+
+func (r *ProductGormRepository) GetByID(ctx context.Context, companyID, id uuid.UUID) (*entity.Product, error) {
+	var m model.ProductModel
+	err := r.db.GetDB(ctx).
+		Where("company_id = ? AND id = ?", companyID, id).
+		First(&m).Error
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, nil
+		}
+		return nil, err
+	}
+	return mapper.ProductToDomain(&m), nil
+}
+
+func (r *ProductGormRepository) SetStatus(ctx context.Context, companyID, id uuid.UUID, status entity.Status) error {
+	result := r.db.GetDB(ctx).Model(&model.ProductModel{}).
+		Where("company_id = ? AND id = ?", companyID, id).
+		Update("status", string(status))
+	if result.Error != nil {
+		return result.Error
+	}
+	if result.RowsAffected == 0 {
+		return service.ErrProductNotFound
 	}
 	return nil
 }
 
-func (r *ProductGormRepository) ExistsByName(ctx context.Context, companyID uuid.UUID, name string) (bool, error) {
-	return r.exists(ctx, "company_id = ? AND LOWER(name) = LOWER(?)", companyID, name)
+func (r *ProductGormRepository) Delete(ctx context.Context, companyID, id uuid.UUID) error {
+	result := r.db.GetDB(ctx).
+		Where("company_id = ? AND id = ?", companyID, id).
+		Delete(&model.ProductModel{})
+	if result.Error != nil {
+		return result.Error
+	}
+	if result.RowsAffected == 0 {
+		return service.ErrProductNotFound
+	}
+	return nil
 }
 
-func (r *ProductGormRepository) ExistsBySKU(ctx context.Context, companyID uuid.UUID, sku string) (bool, error) {
-	return r.exists(ctx, "company_id = ? AND sku = ?", companyID, sku)
+func (r *ProductGormRepository) ExistsByName(ctx context.Context, companyID uuid.UUID, name string, excludeID uuid.UUID) (bool, error) {
+	return r.exists(ctx, excludeID, "company_id = ? AND LOWER(name) = LOWER(?)", companyID, name)
 }
 
-func (r *ProductGormRepository) ExistsByBarcode(ctx context.Context, companyID uuid.UUID, barcode string) (bool, error) {
-	return r.exists(ctx, "company_id = ? AND barcode = ?", companyID, barcode)
+func (r *ProductGormRepository) ExistsBySKU(ctx context.Context, companyID uuid.UUID, sku string, excludeID uuid.UUID) (bool, error) {
+	return r.exists(ctx, excludeID, "company_id = ? AND sku = ?", companyID, sku)
 }
 
-func (r *ProductGormRepository) exists(ctx context.Context, condition string, args ...any) (bool, error) {
+func (r *ProductGormRepository) ExistsByBarcode(ctx context.Context, companyID uuid.UUID, barcode string, excludeID uuid.UUID) (bool, error) {
+	return r.exists(ctx, excludeID, "company_id = ? AND barcode = ?", companyID, barcode)
+}
+
+func (r *ProductGormRepository) exists(ctx context.Context, excludeID uuid.UUID, condition string, args ...any) (bool, error) {
+	db := r.db.GetDB(ctx).Model(&model.ProductModel{}).Where(condition, args...)
+	if excludeID != uuid.Nil {
+		db = db.Where("id <> ?", excludeID)
+	}
 	var count int64
-	err := r.db.GetDB(ctx).Model(&model.ProductModel{}).Where(condition, args...).Count(&count).Error
+	err := db.Count(&count).Error
 	return count > 0, err
 }
 

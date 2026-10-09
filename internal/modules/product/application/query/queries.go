@@ -15,9 +15,15 @@ type ListProducts struct {
 	Limit      int
 }
 
+type GetProduct struct {
+	CompanyID uuid.UUID
+	ProductID uuid.UUID
+}
+
 type ValidateDuplicate struct {
 	CompanyID uuid.UUID
 	Name      string
 	SKU       string
 	Barcode   string
+	ExcludeID uuid.UUID
 }

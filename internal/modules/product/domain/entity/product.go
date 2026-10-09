@@ -60,10 +60,7 @@ type NewProductParams struct {
 func NewProduct(clock clock.Clock, params NewProductParams) (*Product, error) {
 	sku := NormalizeSKU(params.SKU)
 	details := validationDetails{}
-
-	if sku != "" && !skuPattern.MatchString(sku) {
-		details["sku"] = "solo puede contener letras, números, '.', '-' y '_', y debe empezar por letra o número"
-	}
+	validateSKU(details, sku)
 	validateMoney(details, "cost", params.Cost)
 	validateMoney(details, "sale_price", params.SalePrice)
 	validateQuantity(details, "initial_stock", params.InitialStock)
@@ -93,6 +90,56 @@ func NewProduct(clock clock.Clock, params NewProductParams) (*Product, error) {
 	}, nil
 }
 
+type UpdateProductParams struct {
+	CategoryID      uuid.UUID
+	UnitOfMeasureID uuid.UUID
+	SKU             string
+	Barcode         string
+	Name            string
+	Description     string
+	Cost            decimal.Decimal
+	SalePrice       decimal.Decimal
+	MinStock        decimal.Decimal
+}
+
+func (p *Product) Update(clock clock.Clock, params UpdateProductParams) error {
+	sku := NormalizeSKU(params.SKU)
+	details := validationDetails{}
+	validateSKU(details, sku)
+	validateMoney(details, "cost", params.Cost)
+	validateMoney(details, "sale_price", params.SalePrice)
+	validateQuantity(details, "min_stock", params.MinStock)
+	if err := details.err(); err != nil {
+		return err
+	}
+
+	p.CategoryID = params.CategoryID
+	p.UnitOfMeasureID = params.UnitOfMeasureID
+	p.SKU = sku
+	p.Barcode = strings.TrimSpace(params.Barcode)
+	p.Name = NormalizeName(params.Name)
+	p.Description = strings.TrimSpace(params.Description)
+	p.Cost = params.Cost
+	p.SalePrice = params.SalePrice
+	p.MinStock = params.MinStock
+	p.UpdatedAt = clock.NowUTC()
+	return nil
+}
+
+func (p *Product) IsActive() bool {
+	return p.Status == StatusActive
+}
+
+func (p *Product) Activate(clock clock.Clock) {
+	p.Status = StatusActive
+	p.UpdatedAt = clock.NowUTC()
+}
+
+func (p *Product) Deactivate(clock clock.Clock) {
+	p.Status = StatusInactive
+	p.UpdatedAt = clock.NowUTC()
+}
+
 func (p *Product) Margin() decimal.Decimal {
 	if !p.SalePrice.IsPositive() {
 		return decimal.Zero
@@ -113,6 +160,12 @@ func (p *Product) StockStatus() StockStatus {
 
 func NormalizeSKU(sku string) string {
 	return strings.ToUpper(strings.TrimSpace(sku))
+}
+
+func validateSKU(details validationDetails, sku string) {
+	if sku != "" && !skuPattern.MatchString(sku) {
+		details["sku"] = "solo puede contener letras, números, '.', '-' y '_', y debe empezar por letra o número"
+	}
 }
 
 func validateMoney(details validationDetails, field string, value decimal.Decimal) {

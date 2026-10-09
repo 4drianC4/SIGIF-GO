@@ -9,13 +9,13 @@ import (
 	"github.com/sigif/sigif-go/internal/shared/response"
 )
 
-func (h *UserHTTPHandler) Update(c *fiber.Ctx) error {
+func (h *UserHTTPHandler) Edit(c *fiber.Ctx) error {
 	id, err := uuid.Parse(c.Params("id"))
 	if err != nil {
 		return response.Error(c, fiber.StatusBadRequest, err)
 	}
 
-	var req dtos.UpdateUserRequest
+	var req dtos.EditUserRequest
 	if err := c.BodyParser(&req); err != nil {
 		return response.Error(c, fiber.StatusBadRequest, err)
 	}
@@ -23,12 +23,14 @@ func (h *UserHTTPHandler) Update(c *fiber.Ctx) error {
 		return response.Error(c, fiber.StatusBadRequest, err)
 	}
 
-	user, err := h.cmdHandler.HandleUpdate(c.UserContext(), command.UpdateUser{
+	user, err := h.cmdHandler.HandleEdit(c.UserContext(), command.EditUser{
 		ID:        id,
+		CompanyID: req.CompanyID,
 		FirstName: req.FirstName,
 		LastName:  req.LastName,
-		Phone:     req.Phone,
-		Area:      req.Area,
+		Email:     req.Email,
+		Password:  req.Password,
+		RoleName:  req.Role,
 	})
 	if err != nil {
 		return response.Error(c, fiber.StatusInternalServerError, err)

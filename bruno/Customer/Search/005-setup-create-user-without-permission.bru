@@ -1,0 +1,45 @@
+meta {
+  name: Setup - Create User Without Customer Permissions
+  type: http
+  seq: 5
+}
+
+post {
+  url: {{baseUrl}}/api/v1/users
+  body: json
+  auth: bearer
+}
+
+headers {
+  Content-Type: application/json
+}
+
+auth:bearer {
+  token: {{accessToken}}
+}
+
+body:json {
+  {
+    "first_name": "Administración del negocio",
+    "last_name": "Sin Clientes",
+    "email": "{{restrictedEmail}}",
+    "company_id": "{{companyId}}",
+    "role": "business_admin"
+  }
+}
+
+script:pre-request {
+  bru.setVar('restrictedEmail', 'hu0802.' + Date.now() + '@example.com');
+}
+
+tests {
+  test("responde 201 con un usuario de rol business_admin", function() {
+    expect(res.status).to.equal(201);
+  });
+}
+
+script:post-response {
+  if (res.status === 201) {
+    bru.setVar('restrictedPassword', res.body.data.generated_password);
+  }
+}

@@ -2,6 +2,7 @@ services:
   postgres:
     image: postgres:16-alpine
     container_name: sigif-postgres
+    restart: unless-stopped
     environment:
       POSTGRES_USER: sigif
       POSTGRES_PASSWORD: sigif
@@ -13,21 +14,6 @@ services:
       - ../docker/init-db:/docker-entrypoint-initdb.d
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U sigif -d sigif"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-    networks:
-      - sigif-network
-
-  redis:
-    image: redis:7-alpine
-    container_name: sigif-redis
-    ports:
-      - "6379:6379"
-    volumes:
-      - redis_data:/data
-    healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -48,15 +34,11 @@ services:
       - SIGIF_DATABASE_PASSWORD=sigif
       - SIGIF_DATABASE_NAME=sigif
       - SIGIF_DATABASE_SSL_MODE=disable
-      - SIGIF_REDIS_HOST=redis
-      - SIGIF_REDIS_PORT=6379
       - SIGIF_JWT_SECRET=your-super-secret-jwt-key-change-in-production
     ports:
       - "8080:8080"
     depends_on:
       postgres:
-        condition: service_healthy
-      redis:
         condition: service_healthy
     networks:
       - sigif-network
@@ -87,7 +69,6 @@ services:
 
 volumes:
   postgres_data:
-  redis_data:
 
 networks:
   sigif-network:

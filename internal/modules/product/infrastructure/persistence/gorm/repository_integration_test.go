@@ -209,3 +209,135 @@ func TestCatalogRepositories(t *testing.T) {
 		t.Errorf("deleted product must free name, sku and barcode: %v", err)
 	}
 }
+
+func TestProductLifecycleRepository(t *testing.T) {
+	r := openDatabase(t)
+	ctx := context.Background()
+	clk := clock.NewMockClock(time.Now().UTC())
+	companyID, otherCompany := uuid.New(), uuid.New()
+
+	units, _ := r.units.List(ctx)
+	category, err := entity.NewCategory(clk, entity.NewCategoryParams{CompanyID: companyID, Name: "Mascotas"})
+	if err != nil {
+		t.Fatalf("NewCategory: %v", err)
+	}
+	if err := r.categories.Create(ctx, category); err != nil {
+		t.Fatalf("create category: %v", err)
+	}
+	create := func(name, sku, barcode string) *entity.Product {
+		p, err := entity.NewProduct(clk, entity.NewProductParams{
+			CompanyID: companyID, CategoryID: category.ID, UnitOfMeasureID: units[0].ID,
+			Name: name, SKU: sku, Barcode: barcode,
+			Cost: decimal.RequireFromString("230"), SalePrice: decimal.RequireFromString("300"),
+			InitialStock: decimal.RequireFromString("5"),
+		})
+		if err != nil {
+			t.Fatalf("NewProduct: %v", err)
+		}
+		if err := r.products.Create(ctx, p); err != nil {
+			t.Fatalf("create %s: %v", name, err)
+		}
+		return p
+	}
+	first := create("Wiskas Gato adulto", "WIA-879", "7750000000011")
+	second := create("Dog Chow 1kg", "DOG-1", "")
+
+	got, err := r.products.GetByID(ctx, companyID, first.ID)
+	if err != nil || got == nil || got.SKU != "WIA-879" || !got.Stock.Equal(decimal.RequireFromString("5")) || got.UnitOfMeasureID != units[0].ID {
+		t.Fatalf("GetByID = %+v, %v", got, err)
+	}
+	if foreign, _ := r.products.GetByID(ctx, otherCompany, first.ID); foreign != nil {
+		t.Errorf("GetByID must be scoped by company")
+	}
+
+	exists := []struct {
+		name    string
+		check   func(uuid.UUID) (bool, error)
+		exclude uuid.UUID
+		want    bool
+	}{
+		{"name, no exclusion", func(id uuid.UUID) (bool, error) {
+			return r.products.ExistsByName(ctx, companyID, "wiskas GATO adulto", id)
+		}, uuid.Nil, true},
+		{"name, excluding itself", func(id uuid.UUID) (bool, error) {
+			return r.products.ExistsByName(ctx, companyID, "wiskas GATO adulto", id)
+		}, first.ID, false},
+		{"name, excluding another", func(id uuid.UUID) (bool, error) {
+			return r.products.ExistsByName(ctx, companyID, "wiskas GATO adulto", id)
+		}, second.ID, true},
+		{"sku, excluding itself", func(id uuid.UUID) (bool, error) { return r.products.ExistsBySKU(ctx, companyID, "WIA-879", id) }, first.ID, false},
+		{"sku, excluding another", func(id uuid.UUID) (bool, error) { return r.products.ExistsBySKU(ctx, companyID, "WIA-879", id) }, second.ID, true},
+		{"barcode, excluding itself", func(id uuid.UUID) (bool, error) {
+			return r.products.ExistsByBarcode(ctx, companyID, "7750000000011", id)
+		}, first.ID, false},
+		{"barcode, excluding another", func(id uuid.UUID) (bool, error) {
+			return r.products.ExistsByBarcode(ctx, companyID, "7750000000011", id)
+		}, second.ID, true},
+	}
+	for _, tt := range exists {
+		if ok, err := tt.check(tt.exclude); err != nil || ok != tt.want {
+			t.Errorf("%s: got %v, %v; want %v", tt.name, ok, err, tt.want)
+		}
+	}
+
+	clk.Add(time.Hour)
+	if err := got.Update(clk, entity.UpdateProductParams{
+		CategoryID: category.ID, UnitOfMeasureID: units[3].ID, SKU: "", Barcode: "",
+		Name: "Wiskas Gato adulto 1kg", Cost: decimal.RequireFromString("240.50"),
+		SalePrice: decimal.RequireFromString("310"), MinStock: decimal.RequireFromString("2"),
+	}); err != nil {
+		t.Fatalf("entity update: %v", err)
+	}
+	if err := r.products.Update(ctx, got); err != nil {
+		t.Fatalf("Update: %v", err)
+	}
+	updated, _ := r.products.GetByID(ctx, companyID, first.ID)
+	if updated.Name != "Wiskas Gato adulto 1kg" || updated.SKU != "" || updated.Barcode != "" || updated.UnitOfMeasureID != units[3].ID ||
+		!updated.Cost.Equal(decimal.RequireFromString("240.50")) || !updated.MinStock.Equal(decimal.RequireFromString("2")) ||
+		!updated.Stock.Equal(decimal.RequireFromString("5")) || !updated.CreatedAt.Equal(first.CreatedAt.Truncate(time.Microsecond)) {
+		t.Errorf("updated product = %+v", updated)
+	}
+
+	conflicts := []struct {
+		name   string
+		mutate func(*entity.Product)
+		want   error
+	}{
+		{"name", func(p *entity.Product) { p.Name = "Dog Chow 1kg" }, service.ErrProductNameTaken},
+		{"sku", func(p *entity.Product) { p.SKU = "DOG-1" }, service.ErrSKUTaken},
+	}
+	for _, c := range conflicts {
+		candidate := *updated
+		c.mutate(&candidate)
+		if err := r.products.Update(ctx, &candidate); !errors.Is(err, c.want) {
+			t.Errorf("update with duplicate %s: got %v, want %v", c.name, err, c.want)
+		}
+	}
+
+	if err := r.products.SetStatus(ctx, companyID, first.ID, entity.StatusInactive); err != nil {
+		t.Fatalf("SetStatus: %v", err)
+	}
+	if p, _ := r.products.GetByID(ctx, companyID, first.ID); p.Status != entity.StatusInactive {
+		t.Errorf("status = %s, want inactive", p.Status)
+	}
+	if err := r.products.SetStatus(ctx, otherCompany, first.ID, entity.StatusActive); !errors.Is(err, service.ErrProductNotFound) {
+		t.Errorf("SetStatus from another company: got %v", err)
+	}
+
+	if err := r.products.Delete(ctx, otherCompany, first.ID); !errors.Is(err, service.ErrProductNotFound) {
+		t.Errorf("Delete from another company: got %v", err)
+	}
+	if err := r.products.Delete(ctx, companyID, first.ID); err != nil {
+		t.Fatalf("Delete: %v", err)
+	}
+	if p, err := r.products.GetByID(ctx, companyID, first.ID); p != nil || err != nil {
+		t.Errorf("deleted product still readable: %+v, %v", p, err)
+	}
+	if err := r.products.Delete(ctx, companyID, first.ID); !errors.Is(err, service.ErrProductNotFound) {
+		t.Errorf("second delete: got %v", err)
+	}
+	if _, total, _ := r.products.List(ctx, companyID, repository.ProductFilter{}, 0, 20); total != 1 {
+		t.Errorf("deleted product must not be listed: total=%d", total)
+	}
+	create("Wiskas Gato adulto 1kg", "WIA-879", "7750000000011")
+}

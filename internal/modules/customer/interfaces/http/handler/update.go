@@ -6,6 +6,7 @@ import (
 
 	"github.com/sigif/sigif-go/internal/modules/customer/application/command"
 	"github.com/sigif/sigif-go/internal/modules/customer/application/dto"
+	"github.com/sigif/sigif-go/internal/modules/customer/domain/entity"
 	"github.com/sigif/sigif-go/internal/modules/customer/interfaces/http/dtos"
 	sharedErrors "github.com/sigif/sigif-go/internal/shared/errors"
 	"github.com/sigif/sigif-go/internal/shared/response"
@@ -21,18 +22,20 @@ func (h *CustomerHTTPHandler) Update(c *fiber.Ctx) error {
 	if err := c.BodyParser(&req); err != nil {
 		return response.Error(c, fiber.StatusBadRequest, err)
 	}
-
-	if errs := h.validator.Validate(req); errs != nil {
-		return response.Error(c, fiber.StatusBadRequest, errs)
+	if err := h.validator.Validate(&req); err != nil {
+		return response.Error(c, fiber.StatusBadRequest, err)
 	}
 
-	tenantID := dtos.TenantIDFromContext(c)
+	companyID, err := companyIDFromContext(c)
+	if err != nil {
+		return response.Error(c, fiber.StatusBadRequest, err)
+	}
 
 	cmd := command.UpdateCustomer{
 		ID:             id,
-		TenantID:       tenantID,
+		CompanyID:      companyID,
 		LegalName:      req.LegalName,
-		DocumentType:   dtos.DocumentTypeFromRequest(req.DocumentType),
+		DocumentType:   entity.DocumentType(req.DocumentType),
 		DocumentNumber: req.DocumentNumber,
 		Phone:          req.Phone,
 		Email:          req.Email,
@@ -44,6 +47,5 @@ func (h *CustomerHTTPHandler) Update(c *fiber.Ctx) error {
 		return response.Error(c, fiber.StatusInternalServerError, err)
 	}
 
-	customerDTO := dto.FromEntity(customer)
-	return response.Success(c, dtos.ToResponse(customerDTO))
+	return response.Success(c, dto.FromEntity(customer))
 }

@@ -11,7 +11,7 @@ import (
 )
 
 type CreateCustomerParams struct {
-	TenantID       uuid.UUID
+	CompanyID      uuid.UUID
 	LegalName      string
 	DocumentType   entity.DocumentType
 	DocumentNumber *string
@@ -27,20 +27,20 @@ func (s *CustomerService) Create(ctx context.Context, params CreateCustomerParam
 	if params.DocumentNumber != nil {
 		trimmed := strings.TrimSpace(*params.DocumentNumber)
 		if trimmed != "" {
-			exists, err := s.repo.ExistsByDocument(ctx, params.TenantID, params.DocumentType, trimmed)
+			exists, err := s.repo.ExistsByDocument(ctx, params.CompanyID, params.DocumentType, trimmed)
 			if err != nil {
 				return nil, err
 			}
 			if exists {
 				return nil, sharedErrors.New(sharedErrors.CodeConflict,
-					"a customer with this document already exists in this tenant", 409)
+					"a customer with this document already exists in this company", 409)
 			}
 		}
 	}
 
 	customer := entity.NewCustomer(
 		s.clock,
-		params.TenantID,
+		params.CompanyID,
 		params.LegalName,
 		params.DocumentType,
 		params.DocumentNumber,

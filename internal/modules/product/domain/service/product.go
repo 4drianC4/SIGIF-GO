@@ -49,31 +49,9 @@ func (s *CatalogService) CreateProduct(ctx context.Context, params CreateProduct
 		return nil, err
 	}
 
-	category, err := s.categories.GetByID(ctx, product.CompanyID, product.CategoryID)
+	category, err := s.checkProductReferences(ctx, product, uuid.Nil)
 	if err != nil {
 		return nil, err
-	}
-	if category == nil {
-		return nil, ErrCategoryNotFound
-	}
-	if !category.IsActive() {
-		return nil, ErrCategoryInactive
-	}
-
-	unitExists, err := s.units.Exists(ctx, product.UnitOfMeasureID)
-	if err != nil {
-		return nil, err
-	}
-	if !unitExists {
-		return nil, ErrUnitNotFound
-	}
-
-	field, err := s.duplicateField(ctx, product.CompanyID, product.Name, product.SKU, product.Barcode)
-	if err != nil {
-		return nil, err
-	}
-	if field != "" {
-		return nil, duplicateErrors[field]
 	}
 
 	if err := s.products.Create(ctx, product); err != nil {
@@ -103,21 +81,29 @@ func (s *CatalogService) ProductSummary(ctx context.Context, companyID uuid.UUID
 	return s.products.Summary(ctx, companyID, s.clock.NowUTC().Add(-noMovementWindow))
 }
 
+type ValidateDuplicateParams struct {
+	CompanyID uuid.UUID
+	Name      string
+	SKU       string
+	Barcode   string
+	ExcludeID uuid.UUID
+}
+
 type DuplicateResult struct {
 	Exists bool
 	Field  string
 }
 
-func (s *CatalogService) ValidateDuplicate(ctx context.Context, companyID uuid.UUID, name, sku, barcode string) (*DuplicateResult, error) {
-	if companyID == uuid.Nil {
+func (s *CatalogService) ValidateDuplicate(ctx context.Context, params ValidateDuplicateParams) (*DuplicateResult, error) {
+	if params.CompanyID == uuid.Nil {
 		return nil, ErrCompanyRequired
 	}
-	name, sku = entity.NormalizeName(name), entity.NormalizeSKU(sku)
-	if name == "" && sku == "" && barcode == "" {
+	name, sku := entity.NormalizeName(params.Name), entity.NormalizeSKU(params.SKU)
+	if name == "" && sku == "" && params.Barcode == "" {
 		return nil, ErrDuplicateCheckFields
 	}
 
-	field, err := s.duplicateField(ctx, companyID, name, sku, barcode)
+	field, err := s.duplicateField(ctx, params.CompanyID, name, sku, params.Barcode, params.ExcludeID)
 	if err != nil {
 		return nil, err
 	}
@@ -130,11 +116,11 @@ var duplicateErrors = map[string]error{
 	"barcode": ErrBarcodeTaken,
 }
 
-func (s *CatalogService) duplicateField(ctx context.Context, companyID uuid.UUID, name, sku, barcode string) (string, error) {
+func (s *CatalogService) duplicateField(ctx context.Context, companyID uuid.UUID, name, sku, barcode string, excludeID uuid.UUID) (string, error) {
 	checks := []struct {
 		field  string
 		value  string
-		exists func(context.Context, uuid.UUID, string) (bool, error)
+		exists func(context.Context, uuid.UUID, string, uuid.UUID) (bool, error)
 	}{
 		{"name", name, s.products.ExistsByName},
 		{"sku", sku, s.products.ExistsBySKU},
@@ -144,7 +130,7 @@ func (s *CatalogService) duplicateField(ctx context.Context, companyID uuid.UUID
 		if check.value == "" {
 			continue
 		}
-		taken, err := check.exists(ctx, companyID, check.value)
+		taken, err := check.exists(ctx, companyID, check.value, excludeID)
 		if err != nil {
 			return "", err
 		}
@@ -153,4 +139,60 @@ func (s *CatalogService) duplicateField(ctx context.Context, companyID uuid.UUID
 		}
 	}
 	return "", nil
+}
+
+func (s *CatalogService) checkProductReferences(ctx context.Context, product *entity.Product, excludeID uuid.UUID) (*entity.Category, error) {
+	category, err := s.categories.GetByID(ctx, product.CompanyID, product.CategoryID)
+	if err != nil {
+		return nil, err
+	}
+	if category == nil {
+		return nil, ErrCategoryNotFound
+	}
+	if !category.IsActive() {
+		return nil, ErrCategoryInactive
+	}
+
+	unitExists, err := s.units.Exists(ctx, product.UnitOfMeasureID)
+	if err != nil {
+		return nil, err
+	}
+	if !unitExists {
+		return nil, ErrUnitNotFound
+	}
+
+	field, err := s.duplicateField(ctx, product.CompanyID, product.Name, product.SKU, product.Barcode, excludeID)
+	if err != nil {
+		return nil, err
+	}
+	if field != "" {
+		return nil, duplicateErrors[field]
+	}
+	return category, nil
+}
+
+func (s *CatalogService) findProduct(ctx context.Context, companyID, productID uuid.UUID) (*entity.Product, error) {
+	if companyID == uuid.Nil {
+		return nil, ErrCompanyRequired
+	}
+	product, err := s.products.GetByID(ctx, companyID, productID)
+	if err != nil {
+		return nil, err
+	}
+	if product == nil {
+		return nil, ErrProductNotFound
+	}
+	return product, nil
+}
+
+func (s *CatalogService) withCategoryName(ctx context.Context, product *entity.Product) (*repository.ProductListItem, error) {
+	category, err := s.categories.GetByID(ctx, product.CompanyID, product.CategoryID)
+	if err != nil {
+		return nil, err
+	}
+	item := &repository.ProductListItem{Product: product}
+	if category != nil {
+		item.CategoryName = category.Name
+	}
+	return item, nil
 }

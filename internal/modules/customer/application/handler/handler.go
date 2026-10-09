@@ -2,19 +2,14 @@ package handler
 
 import (
 	"github.com/sigif/sigif-go/internal/modules/customer/domain/service"
-	"github.com/sigif/sigif-go/internal/shared/events"
 )
 
 type CustomerCommandHandler struct {
-	service  *service.CustomerService
-	eventBus *events.Bus
+	service *service.CustomerService
 }
 
-func NewCustomerCommandHandler(service *service.CustomerService, eventBus *events.Bus) *CustomerCommandHandler {
-	return &CustomerCommandHandler{
-		service:  service,
-		eventBus: eventBus,
-	}
+func NewCustomerCommandHandler(service *service.CustomerService) *CustomerCommandHandler {
+	return &CustomerCommandHandler{service: service}
 }
 
 type CustomerQueryHandler struct {
@@ -22,7 +17,5 @@ type CustomerQueryHandler struct {
 }
 
 func NewCustomerQueryHandler(service *service.CustomerService) *CustomerQueryHandler {
-	return &CustomerQueryHandler{
-		service: service,
-	}
+	return &CustomerQueryHandler{service: service}
 }

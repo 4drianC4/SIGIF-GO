@@ -7,9 +7,17 @@ meta {
 get {
   url: {{baseUrl}}/api/v1/auth/me
   body: none
-  auth: none
+  auth: bearer
 }
 
 headers {
   Authorization: Bearer {{accessToken}}
+}
+
+auth:bearer {
+  token: {{auth}}
+}
+
+vars:pre-request {
+  accessToken: 
 }

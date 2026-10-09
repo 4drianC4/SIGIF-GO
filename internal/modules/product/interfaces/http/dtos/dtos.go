@@ -69,9 +69,17 @@ func (q *ListProductsQuery) StatusFilter() *entity.Status {
 }
 
 type ValidateDuplicateQuery struct {
-	Name    string `query:"name" json:"name" validate:"omitempty,max=150"`
-	SKU     string `query:"sku" json:"sku" validate:"omitempty,max=50"`
-	Barcode string `query:"barcode" json:"barcode" validate:"omitempty,max=14"`
+	Name      string `query:"name" json:"name" validate:"omitempty,max=150"`
+	SKU       string `query:"sku" json:"sku" validate:"omitempty,max=50"`
+	Barcode   string `query:"barcode" json:"barcode" validate:"omitempty,max=14"`
+	ExcludeID string `query:"exclude_id" json:"exclude_id" validate:"omitempty,uuid"`
+}
+
+func (q *ValidateDuplicateQuery) ExcludeUUID() uuid.UUID {
+	if id := parseOptionalUUID(trimOptional(&q.ExcludeID)); id != nil {
+		return *id
+	}
+	return uuid.Nil
 }
 
 func OrZero(d *decimal.Decimal) decimal.Decimal {
@@ -101,4 +109,25 @@ func parseOptionalUUID(s *string) *uuid.UUID {
 		return nil
 	}
 	return &id
+}
+
+type UpdateProductRequest struct {
+	Name            string           `json:"name" validate:"required,min=2,max=150"`
+	SKU             string           `json:"sku" validate:"omitempty,max=50"`
+	Barcode         string           `json:"barcode" validate:"omitempty,numeric,min=8,max=14"`
+	Description     string           `json:"description" validate:"omitempty,max=1000"`
+	CategoryID      string           `json:"category_id" validate:"required,uuid"`
+	UnitOfMeasureID string           `json:"unit_of_measure_id" validate:"required,uuid"`
+	Cost            *decimal.Decimal `json:"cost" validate:"required"`
+	SalePrice       *decimal.Decimal `json:"sale_price" validate:"required"`
+	MinStock        *decimal.Decimal `json:"min_stock"`
+}
+
+func (r *UpdateProductRequest) Normalize() {
+	r.Name = strings.TrimSpace(r.Name)
+	r.SKU = strings.TrimSpace(r.SKU)
+	r.Barcode = strings.TrimSpace(r.Barcode)
+	r.Description = strings.TrimSpace(r.Description)
+	r.CategoryID = strings.TrimSpace(r.CategoryID)
+	r.UnitOfMeasureID = strings.TrimSpace(r.UnitOfMeasureID)
 }

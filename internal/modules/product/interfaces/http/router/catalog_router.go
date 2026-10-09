@@ -13,6 +13,10 @@ func RegisterCatalogRoutes(router fiber.Router, h *handler.CatalogHTTPHandler, c
 	products.Get("/summary", middleware.RequirePermission(checker, "products", "list"), h.ProductSummary)
 	products.Get("/validate-duplicate", middleware.RequirePermission(checker, "products", "create"), h.ValidateDuplicate)
 	products.Post("/", middleware.RequirePermission(checker, "products", "create"), h.CreateProduct)
+	products.Get("/:id", middleware.RequirePermission(checker, "products", "read"), h.GetProduct)
+	products.Put("/:id", middleware.RequirePermission(checker, "products", "update"), h.UpdateProduct)
+	products.Patch("/:id/status", middleware.RequirePermission(checker, "products", "update"), h.SetProductStatus)
+	products.Delete("/:id", middleware.RequirePermission(checker, "products", "delete"), h.DeleteProduct)
 
 	categories := router.Group("/categories")
 	categories.Get("/", middleware.RequirePermission(checker, "categories", "list"), h.ListCategories)

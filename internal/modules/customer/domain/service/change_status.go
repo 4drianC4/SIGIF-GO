@@ -11,7 +11,7 @@ import (
 
 func (s *CustomerService) ChangeStatus(
 	ctx context.Context,
-	tenantID uuid.UUID,
+	companyID uuid.UUID,
 	id uuid.UUID,
 	newStatus entity.CustomerStatus,
 ) (*entity.Customer, error) {
@@ -20,7 +20,7 @@ func (s *CustomerService) ChangeStatus(
 			"invalid status value; accepted values: active, inactive, blocked", 400)
 	}
 
-	customer, err := s.repo.GetByID(ctx, tenantID, id)
+	customer, err := s.repo.GetByID(ctx, companyID, id)
 	if err != nil {
 		return nil, err
 	}

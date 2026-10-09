@@ -5,7 +5,6 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/sigif/sigif-go/internal/modules/customer/application/command"
-	"github.com/sigif/sigif-go/internal/modules/customer/interfaces/http/dtos"
 	sharedErrors "github.com/sigif/sigif-go/internal/shared/errors"
 	"github.com/sigif/sigif-go/internal/shared/response"
 )
@@ -16,14 +15,15 @@ func (h *CustomerHTTPHandler) Delete(c *fiber.Ctx) error {
 		return response.Error(c, fiber.StatusBadRequest, sharedErrors.New(sharedErrors.CodeBadRequest, "invalid customer id", 400))
 	}
 
-	tenantID := dtos.TenantIDFromContext(c)
-
-	cmd := command.DeleteCustomer{
-		ID:       id,
-		TenantID: tenantID,
+	companyID, err := companyIDFromContext(c)
+	if err != nil {
+		return response.Error(c, fiber.StatusBadRequest, err)
 	}
 
-	if err := h.cmdHandler.HandleDelete(c.UserContext(), cmd); err != nil {
+	if err := h.cmdHandler.HandleDelete(c.UserContext(), command.DeleteCustomer{
+		ID:        id,
+		CompanyID: companyID,
+	}); err != nil {
 		return response.Error(c, fiber.StatusInternalServerError, err)
 	}
 

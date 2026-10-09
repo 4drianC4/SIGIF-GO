@@ -10,6 +10,7 @@ import (
 	"gorm.io/gorm"
 
 	authModel "github.com/sigif/sigif-go/internal/modules/auth/infrastructure/persistence/model"
+	companyModel "github.com/sigif/sigif-go/internal/modules/company/infrastructure/persistence/model"
 	customerModel "github.com/sigif/sigif-go/internal/modules/customer/infrastructure/persistence/model"
 	productModel "github.com/sigif/sigif-go/internal/modules/product/infrastructure/persistence/model"
 	productSeed "github.com/sigif/sigif-go/internal/modules/product/infrastructure/seed"
@@ -65,6 +66,7 @@ func runMigrations(lc fx.Lifecycle, cfg *config.Config, log *zap.Logger, db *dat
 
 func autoMigrate(db *gorm.DB) error {
 	return db.AutoMigrate(
+		&companyModel.CompanyModel{},
 		&userModel.UserModel{},
 		&userModel.RoleModel{},
 		&userModel.PermissionModel{},

@@ -4,13 +4,12 @@ import (
 	"context"
 
 	"github.com/sigif/sigif-go/internal/modules/product/application/command"
-	"github.com/sigif/sigif-go/internal/modules/product/domain/event"
 	"github.com/sigif/sigif-go/internal/modules/product/domain/repository"
 	"github.com/sigif/sigif-go/internal/modules/product/domain/service"
 )
 
 func (h *CatalogCommandHandler) HandleCreateProduct(ctx context.Context, cmd command.CreateProduct) (*repository.ProductListItem, error) {
-	created, err := h.service.CreateProduct(ctx, service.CreateProductParams{
+	return h.service.CreateProduct(ctx, service.CreateProductParams{
 		CompanyID:       cmd.CompanyID,
 		CategoryID:      cmd.CategoryID,
 		UnitOfMeasureID: cmd.UnitOfMeasureID,
@@ -23,10 +22,4 @@ func (h *CatalogCommandHandler) HandleCreateProduct(ctx context.Context, cmd com
 		InitialStock:    cmd.InitialStock,
 		MinStock:        cmd.MinStock,
 	})
-	if err != nil {
-		return nil, err
-	}
-
-	_ = h.eventBus.Publish(ctx, event.NewProductCreatedEvent(created.Product))
-	return created, nil
 }

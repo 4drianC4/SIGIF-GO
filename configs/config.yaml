@@ -1,7 +1,7 @@
 app:
   name: "sigif-go"
   env: "development"
-  port: 8080
+  port: 4600
   host: "0.0.0.0"
   read_timeout: 10
   write_timeout: 10
@@ -28,6 +28,7 @@ cors:
   allow_origins:
     - "http://localhost:3000"
     - "http://localhost:5173"
+    - "http://localhost:4200"
   allow_methods:
     - "GET"
     - "POST"
@@ -64,3 +65,10 @@ seed:
   admin_password: "admin123"
   admin_first_name: "Admin"
   admin_last_name: "SIGIF"
+  company_legal_name: "Empresa Demo SIGIF"
+  company_trade_name: "SIGIF Demo"
+  company_tax_id: "100010001"
+  company_admin_email: "admin.empresa@sigif.com"
+  company_admin_password: "admin123"
+  company_admin_first_name: "Admin"
+  company_admin_last_name: "Empresa"

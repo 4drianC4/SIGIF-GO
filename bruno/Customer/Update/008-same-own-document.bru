@@ -1,0 +1,33 @@
+meta {
+  name: 03 Same Own Document
+  type: http
+  seq: 8
+}
+
+patch {
+  url: {{baseUrl}}/api/v1/customers/{{clientId}}
+  body: json
+  auth: bearer
+}
+
+headers {
+  Content-Type: application/json
+}
+
+auth:bearer {
+  token: {{accessToken}}
+}
+
+body:json {
+  {
+    "document_type": "tax_id",
+    "document_number": "{{originalDocument}}"
+  }
+}
+
+tests {
+  test("responde 200: el propio documento no es conflicto", function() {
+    expect(res.status).to.equal(200);
+    expect(res.body.data.document_number).to.equal(bru.getVar('originalDocument'));
+  });
+}

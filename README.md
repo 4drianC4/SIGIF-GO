@@ -13,7 +13,7 @@ Módulos implementados:
 
 - **Autenticación por tokens (JWT)** con sesiones persistidas en base de datos (`user_session`): solo se almacena el hash del token.
 - **RBAC por permisos de módulo/operación** (`users.create`, `users.list`, ...) vía middleware `RequirePermission`.
-- **Roles semilla**: `superadmin` (acceso total) y `soporte` (solo lectura de usuarios).
+- **Roles semilla**: `superadmin` (acceso total) y `business_admin` (solo lectura de usuarios).
 - **Hashing de contraseñas** con Argon2id (`password_algorithm` almacenado para migración futura).
 - **Respuestas de error genéricas** en login para evitar enumeración de cuentas.
 - **Trazabilidad**: cada login intentado se registra en `login_attempt`; cada sesión en `user_session` con IP y dispositivo.
@@ -70,7 +70,7 @@ cp .env.example .env
 
 | Variable | Descripción | Default |
 |----------|-------------|---------|
-| `SIGIF_APP_PORT` | Puerto HTTP | 8080 |
+| `SIGIF_APP_PORT` | Puerto HTTP | 4600 |
 | `SIGIF_DATABASE_HOST` | Host PostgreSQL | localhost |
 | `SIGIF_DATABASE_USER` | Usuario PostgreSQL | sigif |
 | `SIGIF_DATABASE_PASSWORD` | Contraseña | sigif |
@@ -95,7 +95,7 @@ make migrate-up
 make run
 ```
 
-Servidor disponible en `http://localhost:8080`.
+Servidor disponible en `http://localhost:4600`.
 
 ## API Endpoints
 
@@ -116,7 +116,7 @@ POST   /api/v1/users                  # Registrar usuario (permiso users.create)
 GET    /api/v1/users                  # Listar usuarios (users.list)
 GET    /api/v1/users/:id              # Ver usuario (users.read)
 GET    /api/v1/users/by-email         # Buscar por email (users.read)
-PUT    /api/v1/users/:id              # Actualizar usuario (users.update)
+PATCH  /api/v1/users/:id              # Editar usuario (users.update) — mismos campos que el registro, todos opcionales
 PUT    /api/v1/users/:id/password     # Cambiar contraseña (users.change_password)
 DELETE /api/v1/users/:id              # Eliminar usuario (users.delete)
 POST   /api/v1/users/:id/activate     # Activar (users.activate)
@@ -130,14 +130,16 @@ POST /api/v1/users
 {
   "first_name": "Juan",
   "last_name": "Pérez",
-  "email": "soporte@sigif.com",
+  "email": "business_admin@sigif.com",
   "password": "password123",
-  "role": "soporte",
-  "area": "Soporte técnico"
+  "role": "business_admin",
+  "area": "Administración del negocio"
 }
 ```
 
-`role` acepta `superadmin` o `soporte`. `area` es opcional.
+`role` acepta `business_admin` o `employee`. `superadmin` se crea únicamente
+desde el seed/backend y no puede asignarse desde los endpoints de usuarios.
+`area` es opcional.
 
 ### Login
 
@@ -183,12 +185,12 @@ El módulo `auth` consume el módulo `user` mediante un **adaptador** (`auth/app
 
 ## Bruno Collections
 
-Importa la carpeta `bruno/` en Bruno. La colección usa la variable `baseUrl` (`http://localhost:8080`) y los scripts de login persisten `accessToken` y `userId` automáticamente.
+Importa la carpeta `bruno/` en Bruno. La colección usa la variable `baseUrl` (`http://localhost:4600`) y los scripts de login persisten `accessToken` y `userId` automáticamente.
 
 ## Health Check
 
 ```bash
-curl http://localhost:8080/health
+curl http://localhost:4600/health
 ```
 
 ## License

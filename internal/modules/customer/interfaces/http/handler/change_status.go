@@ -21,17 +21,19 @@ func (h *CustomerHTTPHandler) ChangeStatus(c *fiber.Ctx) error {
 	if err := c.BodyParser(&req); err != nil {
 		return response.Error(c, fiber.StatusBadRequest, err)
 	}
-
-	if errs := h.validator.Validate(req); errs != nil {
-		return response.Error(c, fiber.StatusBadRequest, errs)
+	if err := h.validator.Validate(&req); err != nil {
+		return response.Error(c, fiber.StatusBadRequest, err)
 	}
 
-	tenantID := dtos.TenantIDFromContext(c)
+	companyID, err := companyIDFromContext(c)
+	if err != nil {
+		return response.Error(c, fiber.StatusBadRequest, err)
+	}
 
 	cmd := command.ChangeCustomerStatus{
-		ID:       id,
-		TenantID: tenantID,
-		Status:   dtos.StatusFromRequest(req.Status),
+		ID:        id,
+		CompanyID: companyID,
+		Status:    dtos.StatusFromRequest(req.Status),
 	}
 
 	customer, err := h.cmdHandler.HandleChangeStatus(c.UserContext(), cmd)
@@ -39,6 +41,5 @@ func (h *CustomerHTTPHandler) ChangeStatus(c *fiber.Ctx) error {
 		return response.Error(c, fiber.StatusInternalServerError, err)
 	}
 
-	customerDTO := dto.FromEntity(customer)
-	return response.Success(c, dtos.ToResponse(customerDTO))
+	return response.Success(c, dto.FromEntity(customer))
 }

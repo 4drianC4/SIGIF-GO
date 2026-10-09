@@ -8,8 +8,8 @@ import (
 	sharedErrors "github.com/sigif/sigif-go/internal/shared/errors"
 )
 
-func (s *CustomerService) Delete(ctx context.Context, tenantID, id uuid.UUID) error {
-	customer, err := s.repo.GetByID(ctx, tenantID, id)
+func (s *CustomerService) Delete(ctx context.Context, companyID, id uuid.UUID) error {
+	customer, err := s.repo.GetByID(ctx, companyID, id)
 	if err != nil {
 		return err
 	}

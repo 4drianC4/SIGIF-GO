@@ -125,23 +125,60 @@ func (r memoryProducts) Create(_ context.Context, product *entity.Product) error
 	return nil
 }
 
-func (r memoryProducts) ExistsByName(_ context.Context, companyID uuid.UUID, name string) (bool, error) {
-	return r.any(func(p *entity.Product) bool { return p.CompanyID == companyID && strings.EqualFold(p.Name, name) }), nil
+func (r memoryProducts) Update(_ context.Context, product *entity.Product) error {
+	r.s.mu.Lock()
+	defer r.s.mu.Unlock()
+	copied := *product
+	r.s.Products[product.ID] = &copied
+	return nil
 }
 
-func (r memoryProducts) ExistsBySKU(_ context.Context, companyID uuid.UUID, sku string) (bool, error) {
-	return r.any(func(p *entity.Product) bool { return p.CompanyID == companyID && p.SKU == sku }), nil
+func (r memoryProducts) GetByID(_ context.Context, companyID, id uuid.UUID) (*entity.Product, error) {
+	r.s.mu.Lock()
+	defer r.s.mu.Unlock()
+	product, ok := r.s.Products[id]
+	if !ok || product.CompanyID != companyID {
+		return nil, nil
+	}
+	copied := *product
+	return &copied, nil
 }
 
-func (r memoryProducts) ExistsByBarcode(_ context.Context, companyID uuid.UUID, barcode string) (bool, error) {
-	return r.any(func(p *entity.Product) bool { return p.CompanyID == companyID && p.Barcode == barcode }), nil
+func (r memoryProducts) SetStatus(_ context.Context, companyID, id uuid.UUID, status entity.Status) error {
+	r.s.mu.Lock()
+	defer r.s.mu.Unlock()
+	if product, ok := r.s.Products[id]; ok && product.CompanyID == companyID {
+		product.Status = status
+	}
+	return nil
 }
 
-func (r memoryProducts) any(match func(*entity.Product) bool) bool {
+func (r memoryProducts) Delete(_ context.Context, companyID, id uuid.UUID) error {
+	r.s.mu.Lock()
+	defer r.s.mu.Unlock()
+	if product, ok := r.s.Products[id]; ok && product.CompanyID == companyID {
+		delete(r.s.Products, id)
+	}
+	return nil
+}
+
+func (r memoryProducts) ExistsByName(_ context.Context, companyID uuid.UUID, name string, excludeID uuid.UUID) (bool, error) {
+	return r.any(companyID, excludeID, func(p *entity.Product) bool { return strings.EqualFold(p.Name, name) }), nil
+}
+
+func (r memoryProducts) ExistsBySKU(_ context.Context, companyID uuid.UUID, sku string, excludeID uuid.UUID) (bool, error) {
+	return r.any(companyID, excludeID, func(p *entity.Product) bool { return p.SKU == sku }), nil
+}
+
+func (r memoryProducts) ExistsByBarcode(_ context.Context, companyID uuid.UUID, barcode string, excludeID uuid.UUID) (bool, error) {
+	return r.any(companyID, excludeID, func(p *entity.Product) bool { return p.Barcode == barcode }), nil
+}
+
+func (r memoryProducts) any(companyID, excludeID uuid.UUID, match func(*entity.Product) bool) bool {
 	r.s.mu.Lock()
 	defer r.s.mu.Unlock()
 	for _, p := range r.s.Products {
-		if match(p) {
+		if p.CompanyID == companyID && p.ID != excludeID && match(p) {
 			return true
 		}
 	}

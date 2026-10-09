@@ -28,8 +28,21 @@ func (h *CatalogQueryHandler) HandleProductSummary(ctx context.Context, companyI
 	return h.service.ProductSummary(ctx, companyID)
 }
 
+func (h *CatalogQueryHandler) HandleGetProduct(ctx context.Context, q query.GetProduct) (*repository.ProductListItem, error) {
+	return h.service.GetProduct(ctx, service.GetProductParams{
+		CompanyID: q.CompanyID,
+		ProductID: q.ProductID,
+	})
+}
+
 func (h *CatalogQueryHandler) HandleValidateDuplicate(ctx context.Context, q query.ValidateDuplicate) (*service.DuplicateResult, error) {
-	return h.service.ValidateDuplicate(ctx, q.CompanyID, q.Name, q.SKU, q.Barcode)
+	return h.service.ValidateDuplicate(ctx, service.ValidateDuplicateParams{
+		CompanyID: q.CompanyID,
+		Name:      q.Name,
+		SKU:       q.SKU,
+		Barcode:   q.Barcode,
+		ExcludeID: q.ExcludeID,
+	})
 }
 
 func (h *CatalogQueryHandler) HandleListCategories(ctx context.Context, companyID uuid.UUID) ([]repository.CategoryListItem, error) {

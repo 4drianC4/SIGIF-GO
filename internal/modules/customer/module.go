@@ -10,6 +10,7 @@ import (
 	"github.com/sigif/sigif-go/internal/modules/customer/infrastructure/persistence/gorm"
 	httpHandler "github.com/sigif/sigif-go/internal/modules/customer/interfaces/http/handler"
 	httpRouter "github.com/sigif/sigif-go/internal/modules/customer/interfaces/http/router"
+	"github.com/sigif/sigif-go/internal/shared/middleware"
 )
 
 var Module = fx.Options(
@@ -22,7 +23,7 @@ var Module = fx.Options(
 
 	fx.Provide(httpHandler.NewCustomerHTTPHandler),
 
-	fx.Invoke(func(app *fiber.App, h *httpHandler.CustomerHTTPHandler) {
-		httpRouter.RegisterCustomerRoutes(app.Group("/api/v1"), h)
+	fx.Invoke(func(app *fiber.App, h *httpHandler.CustomerHTTPHandler, checker middleware.PermissionChecker) {
+		httpRouter.RegisterCustomerRoutes(app.Group("/api/v1"), h, checker)
 	}),
 )

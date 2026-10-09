@@ -448,7 +448,7 @@ func TestValidateDuplicate(t *testing.T) {
 		{"Nuevo producto", "NEW-1", "", false, ""},
 	}
 	for _, tt := range tests {
-		result, err := f.svc.ValidateDuplicate(context.Background(), companyA, tt.name, tt.sku, tt.barcode)
+		result, err := f.svc.ValidateDuplicate(context.Background(), service.ValidateDuplicateParams{CompanyID: companyA, Name: tt.name, SKU: tt.sku, Barcode: tt.barcode})
 		if err != nil {
 			t.Fatalf("ValidateDuplicate() error = %v", err)
 		}
@@ -457,10 +457,10 @@ func TestValidateDuplicate(t *testing.T) {
 		}
 	}
 
-	_, err := f.svc.ValidateDuplicate(context.Background(), companyA, " ", "", "")
+	_, err := f.svc.ValidateDuplicate(context.Background(), service.ValidateDuplicateParams{CompanyID: companyA, Name: " "})
 	assertAppError(t, err, sharedErrors.CodeBadRequest, 400)
 
-	result, _ := f.svc.ValidateDuplicate(context.Background(), companyB, "Galletas María 200g", "", "")
+	result, _ := f.svc.ValidateDuplicate(context.Background(), service.ValidateDuplicateParams{CompanyID: companyB, Name: "Galletas María 200g"})
 	if result.Exists {
 		t.Errorf("another company must not see duplicates")
 	}
@@ -489,5 +489,274 @@ func TestListCategoriesCountsProductsAndResolvesTax(t *testing.T) {
 	}
 	if items[1].ProductsCount != 0 || items[1].DefaultTaxName != nil || *items[1].Category.ParentID != parent.ID {
 		t.Errorf("unexpected child item: %+v", items[1])
+	}
+}
+
+func updateParams(p *entity.Product) service.UpdateProductParams {
+	return service.UpdateProductParams{
+		CompanyID:       p.CompanyID,
+		ProductID:       p.ID,
+		CategoryID:      p.CategoryID,
+		UnitOfMeasureID: p.UnitOfMeasureID,
+		SKU:             "pepsi-500",
+		Name:            "  Pepsi  500ml ",
+		Cost:            dec("2.50"),
+		SalePrice:       dec("4.00"),
+	}
+}
+
+func TestUpdateProduct(t *testing.T) {
+	f := newFixture()
+	original := f.product(t, func(p *service.CreateProductParams) {
+		p.InitialStock = dec("10")
+		p.MinStock = dec("3")
+	})
+	f.clk.Add(time.Hour)
+
+	params := updateParams(original)
+	params.UnitOfMeasureID = testutil.KilogramID
+	updated, err := f.svc.UpdateProduct(context.Background(), params)
+	if err != nil {
+		t.Fatalf("UpdateProduct() error = %v", err)
+	}
+
+	p := updated.Product
+	if p.ID != original.ID || p.SKU != "PEPSI-500" || p.Name != "Pepsi 500ml" || p.Status != entity.StatusActive {
+		t.Errorf("unexpected product: %+v", p)
+	}
+	if p.UnitOfMeasureID != testutil.KilogramID || !p.Cost.Equal(dec("2.50")) || !p.SalePrice.Equal(dec("4.00")) {
+		t.Errorf("unit/cost/price not updated: %+v", p)
+	}
+	if !p.Stock.Equal(dec("10")) || !p.MinStock.Equal(dec("3")) {
+		t.Errorf("stock and omitted min_stock must be kept: stock=%v min=%v", p.Stock, p.MinStock)
+	}
+	if !p.UpdatedAt.Equal(now.Add(time.Hour)) || !p.CreatedAt.Equal(now) {
+		t.Errorf("timestamps: created=%v updated=%v", p.CreatedAt, p.UpdatedAt)
+	}
+	if updated.CategoryName == "" {
+		t.Errorf("category name must be returned")
+	}
+	if stored := f.store.Products[original.ID]; stored.Name != "Pepsi 500ml" || f.store.ProductCount() != 1 {
+		t.Errorf("update not persisted: %+v", stored)
+	}
+
+	params.MinStock = ptr(dec("7"))
+	updated, err = f.svc.UpdateProduct(context.Background(), params)
+	if err != nil || !updated.Product.MinStock.Equal(dec("7")) {
+		t.Errorf("min_stock = %v, err = %v; want 7", updated, err)
+	}
+}
+
+func TestUpdateProductKeepsOwnValuesAndCanClearSKU(t *testing.T) {
+	f := newFixture()
+	original := f.product(t, func(p *service.CreateProductParams) { p.Barcode = "7750182000123" })
+
+	params := updateParams(original)
+	params.SKU, params.Name, params.Barcode = original.SKU, original.Name, original.Barcode
+	if _, err := f.svc.UpdateProduct(context.Background(), params); err != nil {
+		t.Fatalf("update keeping own name/sku/barcode error = %v", err)
+	}
+
+	params.SKU, params.Barcode = "", ""
+	updated, err := f.svc.UpdateProduct(context.Background(), params)
+	if err != nil || updated.Product.SKU != "" || updated.Product.Barcode != "" {
+		t.Fatalf("sku and barcode are optional on update: %+v, %v", updated, err)
+	}
+}
+
+func TestUpdateProductRejectsDuplicates(t *testing.T) {
+	tests := []struct {
+		name    string
+		mutate  func(p *service.UpdateProductParams, first *entity.Product)
+		message string
+	}{
+		{"name of another product", func(p *service.UpdateProductParams, first *entity.Product) { p.Name = "GALLETAS  maría 200G" }, "product name already exists"},
+		{"sku of another product", func(p *service.UpdateProductParams, first *entity.Product) { p.SKU = "aba-412" }, "SKU already exists"},
+		{"barcode of another product", func(p *service.UpdateProductParams, first *entity.Product) { p.Barcode = first.Barcode }, "barcode already exists"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			f := newFixture()
+			first := f.product(t, func(p *service.CreateProductParams) { p.Barcode = "7750182000123" })
+			second := f.product(t, func(p *service.CreateProductParams) { p.Name = "Otro"; p.SKU = "OTRO-1" })
+
+			params := updateParams(second)
+			tt.mutate(&params, first)
+			_, err := f.svc.UpdateProduct(context.Background(), params)
+
+			appErr := assertAppError(t, err, sharedErrors.CodeConflict, 409)
+			if appErr.Message != tt.message {
+				t.Errorf("message = %q, want %q", appErr.Message, tt.message)
+			}
+			if stored := f.store.Products[second.ID]; stored.Name != "Otro" || stored.SKU != "OTRO-1" {
+				t.Errorf("rejected update must not be stored: %+v", stored)
+			}
+		})
+	}
+}
+
+func TestUpdateProductErrors(t *testing.T) {
+	f := newFixture()
+	original := f.product(t, nil)
+	inactive := f.category(t, companyA, "Inactiva", nil)
+	f.store.Categories[inactive.ID].Status = entity.StatusInactive
+
+	tests := []struct {
+		name    string
+		mutate  func(p *service.UpdateProductParams)
+		code    sharedErrors.ErrorCode
+		status  int
+		message string
+	}{
+		{"product does not exist", func(p *service.UpdateProductParams) { p.ProductID = uuid.New() }, sharedErrors.CodeNotFound, 404, "product not found"},
+		{"product of another company", func(p *service.UpdateProductParams) { p.CompanyID = companyB }, sharedErrors.CodeNotFound, 404, "product not found"},
+		{"no company", func(p *service.UpdateProductParams) { p.CompanyID = uuid.Nil }, sharedErrors.CodeBadRequest, 400, "company is required"},
+		{"category does not exist", func(p *service.UpdateProductParams) { p.CategoryID = uuid.New() }, sharedErrors.CodeNotFound, 404, "category not found"},
+		{"category inactive", func(p *service.UpdateProductParams) { p.CategoryID = inactive.ID }, sharedErrors.CodeBadRequest, 400, "category is inactive"},
+		{"unit does not exist", func(p *service.UpdateProductParams) { p.UnitOfMeasureID = uuid.New() }, sharedErrors.CodeNotFound, 404, "unit of measure not found"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			params := updateParams(original)
+			tt.mutate(&params)
+			_, err := f.svc.UpdateProduct(context.Background(), params)
+			appErr := assertAppError(t, err, tt.code, tt.status)
+			if appErr.Message != tt.message {
+				t.Errorf("message = %q, want %q", appErr.Message, tt.message)
+			}
+		})
+	}
+	if stored := f.store.Products[original.ID]; stored.Name != original.Name {
+		t.Errorf("failed updates must not change the product: %+v", stored)
+	}
+}
+
+func TestUpdateProductBusinessValidation(t *testing.T) {
+	f := newFixture()
+	original := f.product(t, nil)
+
+	tests := []struct {
+		name   string
+		field  string
+		mutate func(p *service.UpdateProductParams)
+	}{
+		{"cost zero", "cost", func(p *service.UpdateProductParams) { p.Cost = decimal.Zero }},
+		{"sale price zero", "sale_price", func(p *service.UpdateProductParams) { p.SalePrice = decimal.Zero }},
+		{"sale price negative", "sale_price", func(p *service.UpdateProductParams) { p.SalePrice = dec("-1") }},
+		{"sale price 3 decimals", "sale_price", func(p *service.UpdateProductParams) { p.SalePrice = dec("4.005") }},
+		{"negative min stock", "min_stock", func(p *service.UpdateProductParams) { p.MinStock = ptr(dec("-1")) }},
+		{"sku with spaces", "sku", func(p *service.UpdateProductParams) { p.SKU = "COCA 600" }},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			params := updateParams(original)
+			tt.mutate(&params)
+			_, err := f.svc.UpdateProduct(context.Background(), params)
+			assertDetail(t, err, tt.field)
+		})
+	}
+}
+
+func TestGetProduct(t *testing.T) {
+	f := newFixture()
+	original := f.product(t, nil)
+
+	item, err := f.svc.GetProduct(context.Background(), service.GetProductParams{CompanyID: companyA, ProductID: original.ID})
+	if err != nil {
+		t.Fatalf("GetProduct() error = %v", err)
+	}
+	if item.Product.ID != original.ID || item.CategoryName != f.store.Categories[original.CategoryID].Name {
+		t.Errorf("unexpected item: %+v", item)
+	}
+
+	for name, params := range map[string]service.GetProductParams{
+		"unknown id":      {CompanyID: companyA, ProductID: uuid.New()},
+		"another company": {CompanyID: companyB, ProductID: original.ID},
+	} {
+		_, err := f.svc.GetProduct(context.Background(), params)
+		if appErr := assertAppError(t, err, sharedErrors.CodeNotFound, 404); appErr.Message != "product not found" {
+			t.Errorf("%s: message = %q", name, appErr.Message)
+		}
+	}
+	_, err = f.svc.GetProduct(context.Background(), service.GetProductParams{ProductID: original.ID})
+	assertAppError(t, err, sharedErrors.CodeBadRequest, 400)
+}
+
+func TestSetProductStatus(t *testing.T) {
+	f := newFixture()
+	original := f.product(t, nil)
+	set := func(companyID, productID uuid.UUID, status entity.Status) (*repository.ProductListItem, error) {
+		return f.svc.SetProductStatus(context.Background(), service.SetProductStatusParams{CompanyID: companyID, ProductID: productID, Status: status})
+	}
+
+	item, err := set(companyA, original.ID, entity.StatusInactive)
+	if err != nil || item.Product.Status != entity.StatusInactive || item.CategoryName == "" {
+		t.Fatalf("deactivate: %+v, %v", item, err)
+	}
+	if f.store.Products[original.ID].Status != entity.StatusInactive {
+		t.Errorf("deactivation not persisted")
+	}
+	_, err = set(companyA, original.ID, entity.StatusInactive)
+	if appErr := assertAppError(t, err, sharedErrors.CodeBadRequest, 400); appErr.Message != "product is already inactive" {
+		t.Errorf("message = %q", appErr.Message)
+	}
+
+	item, err = set(companyA, original.ID, entity.StatusActive)
+	if err != nil || item.Product.Status != entity.StatusActive || f.store.Products[original.ID].Status != entity.StatusActive {
+		t.Fatalf("activate: %+v, %v", item, err)
+	}
+	_, err = set(companyA, original.ID, entity.StatusActive)
+	if appErr := assertAppError(t, err, sharedErrors.CodeBadRequest, 400); appErr.Message != "product is already active" {
+		t.Errorf("message = %q", appErr.Message)
+	}
+
+	_, err = set(companyB, original.ID, entity.StatusInactive)
+	assertAppError(t, err, sharedErrors.CodeNotFound, 404)
+	_, err = set(companyA, uuid.New(), entity.StatusInactive)
+	assertAppError(t, err, sharedErrors.CodeNotFound, 404)
+}
+
+func TestDeleteProduct(t *testing.T) {
+	f := newFixture()
+	original := f.product(t, nil)
+	remove := func(companyID, productID uuid.UUID) error {
+		return f.svc.DeleteProduct(context.Background(), service.DeleteProductParams{CompanyID: companyID, ProductID: productID})
+	}
+
+	assertAppError(t, remove(companyB, original.ID), sharedErrors.CodeNotFound, 404)
+	if f.store.ProductCount() != 1 {
+		t.Fatalf("another company must not delete the product")
+	}
+
+	if err := remove(companyA, original.ID); err != nil {
+		t.Fatalf("DeleteProduct() error = %v", err)
+	}
+	if f.store.ProductCount() != 0 {
+		t.Errorf("product still stored")
+	}
+	assertAppError(t, remove(companyA, original.ID), sharedErrors.CodeNotFound, 404)
+
+	f.product(t, nil)
+}
+
+func TestValidateDuplicateCanExcludeTheProductBeingEdited(t *testing.T) {
+	f := newFixture()
+	first := f.product(t, nil)
+	second := f.product(t, func(p *service.CreateProductParams) { p.Name = "Otro"; p.SKU = "OTRO-1" })
+
+	check := func(excludeID uuid.UUID) *service.DuplicateResult {
+		result, err := f.svc.ValidateDuplicate(context.Background(), service.ValidateDuplicateParams{
+			CompanyID: companyA, Name: first.Name, SKU: first.SKU, ExcludeID: excludeID,
+		})
+		if err != nil {
+			t.Fatalf("ValidateDuplicate() error = %v", err)
+		}
+		return result
+	}
+	if result := check(first.ID); result.Exists {
+		t.Errorf("a product must not be a duplicate of itself: %+v", result)
+	}
+	if result := check(second.ID); !result.Exists || result.Field != "name" {
+		t.Errorf("editing another product must still detect the duplicate: %+v", result)
 	}
 }

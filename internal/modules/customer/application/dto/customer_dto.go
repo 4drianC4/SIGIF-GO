@@ -8,7 +8,7 @@ import (
 
 type Customer struct {
 	ID             string                `json:"id"`
-	TenantID       string                `json:"tenant_id"`
+	CompanyID      string                `json:"company_id"`
 	LegalName      string                `json:"legal_name"`
 	DocumentType   entity.DocumentType   `json:"document_type"`
 	DocumentNumber *string               `json:"document_number,omitempty"`
@@ -32,7 +32,7 @@ func FromEntity(c *entity.Customer) Customer {
 
 	return Customer{
 		ID:             c.ID.String(),
-		TenantID:       c.TenantID.String(),
+		CompanyID:      c.CompanyID.String(),
 		LegalName:      c.LegalName,
 		DocumentType:   c.DocumentType,
 		DocumentNumber: c.DocumentNumber,
@@ -52,6 +52,36 @@ func FromEntityList(customers []*entity.Customer) []Customer {
 	result := make([]Customer, len(customers))
 	for i, c := range customers {
 		result[i] = FromEntity(c)
+	}
+	return result
+}
+
+// CustomerSummary carries only the fields needed to identify a customer in a
+// listing; the full record is served by GET /customers/:id.
+type CustomerSummary struct {
+	ID             string                `json:"id"`
+	CompanyID      string                `json:"company_id"`
+	LegalName      string                `json:"legal_name"`
+	DocumentType   entity.DocumentType   `json:"document_type"`
+	DocumentNumber *string               `json:"document_number,omitempty"`
+	Phone          *string               `json:"phone,omitempty"`
+	Email          *string               `json:"email,omitempty"`
+	Status         entity.CustomerStatus `json:"status"`
+}
+
+func SummaryFromEntityList(customers []*entity.Customer) []CustomerSummary {
+	result := make([]CustomerSummary, len(customers))
+	for i, c := range customers {
+		result[i] = CustomerSummary{
+			ID:             c.ID.String(),
+			CompanyID:      c.CompanyID.String(),
+			LegalName:      c.LegalName,
+			DocumentType:   c.DocumentType,
+			DocumentNumber: c.DocumentNumber,
+			Phone:          c.Phone,
+			Email:          c.Email,
+			Status:         c.Status,
+		}
 	}
 	return result
 }

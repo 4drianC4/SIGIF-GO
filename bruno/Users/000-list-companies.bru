@@ -1,0 +1,33 @@
+meta {
+  name: List Companies for User Form
+  type: http
+  seq: 0
+}
+
+get {
+  url: {{baseUrl}}/api/v1/companies
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{accessToken}}
+}
+
+script:post-response {
+  if (res.status === 200) {
+    bru.setVar('companyId', res.body.data.length ? res.body.data[0].id : '');
+  }
+}
+
+tests {
+  test("devuelve opciones del selector", function() {
+    expect(res.status).to.equal(200);
+    expect(res.body.data).to.be.an('array');
+    res.body.data.forEach(function(company) {
+      expect(company.id).to.be.a('string');
+      expect(company.legal_name).to.be.a('string');
+      expect(company.trade_name).to.be.a('string');
+    });
+  });
+}

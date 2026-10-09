@@ -12,7 +12,7 @@ import (
 
 type Customer struct {
 	ID             uuid.UUID
-	TenantID       uuid.UUID
+	CompanyID      uuid.UUID
 	LegalName      string
 	DocumentType   DocumentType
 	DocumentNumber *string
@@ -30,7 +30,7 @@ type Customer struct {
 
 func NewCustomer(
 	clk clock.Clock,
-	tenantID uuid.UUID,
+	companyID uuid.UUID,
 	legalName string,
 	documentType DocumentType,
 	documentNumber *string,
@@ -49,7 +49,7 @@ func NewCustomer(
 
 	return &Customer{
 		ID:             uuid.New(),
-		TenantID:       tenantID,
+		CompanyID:      companyID,
 		LegalName:      strings.TrimSpace(legalName),
 		DocumentType:   documentType,
 		DocumentNumber: documentNumber,

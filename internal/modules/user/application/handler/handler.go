@@ -27,24 +27,24 @@ func NewUserQueryHandler(service *service.UserService) *UserQueryHandler {
 	return &UserQueryHandler{service: service}
 }
 
-func (h *UserCommandHandler) HandleRegister(ctx context.Context, cmd command.RegisterUser) (*entity.AppUser, error) {
+func (h *UserCommandHandler) HandleRegister(ctx context.Context, cmd command.RegisterUser) (*service.RegisteredUser, error) {
 	return h.service.Register(ctx, service.RegisterUserInput{
 		CompanyID: cmd.CompanyID,
 		RoleName:  cmd.RoleName,
 		FirstName: cmd.FirstName,
 		LastName:  cmd.LastName,
 		Email:     cmd.Email,
-		Password:  cmd.Password,
-		Area:      cmd.Area,
 	})
 }
 
-func (h *UserCommandHandler) HandleUpdate(ctx context.Context, cmd command.UpdateUser) (*entity.AppUser, error) {
-	return h.service.Update(ctx, cmd.ID, service.UpdateUserInput{
+func (h *UserCommandHandler) HandleEdit(ctx context.Context, cmd command.EditUser) (*entity.AppUser, error) {
+	return h.service.Edit(ctx, cmd.ID, service.EditUserInput{
+		CompanyID: cmd.CompanyID,
 		FirstName: cmd.FirstName,
 		LastName:  cmd.LastName,
-		Phone:     cmd.Phone,
-		Area:      cmd.Area,
+		Email:     cmd.Email,
+		Password:  cmd.Password,
+		RoleName:  cmd.RoleName,
 	})
 }
 

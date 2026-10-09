@@ -1,24 +1,29 @@
 package dtos
 
 import (
+	"github.com/google/uuid"
 	"github.com/sigif/sigif-go/internal/modules/user/application/dto"
 	"github.com/sigif/sigif-go/internal/modules/user/domain/entity"
 )
 
 type RegisterUserRequest struct {
-	FirstName string `json:"first_name" validate:"required,min=1,max=80"`
-	LastName  string `json:"last_name" validate:"required,min=1,max=80"`
-	Email     string `json:"email" validate:"required,email"`
-	Password  string `json:"password" validate:"required,min=8"`
-	Role      string `json:"role" validate:"required,min=1,max=60"`
-	Area      string `json:"area" validate:"omitempty,max=120"`
+	FirstName string    `json:"first_name" validate:"required,min=1,max=80"`
+	LastName  string    `json:"last_name" validate:"required,min=1,max=80"`
+	Email     string    `json:"email" validate:"required,email"`
+	CompanyID uuid.UUID `json:"company_id" validate:"required"`
+	Role      string    `json:"role" validate:"required,oneof=business_admin employee"`
 }
 
-type UpdateUserRequest struct {
-	FirstName string `json:"first_name" validate:"required,min=1,max=80"`
-	LastName  string `json:"last_name" validate:"required,min=1,max=80"`
-	Phone     string `json:"phone" validate:"omitempty,max=30"`
-	Area      string `json:"area" validate:"omitempty,max=120"`
+// EditUserRequest carries the fields an administrator may edit on a user: the
+// registration fields plus an optional password reset. Every field is optional; omitted fields are
+// left unchanged (JSON merge-patch semantics: send only what changes).
+type EditUserRequest struct {
+	CompanyID *uuid.UUID `json:"company_id" validate:"omitempty"`
+	FirstName *string    `json:"first_name" validate:"omitempty,min=1,max=80"`
+	LastName  *string    `json:"last_name" validate:"omitempty,min=1,max=80"`
+	Email     *string    `json:"email" validate:"omitempty,email"`
+	Password  *string    `json:"password" validate:"omitempty,min=8"`
+	Role      *string    `json:"role" validate:"omitempty,oneof=business_admin employee"`
 }
 
 type ChangePasswordRequest struct {
@@ -34,4 +39,10 @@ func ToResponse(u *entity.AppUser) dto.User {
 
 func ToResponseList(users []*entity.AppUser) []dto.User {
 	return dto.FromEntityList(users)
+}
+
+// GeneratedPassword is returned only when creating the account.
+type RegisterUserResponse struct {
+	dto.User
+	GeneratedPassword string `json:"generated_password"`
 }

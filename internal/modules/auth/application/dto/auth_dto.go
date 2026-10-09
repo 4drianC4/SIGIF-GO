@@ -11,7 +11,6 @@ type User struct {
 	Role      string                `json:"role"`
 	FirstName string                `json:"first_name"`
 	LastName  string                `json:"last_name"`
-	FullName  string                `json:"full_name"`
 	Username  string                `json:"username"`
 	Email     string                `json:"email"`
 	Status    userEntity.UserStatus `json:"status"`
@@ -42,7 +41,6 @@ func FromUser(u *userEntity.AppUser) User {
 		Role:      u.RoleName,
 		FirstName: u.FirstName,
 		LastName:  u.LastName,
-		FullName:  u.FullName(),
 		Username:  u.Username,
 		Email:     u.Email,
 		Status:    u.Status,

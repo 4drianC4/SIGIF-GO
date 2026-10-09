@@ -1,6 +1,8 @@
 package handler
 
 import (
+	"strings"
+
 	"github.com/gofiber/fiber/v2"
 	"github.com/google/uuid"
 
@@ -112,7 +114,8 @@ func (h *CatalogHTTPHandler) ValidateDuplicate(c *fiber.Ctx) error {
 		CompanyID: companyID,
 		Name:      q.Name,
 		SKU:       q.SKU,
-		Barcode:   q.Barcode,
+		Barcode:   strings.TrimSpace(q.Barcode),
+		ExcludeID: q.ExcludeUUID(),
 	})
 	if err != nil {
 		return response.Error(c, fiber.StatusInternalServerError, err)

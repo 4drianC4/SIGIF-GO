@@ -9,8 +9,8 @@ import (
 	sharedErrors "github.com/sigif/sigif-go/internal/shared/errors"
 )
 
-func (s *CustomerService) GetByID(ctx context.Context, tenantID, id uuid.UUID) (*entity.Customer, error) {
-	customer, err := s.repo.GetByID(ctx, tenantID, id)
+func (s *CustomerService) GetByID(ctx context.Context, companyID, id uuid.UUID) (*entity.Customer, error) {
+	customer, err := s.repo.GetByID(ctx, companyID, id)
 	if err != nil {
 		return nil, err
 	}
