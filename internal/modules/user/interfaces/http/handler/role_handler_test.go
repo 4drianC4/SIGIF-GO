@@ -23,6 +23,7 @@ type roleItem struct {
 	ID               string  `json:"id"`
 	CompanyID        *string `json:"company_id"`
 	Name             string  `json:"name"`
+	DisplayName      string  `json:"display_name"`
 	Type             string  `json:"type"`
 	Status           string  `json:"status"`
 	PermissionsCount int     `json:"permissions_count"`
@@ -116,7 +117,7 @@ func (s *testServer) seedRoleDirectory(t *testing.T) {
 	s.grantPermissions(t, superadmin, "users.create", "users.list", "customers.list")
 
 	businessAdmin := s.seedRole(t, "", entity.RoleBusinessAdmin, true, entity.RoleStatusActive)
-	s.grantPermissions(t, businessAdmin, "users.list")
+	s.grantPermissions(t, businessAdmin, "users.list", "users.read", "permissions.read", "roles.list")
 
 	sellerA := s.seedRole(t, companyA, "Vendedor A", false, entity.RoleStatusActive)
 	s.grantPermissions(t, sellerA, "customers.list", "customers.read")
@@ -154,7 +155,7 @@ func TestListRolesEndpointFieldsAndPermissionCount(t *testing.T) {
 
 	wantCounts := map[string]int{
 		"superadmin":          3,
-		"business_admin":      1,
+		"business_admin":      4,
 		"Vendedor A":          2,
 		"Vendedor Inactivo A": 0,
 	}
@@ -240,6 +241,84 @@ func TestListRolesEndpointSearch(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestListRolesEndpointDisplayNameAndVisibleLabelSearch(t *testing.T) {
+	s := newTestServer(t)
+	s.seedRoleDirectory(t)
+	s.seedRole(t, "", entity.RoleEmployee, true, entity.RoleStatusActive)
+	token := s.tokenWithCompany(t, companyA, "roles.list")
+
+	t.Run("system roles carry their Spanish label", func(t *testing.T) {
+		_, resp, items := s.listRoles(t, "", token)
+		if resp.Meta.Total != 5 {
+			t.Fatalf("total = %d, want 5 (%v)", resp.Meta.Total, roleNames(items))
+		}
+		want := map[string]string{
+			"superadmin":     "Superadministrador",
+			"business_admin": "Administrador de empresa",
+			"employee":       "Empleado",
+		}
+		for _, item := range items {
+			if label, ok := want[item.Name]; ok {
+				if item.DisplayName != label {
+					t.Errorf("%s display_name = %q, want %q", item.Name, item.DisplayName, label)
+				}
+			}
+			if item.DisplayName == "" {
+				t.Errorf("display_name is empty for %s", item.Name)
+			}
+		}
+	})
+
+	t.Run("custom roles keep their company name as label", func(t *testing.T) {
+		_, _, items := s.listRoles(t, "q=Vendedor%20A", token)
+		if len(items) != 1 {
+			t.Fatalf("items = %v", roleNames(items))
+		}
+		if items[0].Name != items[0].DisplayName {
+			t.Errorf("custom role %s display_name = %q, want %q", items[0].Name, items[0].DisplayName, items[0].Name)
+		}
+	})
+
+	t.Run("technical names still match", func(t *testing.T) {
+		for _, tt := range []struct{ q, want string }{
+			{q: "employee", want: "employee"},
+			{q: "business_admin", want: "business_admin"},
+			{q: "superadmin", want: "superadmin"},
+		} {
+			_, resp, items := s.listRoles(t, "q="+tt.q, token)
+			if resp.Meta.Total != 1 || items[0].Name != tt.want {
+				t.Errorf("q=%s got %v, want [%s]", tt.q, roleNames(items), tt.want)
+			}
+		}
+	})
+
+	t.Run("Spanish visible labels match", func(t *testing.T) {
+		for _, tt := range []struct{ q, want string }{
+			{q: "empleado", want: "employee"},
+			{q: "administrador%20de%20empresa", want: "business_admin"},
+			{q: "administrador%20de", want: "business_admin"},
+			{q: "superadministrador", want: "superadmin"},
+		} {
+			_, resp, items := s.listRoles(t, "q="+tt.q, token)
+			if resp.Meta.Total != 1 || items[0].Name != tt.want {
+				t.Errorf("q=%s got %v, want [%s]", tt.q, roleNames(items), tt.want)
+			}
+		}
+	})
+
+	t.Run("visible label search is partial and case-insensitive", func(t *testing.T) {
+		for _, tt := range []struct{ q, want string }{
+			{q: "EMPLE", want: "employee"},
+			{q: "EMPRESA", want: "business_admin"},
+		} {
+			_, resp, items := s.listRoles(t, "q="+tt.q, token)
+			if resp.Meta.Total != 1 || items[0].Name != tt.want {
+				t.Errorf("q=%s got %v, want [%s]", tt.q, roleNames(items), tt.want)
+			}
+		}
+	})
 }
 
 func TestListRolesEndpointNoMatchesReturnsEmptyList(t *testing.T) {
