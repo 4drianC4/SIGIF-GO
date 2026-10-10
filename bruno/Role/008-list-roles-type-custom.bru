@@ -32,6 +32,7 @@ tests {
   test("no mezcla con los roles del sistema", function() {
     const names = res.body.data.map(r => r.name);
     expect(names).to.not.include('superadmin');
-    expect(names).to.not.include('soporte');
+    expect(names).to.not.include('business_admin');
+    expect(names).to.not.include('employee');
   });
 }

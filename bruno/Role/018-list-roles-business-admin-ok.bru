@@ -1,0 +1,26 @@
+meta {
+  name: List Roles - Business Admin Allowed (200)
+  type: http
+  seq: 18
+}
+
+get {
+  url: {{baseUrl}}/api/v1/roles/
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{businessAdminToken}}
+}
+
+tests {
+  test("business_admin puede listar roles", function() {
+    expect(res.status).to.equal(200);
+    expect(res.body.success).to.equal(true);
+    expect(res.body.data).to.be.an('array');
+    res.body.data.forEach(function(r) {
+      expect(r.display_name).to.be.a('string').and.not.equal('');
+    });
+  });
+}

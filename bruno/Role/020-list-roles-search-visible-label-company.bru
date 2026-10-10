@@ -1,0 +1,28 @@
+meta {
+  name: List Roles - Visible Label Admin Empresa
+  type: http
+  seq: 20
+}
+
+get {
+  url: {{baseUrl}}/api/v1/roles/?q=administrador%20de%20empresa
+  body: none
+  auth: bearer
+}
+
+params:query {
+  q: administrador%20de%20empresa
+}
+
+auth:bearer {
+  token: {{accessToken}}
+}
+
+tests {
+  test("busca business_admin por etiqueta visible", function() {
+    expect(res.status).to.equal(200);
+    expect(res.body.success).to.equal(true);
+    const names = res.body.data.map(r => r.name);
+    expect(names).to.include('business_admin');
+  });
+}

@@ -1,7 +1,7 @@
 meta {
-  name: Setup - Login User Without roles.list
+  name: Setup - Login Business Admin (has roles.list)
   type: http
-  seq: 3
+  seq: 17
 }
 
 post {
@@ -16,21 +16,21 @@ headers {
 
 body:json {
   {
-    "email": "{{restrictedEmail}}",
-    "password": "{{restrictedPassword}}"
+    "email": "{{businessAdminEmail}}",
+    "password": "{{businessAdminPassword}}"
   }
 }
 
 script:post-response {
   if (res.body && res.body.data) {
-    bru.setVar('tokenWithoutRolesList', res.body.data.token.access_token);
+    bru.setVar('businessAdminToken', res.body.data.token.access_token);
   }
 }
 
 tests {
-  test("responde 200 con token del usuario de rol employee", function() {
+  test("responde 200 con token de business_admin", function() {
     expect(res.status).to.equal(200);
     expect(res.body.data.token.access_token).to.be.a('string');
-    expect(res.body.data.user.role).to.equal('employee');
+    expect(res.body.data.user.role).to.equal('business_admin');
   });
 }

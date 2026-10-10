@@ -33,7 +33,7 @@ tests {
 
   test("los roles del sistema se listan con company_id nulo", function() {
     const system = res.body.data.filter(r => r.type === 'system');
-    expect(system.length).to.be.at.least(2);
+    expect(system.length).to.be.at.least(3);
     system.forEach(function(r) {
       expect(r.company_id).to.equal(null);
     });

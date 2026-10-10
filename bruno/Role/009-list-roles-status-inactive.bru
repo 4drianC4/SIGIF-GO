@@ -31,6 +31,7 @@ tests {
   test("los roles del sistema activos quedan fuera del filtro", function() {
     const names = res.body.data.map(r => r.name);
     expect(names).to.not.include('superadmin');
-    expect(names).to.not.include('soporte');
+    expect(names).to.not.include('business_admin');
+    expect(names).to.not.include('employee');
   });
 }
