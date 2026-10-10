@@ -1,0 +1,32 @@
+meta {
+  name: Deactivate Business Admin Role
+  type: http
+  seq: 21
+}
+
+patch {
+  url: {{baseUrl}}/api/v1/roles/{{businessAdminRoleId}}/status
+  body: json
+  auth: bearer
+}
+
+headers {
+  Content-Type: application/json
+}
+
+auth:bearer {
+  token: {{accessToken}}
+}
+
+body:json {
+  {
+    "status": "inactive"
+  }
+}
+
+tests {
+  test("the role is deactivated while the business admin keeps an open session", function() {
+    expect(res.status).to.equal(200);
+    expect(res.body.data.status).to.equal('inactive');
+  });
+}

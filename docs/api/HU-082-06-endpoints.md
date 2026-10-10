@@ -8,7 +8,7 @@
 - Requiere autenticación: `Authorization: Bearer <access_token>`. Esta HU no cambia el login ni la validación del token; usa la identidad que ya entrega el middleware `AuthRequired`.
 - Formato de respuesta exitosa: `{ "success": true, "data": { ... } }`
 - Formato de respuesta de error: `{ "success": false, "error": { "code": "CODIGO", "message": "descripción" } }`
-- Colección Bruno: `bruno/Authorization/` (001–016)
+- Colección Bruno: `bruno/Authorization/` (001–025)
 
 ---
 
@@ -196,7 +196,7 @@ No hay cambios en la base de datos.
 ## Pruebas
 
 - Tests de Go: `go test ./cmd/server/... ./internal/shared/middleware/... ./internal/modules/auth/...`
-- Bruno: carpeta `bruno/Authorization` (16 peticiones). Es autónoma: inicia sesión con `companyAdminEmail` / `companyAdminPassword` y crea un usuario `employee` (sin permisos) y uno `business_admin` (solo lectura).
+- Bruno: carpeta `bruno/Authorization` (25 peticiones). Es autónoma: inicia sesión con `companyAdminEmail` / `companyAdminPassword` y crea un usuario `employee` (sin permisos) y uno `business_admin` (solo lectura). Las peticiones 017–019 comprueban el guard en categorías y productos, y 020–025 comprueban que desactivar el rol `business_admin` quita el acceso de inmediato con el mismo token y que reactivarlo lo devuelve. La carpeta deja el rol activo al terminar.
 
 ## Notas para el frontend
 

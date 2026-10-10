@@ -1,0 +1,30 @@
+meta {
+  name: Setup - List Roles
+  type: http
+  seq: 20
+}
+
+get {
+  url: {{baseUrl}}/api/v1/roles
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{accessToken}}
+}
+
+script:post-response {
+  if (res.body && res.body.data) {
+    res.body.data.forEach(function(r) {
+      if (r.name === 'business_admin') bru.setVar('businessAdminRoleId', r.id);
+    });
+  }
+}
+
+tests {
+  test("returns the business_admin role", function() {
+    expect(res.status).to.equal(200);
+    expect(bru.getVar('businessAdminRoleId')).to.be.a('string');
+  });
+}
