@@ -6,6 +6,7 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/sigif/sigif-go/internal/modules/product/domain/entity"
+	"github.com/sigif/sigif-go/internal/modules/product/domain/repository"
 )
 
 type SetProductStatusParams struct {
@@ -14,17 +15,10 @@ type SetProductStatusParams struct {
 	Status    entity.Status
 }
 
-func (s *CatalogService) SetProductStatus(ctx context.Context, params SetProductStatusParams) (*entity.Product, error) {
-	if params.CompanyID == uuid.Nil {
-		return nil, ErrCompanyRequired
-	}
-
-	product, err := s.products.GetByID(ctx, params.CompanyID, params.ProductID)
+func (s *CatalogService) SetProductStatus(ctx context.Context, params SetProductStatusParams) (*repository.ProductListItem, error) {
+	product, err := s.findProduct(ctx, params.CompanyID, params.ProductID)
 	if err != nil {
 		return nil, err
-	}
-	if product == nil {
-		return nil, ErrProductNotFound
 	}
 
 	switch params.Status {
@@ -43,5 +37,5 @@ func (s *CatalogService) SetProductStatus(ctx context.Context, params SetProduct
 	if err := s.products.SetStatus(ctx, params.CompanyID, params.ProductID, params.Status); err != nil {
 		return nil, err
 	}
-	return product, nil
+	return s.withCategoryName(ctx, product)
 }

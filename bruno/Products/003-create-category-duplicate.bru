@@ -1,7 +1,7 @@
 meta {
   name: Create Category - Duplicate Name (409)
   type: http
-  seq: 2
+  seq: 3
 }
 
 post {
@@ -29,7 +29,7 @@ script:pre-request {
 }
 
 tests {
-  test("rechaza el nombre repetido con 409 CONFLICT", function() {
+  test("rechaza el nombre repetido en el mismo nivel", function() {
     expect(res.status).to.equal(409);
     expect(res.body.error.code).to.equal('CONFLICT');
   });

@@ -1,7 +1,7 @@
 meta {
   name: Create Product - Without Token (401)
   type: http
-  seq: 9
+  seq: 16
 }
 
 post {
@@ -16,16 +16,12 @@ headers {
 
 body:json {
   {
-    "category_id": "{{categoryId}}",
-    "sku": "NO-TOKEN-1",
-    "name": "Producto sin token",
-    "unit_of_measure": "unit",
-    "sale_price": 1
+    "name": "Sin token"
   }
 }
 
 tests {
-  test("responde 401 UNAUTHORIZED sin token", function() {
+  test("responde 401 UNAUTHORIZED", function() {
     expect(res.status).to.equal(401);
     expect(res.body.error.code).to.equal('UNAUTHORIZED');
   });

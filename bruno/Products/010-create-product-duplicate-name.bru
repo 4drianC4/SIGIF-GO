@@ -1,0 +1,36 @@
+meta {
+  name: Create Product - Duplicate Name (409)
+  type: http
+  seq: 10
+}
+
+post {
+  url: {{baseUrl}}/api/v1/products
+  body: json
+  auth: bearer
+}
+
+headers {
+  Content-Type: application/json
+}
+
+auth:bearer {
+  token: {{accessToken}}
+}
+
+body:json {
+  {
+    "name": "{{productName}}",
+    "category_id": "{{categoryId}}",
+    "unit_of_measure_id": "{{unitId}}",
+    "cost": 1,
+    "sale_price": 2
+  }
+}
+
+tests {
+  test("rechaza el nombre repetido", function() {
+    expect(res.status).to.equal(409);
+    expect(res.body.error.message).to.equal('product name already exists');
+  });
+}

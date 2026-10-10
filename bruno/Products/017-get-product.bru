@@ -1,0 +1,24 @@
+meta {
+  name: Get Product
+  type: http
+  seq: 17
+}
+
+get {
+  url: {{baseUrl}}/api/v1/products/{{productId}}
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{accessToken}}
+}
+
+tests {
+  test("devuelve el producto con su categoría", function() {
+    expect(res.status).to.equal(200);
+    expect(res.body.data.id).to.equal(bru.getVar('productId'));
+    expect(res.body.data.category.id).to.equal(bru.getVar('categoryId'));
+    expect(res.body.data).to.have.property('unit_of_measure_id');
+  });
+}
