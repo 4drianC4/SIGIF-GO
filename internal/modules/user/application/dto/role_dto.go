@@ -6,9 +6,13 @@ import (
 
 // RoleSummary is the role item served by the role listing (HU-082-02).
 type RoleSummary struct {
-	ID               string            `json:"id"`
-	CompanyID        *string           `json:"company_id"`
-	Name             string            `json:"name"`
+	ID        string  `json:"id"`
+	CompanyID *string `json:"company_id"`
+	Name      string  `json:"name"`
+	// DisplayName is the Spanish label shown to users. For system roles it is
+	// resolved from the catalog in the presentation layer; custom roles keep
+	// the name the company entered. Name keeps its technical value.
+	DisplayName      string            `json:"display_name"`
 	Type             entity.RoleType   `json:"type"`
 	Status           entity.RoleStatus `json:"status"`
 	PermissionsCount int               `json:"permissions_count"`
@@ -27,6 +31,7 @@ func RoleSummaryFromEntity(r *entity.Role) RoleSummary {
 		ID:               r.ID.String(),
 		CompanyID:        companyID,
 		Name:             r.Name,
+		DisplayName:      r.DisplayName(),
 		Type:             r.Type(),
 		Status:           r.Status,
 		PermissionsCount: r.PermissionsCount,
