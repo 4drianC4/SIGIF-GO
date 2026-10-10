@@ -44,6 +44,9 @@ func Seed(ctx context.Context, db *gorm.DB, cfg *config.Config) error {
 			permIDs[entity.PermUsersList],
 			permIDs[entity.PermUsersRead],
 			permIDs[entity.PermPermissionsRead],
+			// HU-082-02: business_admin must list the roles of its company.
+			// Read-only: no create/update/delete/assign permissions are granted.
+			permIDs[entity.PermRolesList],
 		}); err != nil {
 			return err
 		}
