@@ -7,12 +7,14 @@ import (
 
 type CustomerService struct {
 	repo  repository.CustomerRepository
+	deps  repository.DependencyChecker
 	clock clock.Clock
 }
 
-func NewCustomerService(repo repository.CustomerRepository, clk clock.Clock) *CustomerService {
+func NewCustomerService(repo repository.CustomerRepository, deps repository.DependencyChecker, clk clock.Clock) *CustomerService {
 	return &CustomerService{
 		repo:  repo,
+		deps:  deps,
 		clock: clk,
 	}
 }

@@ -62,6 +62,8 @@ type testServer struct {
 	app        *fiber.App
 	jwtManager *jwt.JWTManager
 	customers  *testutil.MemoryCustomerRepository
+	deps       *testutil.StubDependencyChecker
+	service    *service.CustomerService
 	perms      *stubPermissions
 	seq        int
 }
@@ -95,7 +97,8 @@ func newTestServer(t *testing.T) *testServer {
 
 	customers := testutil.NewMemoryCustomerRepository()
 	clk := clock.NewMockClock(time.Date(2026, 10, 5, 12, 0, 0, 0, time.UTC))
-	svc := service.NewCustomerService(customers, clk)
+	deps := testutil.NewStubDependencyChecker()
+	svc := service.NewCustomerService(customers, deps, clk)
 	h := httpHandler.NewCustomerHTTPHandler(
 		appHandler.NewCustomerCommandHandler(svc),
 		appHandler.NewCustomerQueryHandler(svc),
@@ -108,7 +111,7 @@ func newTestServer(t *testing.T) *testServer {
 	app.Use(middleware.AuthRequired(jwtManager, activeSessions{}))
 	router.RegisterCustomerRoutes(app.Group("/api/v1"), h, perms)
 
-	return &testServer{app: app, jwtManager: jwtManager, customers: customers, perms: perms}
+	return &testServer{app: app, jwtManager: jwtManager, customers: customers, deps: deps, service: svc, perms: perms}
 }
 
 func (s *testServer) token(t *testing.T, companyID string, perms ...string) string {
