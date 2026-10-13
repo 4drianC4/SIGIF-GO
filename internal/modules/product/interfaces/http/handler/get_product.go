@@ -33,7 +33,7 @@ func (h *CatalogHTTPHandler) GetProduct(c *fiber.Ctx) error {
 		return response.Error(c, fiber.StatusInternalServerError, err)
 	}
 
-	return response.Success(c, dto.FromProduct(product))
+	return response.Success(c, dto.FromProductDetail(product))
 }
 
 func (h *CatalogHTTPHandler) ListProducts(c *fiber.Ctx) error {

@@ -4,8 +4,10 @@ import (
 	"context"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/google/uuid"
+	"github.com/shopspring/decimal"
 
 	"github.com/sigif/sigif-go/internal/modules/product/domain/entity"
 	"github.com/sigif/sigif-go/internal/modules/product/domain/repository"
@@ -194,4 +196,82 @@ func (r *MemoryProductRepository) Count() int {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	return len(r.Products)
+}
+
+func (r *MemoryProductRepository) WithinTransaction(ctx context.Context, fn func(context.Context) error) error {
+	r.mu.Lock()
+	before := make(map[uuid.UUID]*entity.Product, len(r.Products))
+	for id, product := range r.Products {
+		copied := *product
+		before[id] = &copied
+	}
+	r.mu.Unlock()
+	if err := fn(ctx); err != nil {
+		r.mu.Lock()
+		r.Products = before
+		r.mu.Unlock()
+		return err
+	}
+	return nil
+}
+
+type MemoryPriceHistoryRepository struct {
+	mu          sync.Mutex
+	Entries     map[uuid.UUID][]*entity.PriceHistoryEntry
+	RecordError error
+}
+
+func NewMemoryPriceHistoryRepository() *MemoryPriceHistoryRepository {
+	return &MemoryPriceHistoryRepository{Entries: map[uuid.UUID][]*entity.PriceHistoryEntry{}}
+}
+
+func (r *MemoryPriceHistoryRepository) Record(_ context.Context, productID, userID uuid.UUID, previousCost, newCost, previousPrice, newPrice decimal.Decimal, reason string) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if r.RecordError != nil {
+		return r.RecordError
+	}
+	r.Entries[productID] = append(r.Entries[productID], &entity.PriceHistoryEntry{
+		ID: uuid.New(), UserID: userID, PreviousCost: previousCost, NewCost: newCost,
+		PreviousPrice: previousPrice, NewPrice: newPrice, Reason: reason, CreatedAt: time.Now().UTC(),
+	})
+	return nil
+}
+
+func (r *MemoryPriceHistoryRepository) GetByProduct(_ context.Context, productID uuid.UUID, page, limit int) ([]*entity.PriceHistoryEntry, int64, error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	entries := r.Entries[productID]
+	result := make([]*entity.PriceHistoryEntry, 0)
+	for i := (page - 1) * limit; i < len(entries) && i < page*limit; i++ {
+		copied := *entries[len(entries)-1-i]
+		result = append(result, &copied)
+	}
+	return result, int64(len(entries)), nil
+}
+
+type StockBalance struct {
+	CompanyID  uuid.UUID
+	ProductID  uuid.UUID
+	BranchID   int64
+	LocationID int64
+	Quantity   decimal.Decimal
+}
+
+type MemoryStockRepository struct {
+	Balances []StockBalance
+	GetError error
+}
+
+func (r *MemoryStockRepository) GetTotalByProduct(_ context.Context, companyID, productID uuid.UUID) (decimal.Decimal, error) {
+	if r.GetError != nil {
+		return decimal.Zero, r.GetError
+	}
+	total := decimal.Zero
+	for _, balance := range r.Balances {
+		if balance.CompanyID == companyID && balance.ProductID == productID {
+			total = total.Add(balance.Quantity)
+		}
+	}
+	return total, nil
 }

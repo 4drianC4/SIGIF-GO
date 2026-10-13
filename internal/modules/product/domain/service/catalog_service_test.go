@@ -25,16 +25,22 @@ type fixture struct {
 	svc        *service.CatalogService
 	products   *testutil.MemoryProductRepository
 	categories *testutil.MemoryCategoryRepository
+	history    *testutil.MemoryPriceHistoryRepository
+	stock      *testutil.MemoryStockRepository
 }
 
 func newFixture() fixture {
 	products := testutil.NewMemoryProductRepository()
 	categories := testutil.NewMemoryCategoryRepository()
 	clk := clock.NewMockClock(time.Date(2026, 10, 2, 12, 0, 0, 0, time.UTC))
+	history := testutil.NewMemoryPriceHistoryRepository()
+	stock := &testutil.MemoryStockRepository{}
 	return fixture{
-		svc:        service.NewCatalogService(products, categories, clk),
+		svc:        service.NewCatalogService(products, categories, history, stock, clk),
 		products:   products,
 		categories: categories,
+		history:    history,
+		stock:      stock,
 	}
 }
 

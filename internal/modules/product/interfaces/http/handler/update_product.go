@@ -35,6 +35,8 @@ func (h *CatalogHTTPHandler) UpdateProduct(c *fiber.Ctx) error {
 		return response.Error(c, fiber.StatusBadRequest, service.ErrCompanyRequired)
 	}
 
+	userID, _ := middleware.UserIDFromContext(c.UserContext())
+
 	categoryID := uuid.MustParse(req.CategoryID)
 
 	costPrice := decimal.Zero
@@ -53,6 +55,8 @@ func (h *CatalogHTTPHandler) UpdateProduct(c *fiber.Ctx) error {
 		UnitOfMeasure: entity.UnitOfMeasure(req.UnitOfMeasure),
 		CostPrice:     costPrice,
 		SalePrice:     *req.SalePrice,
+		UserID:        userID,
+		Reason:        req.Reason,
 	})
 	if err != nil {
 		return response.Error(c, fiber.StatusInternalServerError, err)

@@ -8,7 +8,7 @@ import (
 	"github.com/sigif/sigif-go/internal/modules/product/domain/service"
 )
 
-func (h *CatalogCommandHandler) HandleGetProduct(ctx context.Context, cmd command.GetProduct) (*entity.Product, error) {
+func (h *CatalogCommandHandler) HandleGetProduct(ctx context.Context, cmd command.GetProduct) (*entity.ProductDetail, error) {
 	return h.service.GetProduct(ctx, service.GetProductParams{
 		CompanyID: cmd.CompanyID,
 		ProductID: cmd.ProductID,

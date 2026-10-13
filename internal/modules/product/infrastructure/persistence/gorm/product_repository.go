@@ -7,6 +7,7 @@ import (
 
 	"github.com/google/uuid"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 
 	"github.com/sigif/sigif-go/internal/modules/product/domain/entity"
 	"github.com/sigif/sigif-go/internal/modules/product/domain/repository"
@@ -55,7 +56,11 @@ func (r *ProductGormRepository) Update(ctx context.Context, product *entity.Prod
 
 func (r *ProductGormRepository) GetByID(ctx context.Context, companyID, id uuid.UUID) (*entity.Product, error) {
 	var m model.ProductModel
-	err := r.db.GetDB(ctx).
+	db := r.db.GetDB(ctx)
+	if sharedDatabase.GetTx(ctx) != nil {
+		db = db.Clauses(clause.Locking{Strength: "UPDATE"})
+	}
+	err := db.
 		Where("company_id = ? AND id = ?", companyID, id).
 		First(&m).Error
 	if err != nil {
@@ -65,6 +70,12 @@ func (r *ProductGormRepository) GetByID(ctx context.Context, companyID, id uuid.
 		return nil, err
 	}
 	return mapper.ProductToDomain(&m), nil
+}
+
+func (r *ProductGormRepository) WithinTransaction(ctx context.Context, fn func(context.Context) error) error {
+	return r.db.GetDB(ctx).Transaction(func(tx *gorm.DB) error {
+		return fn(sharedDatabase.WithTx(ctx, tx))
+	})
 }
 
 func (r *ProductGormRepository) GetAll(ctx context.Context, companyID uuid.UUID, filters repository.ProductFilters, page, limit int) ([]*entity.Product, int64, error) {

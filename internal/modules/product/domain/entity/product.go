@@ -138,6 +138,30 @@ func (p *Product) IsActive() bool {
 	return p.Status == StatusActive
 }
 
+// UpdatePrices changes only the product's cost and selling price.
+func (p *Product) UpdatePrices(clock clock.Clock, costPrice, salePrice decimal.Decimal) error {
+	details := map[string]string{}
+	if costPrice.IsNegative() {
+		details["cost_price"] = "no puede ser negativo"
+	} else if !hasAtMostTwoDecimals(costPrice) {
+		details["cost_price"] = "admite como máximo 2 decimales"
+	}
+	if !salePrice.IsPositive() {
+		details["sale_price"] = "debe ser mayor que 0"
+	} else if !hasAtMostTwoDecimals(salePrice) {
+		details["sale_price"] = "admite como máximo 2 decimales"
+	} else if salePrice.LessThan(costPrice) {
+		details["sale_price"] = "no puede ser menor que el costo"
+	}
+	if len(details) > 0 {
+		return sharedErrors.New(sharedErrors.CodeValidation, "validation failed", 400).WithDetails(details)
+	}
+	p.CostPrice = costPrice
+	p.SalePrice = salePrice
+	p.UpdatedAt = clock.NowUTC()
+	return nil
+}
+
 func (p *Product) Activate(clock clock.Clock) {
 	p.Status = StatusActive
 	p.UpdatedAt = clock.NowUTC()

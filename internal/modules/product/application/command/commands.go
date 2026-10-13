@@ -36,11 +36,22 @@ type UpdateProduct struct {
 	UnitOfMeasure entity.UnitOfMeasure
 	CostPrice     decimal.Decimal
 	SalePrice     decimal.Decimal
+	UserID        uuid.UUID
+	Reason        string
 }
 
 type GetProduct struct {
 	CompanyID uuid.UUID
 	ProductID uuid.UUID
+}
+
+type UpdateProductPrice struct {
+	CompanyID uuid.UUID
+	ProductID uuid.UUID
+	UserID    uuid.UUID
+	CostPrice *decimal.Decimal
+	SalePrice *decimal.Decimal
+	Reason    string
 }
 
 type ListProducts struct {

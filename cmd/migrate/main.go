@@ -71,6 +71,8 @@ func autoMigrate(db *gorm.DB) error {
 		&customerModel.CustomerModel{},
 		&productModel.CategoryModel{},
 		&productModel.ProductModel{},
+		&productModel.ProductPriceHistoryModel{},
+		&productModel.StockBalanceModel{},
 	)
 }
 

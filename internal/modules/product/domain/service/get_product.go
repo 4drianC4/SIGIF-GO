@@ -23,7 +23,7 @@ type ListProductsParams struct {
 	Limit      int
 }
 
-func (s *CatalogService) GetProduct(ctx context.Context, params GetProductParams) (*entity.Product, error) {
+func (s *CatalogService) GetProduct(ctx context.Context, params GetProductParams) (*entity.ProductDetail, error) {
 	if params.CompanyID == uuid.Nil {
 		return nil, ErrCompanyRequired
 	}
@@ -34,7 +34,11 @@ func (s *CatalogService) GetProduct(ctx context.Context, params GetProductParams
 	if product == nil {
 		return nil, ErrProductNotFound
 	}
-	return product, nil
+	stockTotal, err := s.stock.GetTotalByProduct(ctx, params.CompanyID, product.ID)
+	if err != nil {
+		return nil, err
+	}
+	return &entity.ProductDetail{Product: product, StockTotal: stockTotal}, nil
 }
 
 func (s *CatalogService) ListProducts(ctx context.Context, params ListProductsParams) ([]*entity.Product, int64, error) {
