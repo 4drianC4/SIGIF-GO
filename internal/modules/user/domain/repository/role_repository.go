@@ -27,6 +27,11 @@ type RoleRepository interface {
 	// List returns a page of the visible roles ordered by name, plus the total
 	// number of matching rows. Each role carries its permissions count.
 	List(ctx context.Context, filter RoleListFilter, offset, limit int) ([]*entity.Role, int64, error)
+
+	// Update persists changes to an existing role (HU-082-04). Only mutable
+	// fields (currently the status) are written; the permission assignments are
+	// never touched.
+	Update(ctx context.Context, role *entity.Role) error
 }
 
 // PermissionRepository is the persistence port for permissions and their

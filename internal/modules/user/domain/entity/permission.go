@@ -105,6 +105,7 @@ const (
 	PermPermissionsRead     = "permissions.read"
 	PermPermissionsCreate   = "permissions.create"
 	PermRolesList           = "roles.list"
+	PermRolesStatus         = "roles.status"
 	PermPermissionsUpdate   = "permissions.update"
 	PermPermissionsDelete   = "permissions.delete"
 	PermPermissionsExport   = "permissions.export"
@@ -189,6 +190,7 @@ func AllPermissions() []Permission {
 			module: "roles",
 			ops: []struct{ op, desc string }{
 				{"list", "Listar roles"},
+				{"status", "Activar y desactivar roles"},
 			},
 		},
 	}

@@ -114,7 +114,12 @@ func newTestServer(t *testing.T) *testServer {
 	app.Use(middleware.AuthRequired(jwtManager, activeSessions{}))
 	router.RegisterPermissionRoutes(app.Group("/api/v1"), h, stub)
 	router.RegisterRoleRoutes(app.Group("/api/v1"),
-		httpHandler.NewRoleHTTPHandler(appHandler.NewUserQueryHandler(svc), validator.New(), cfg), stub)
+		httpHandler.NewRoleHTTPHandler(
+			appHandler.NewUserQueryHandler(svc),
+			appHandler.NewUserCommandHandler(svc),
+			validator.New(),
+			cfg,
+		), stub)
 
 	return &testServer{app: app, jwtManager: jwtManager, permRepo: permRepo, roles: roles, perms: stub}
 }

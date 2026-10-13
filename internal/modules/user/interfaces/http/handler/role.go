@@ -20,21 +20,24 @@ import (
 	"github.com/sigif/sigif-go/internal/shared/validator"
 )
 
-// RoleHTTPHandler exposes the role listing (HU-082-02): read-only, no role is
-// created or modified here.
+// RoleHTTPHandler exposes the role listing (HU-082-02) and the role status
+// changes (HU-082-04): roles are never created or deleted here.
 type RoleHTTPHandler struct {
 	queryHandler *handler.UserQueryHandler
+	cmdHandler   *handler.UserCommandHandler
 	validator    *validator.Validator
 	cfg          *config.Config
 }
 
 func NewRoleHTTPHandler(
 	queryHandler *handler.UserQueryHandler,
+	cmdHandler *handler.UserCommandHandler,
 	val *validator.Validator,
 	cfg *config.Config,
 ) *RoleHTTPHandler {
 	return &RoleHTTPHandler{
 		queryHandler: queryHandler,
+		cmdHandler:   cmdHandler,
 		validator:    val,
 		cfg:          cfg,
 	}

@@ -113,3 +113,7 @@ func (h *UserQueryHandler) HandleListRoles(ctx context.Context, q query.ListRole
 		Status:    q.Status,
 	}, q.Offset, q.Limit)
 }
+
+func (h *UserCommandHandler) HandleChangeRoleStatus(ctx context.Context, cmd command.ChangeRoleStatus) (*entity.Role, error) {
+	return h.service.ChangeRoleStatus(ctx, cmd.CompanyID, cmd.ID, cmd.Status)
+}

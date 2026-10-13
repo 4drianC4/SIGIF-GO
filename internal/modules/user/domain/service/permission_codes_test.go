@@ -27,19 +27,48 @@ func TestPermissionCodesByRole(t *testing.T) {
 		{ID: uuid.New(), Module: "permissions", Operation: "read"},
 		{ID: uuid.New(), Module: "users", Operation: "list"},
 	}}
+	roleID := uuid.New()
+	roles := &memoryRoleRepo{byName: map[string]*entity.Role{
+		"soporte": {ID: roleID, Name: "soporte", Status: entity.RoleStatusActive},
+	}}
 	svc := NewUserService(
 		newMemoryUserRepo(),
-		&memoryRoleRepo{byName: map[string]*entity.Role{}},
+		roles,
 		repo,
 		clock.NewMockClock(time.Now()),
 		&memoryCompanyRepo{},
 	)
 
-	codes, err := svc.PermissionCodesByRole(context.Background(), uuid.New())
+	codes, err := svc.PermissionCodesByRole(context.Background(), roleID)
 	if err != nil {
 		t.Fatalf("PermissionCodesByRole() error = %v", err)
 	}
 	if len(codes) != 2 || codes[0] != "permissions.read" || codes[1] != "users.list" {
 		t.Fatalf("codes = %v, want [permissions.read users.list]", codes)
+	}
+}
+
+func TestPermissionCodesByRoleInactiveRoleGrantsNothing(t *testing.T) {
+	repo := codesPermRepo{permissions: []*entity.Permission{
+		{ID: uuid.New(), Module: "users", Operation: "list"},
+	}}
+	roleID := uuid.New()
+	roles := &memoryRoleRepo{byName: map[string]*entity.Role{
+		"soporte": {ID: roleID, Name: "soporte", Status: entity.RoleStatusInactive},
+	}}
+	svc := NewUserService(
+		newMemoryUserRepo(),
+		roles,
+		repo,
+		clock.NewMockClock(time.Now()),
+		&memoryCompanyRepo{},
+	)
+
+	codes, err := svc.PermissionCodesByRole(context.Background(), roleID)
+	if err != nil {
+		t.Fatalf("PermissionCodesByRole() error = %v", err)
+	}
+	if len(codes) != 0 {
+		t.Fatalf("codes = %v, want none for an inactive role", codes)
 	}
 }
