@@ -1,0 +1,22 @@
+meta {
+  name: 05 Verify Client Kept After Rejections
+  type: http
+  seq: 8
+}
+
+get {
+  url: {{baseUrl}}/api/v1/customers/{{clientId}}
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{accessToken}}
+}
+
+tests {
+  test("las peticiones rechazadas no eliminaron al cliente", function() {
+    expect(res.status).to.equal(200);
+    expect(res.body.data.status).to.equal('active');
+  });
+}

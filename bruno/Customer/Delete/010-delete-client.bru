@@ -1,0 +1,22 @@
+meta {
+  name: 07 Delete Client
+  type: http
+  seq: 10
+}
+
+delete {
+  url: {{baseUrl}}/api/v1/customers/{{clientId}}
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{accessToken}}
+}
+
+tests {
+  test("responde 204 sin cuerpo", function() {
+    expect(res.status).to.equal(204);
+    expect(res.body || '').to.equal('');
+  });
+}

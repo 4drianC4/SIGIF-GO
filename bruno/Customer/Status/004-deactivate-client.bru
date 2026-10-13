@@ -1,0 +1,42 @@
+meta {
+  name: 01 Deactivate Client
+  type: http
+  seq: 4
+}
+
+patch {
+  url: {{baseUrl}}/api/v1/customers/{{clientId}}/status
+  body: json
+  auth: bearer
+}
+
+headers {
+  Content-Type: application/json
+}
+
+auth:bearer {
+  token: {{accessToken}}
+}
+
+body:json {
+  {
+    "status": "inactive"
+  }
+}
+
+script:post-response {
+  bru.setVar('deactivatedAt', res.body && res.body.data ? res.body.data.updated_at : '');
+}
+
+tests {
+  test("responde 200 con el cliente inactivo y sus datos intactos", function() {
+    expect(res.status).to.equal(200);
+    expect(res.body.data.id).to.equal(bru.getVar('clientId'));
+    expect(res.body.data.status).to.equal('inactive');
+    expect(res.body.data.legal_name).to.equal(bru.getVar('clientLegalName'));
+    expect(res.body.data.document_number).to.equal(bru.getVar('clientDocument'));
+    expect(res.body.data.phone).to.equal('+59170000020');
+    expect(res.body.data.email).to.equal('cliente@example.com');
+    expect(res.body.data.updated_at).to.be.a('string');
+  });
+}

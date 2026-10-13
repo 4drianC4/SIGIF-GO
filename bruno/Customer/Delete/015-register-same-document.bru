@@ -1,0 +1,39 @@
+meta {
+  name: 12 Register Same Document Again
+  type: http
+  seq: 15
+}
+
+post {
+  url: {{baseUrl}}/api/v1/customers/
+  body: json
+  auth: bearer
+}
+
+headers {
+  Content-Type: application/json
+}
+
+auth:bearer {
+  token: {{accessToken}}
+}
+
+body:json {
+  {
+    "legal_name": "{{clientTag}} Cliente Nuevo",
+    "document_type": "tax_id",
+    "document_number": "{{clientDocument}}"
+  }
+}
+
+script:post-response {
+  bru.setVar('newClientId', res.body && res.body.data ? res.body.data.id : '');
+}
+
+tests {
+  test("responde 201: el documento queda libre tras eliminar", function() {
+    expect(res.status).to.equal(201);
+    expect(res.body.data.document_number).to.equal(bru.getVar('clientDocument'));
+    expect(res.body.data.id).to.not.equal(bru.getVar('clientId'));
+  });
+}
