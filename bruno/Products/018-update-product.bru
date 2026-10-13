@@ -1,0 +1,44 @@
+meta {
+  name: Update Product
+  type: http
+  seq: 18
+}
+
+put {
+  url: {{baseUrl}}/api/v1/products/{{productId}}
+  body: json
+  auth: bearer
+}
+
+headers {
+  Content-Type: application/json
+}
+
+auth:bearer {
+  token: {{accessToken}}
+}
+
+body:json {
+  {
+    "name": "{{productName}} editado",
+    "sku": "{{productSku}}-edit",
+    "category_id": "{{categoryId}}",
+    "unit_of_measure_id": "{{unitId}}",
+    "cost": 4.50,
+    "sale_price": 7.50,
+    "min_stock": 5
+  }
+}
+
+tests {
+  test("responde 200 con los datos editados", function() {
+    expect(res.status).to.equal(200);
+    expect(res.body.data.id).to.equal(bru.getVar('productId'));
+    expect(res.body.data.name).to.equal(bru.getVar('productName') + ' editado');
+    expect(res.body.data.sku).to.equal((bru.getVar('productSku') + '-edit').toUpperCase());
+    expect(res.body.data.cost).to.equal(4.5);
+    expect(res.body.data.price).to.equal(7.5);
+    expect(res.body.data.margin).to.equal(40);
+    expect(res.body.data.min_stock).to.equal(5);
+  });
+}

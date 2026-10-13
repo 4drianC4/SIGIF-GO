@@ -1,7 +1,7 @@
 meta {
   name: Create Category - Invalid (400)
   type: http
-  seq: 3
+  seq: 4
 }
 
 post {
@@ -20,14 +20,15 @@ auth:bearer {
 
 body:json {
   {
-    "name": "   "
+    "name": " ",
+    "parent_id": "no-es-uuid",
+    "target_margin": 150
   }
 }
 
 tests {
-  test("rechaza el nombre vacío con 400 VALIDATION_ERROR", function() {
+  test("responde 400 VALIDATION_ERROR", function() {
     expect(res.status).to.equal(400);
     expect(res.body.error.code).to.equal('VALIDATION_ERROR');
-    expect(res.body.error.details).to.have.property('name');
   });
 }

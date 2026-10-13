@@ -36,7 +36,7 @@ Módulos implementados:
 .
 ├── cmd/
 │   ├── server/          # Servidor HTTP
-│   └── migrate/         # AutoMigrate + seed (roles, permisos, admin)
+│   └── migrate/         # AutoMigrate + migraciones SQL versionadas + seed (roles, permisos, admin)
 ├── configs/
 │   └── config.yaml      # Configuración por defecto
 ├── deployments/docker/  # Docker Compose + Dockerfiles
