@@ -1,0 +1,33 @@
+meta {
+  name: Unknown Role (404)
+  type: http
+  seq: 8
+}
+
+patch {
+  url: {{baseUrl}}/api/v1/roles/00000000-0000-0000-0000-000000000000/status
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{accessToken}}
+}
+
+headers {
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "status": "inactive"
+  }
+}
+
+tests {
+  test("rechaza con 404 un rol inexistente", function() {
+    expect(res.status).to.equal(404);
+    expect(res.body.success).to.equal(false);
+    expect(res.body.error.code).to.equal('NOT_FOUND');
+  });
+}

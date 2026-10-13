@@ -1,0 +1,46 @@
+meta {
+  name: Setup - List Roles
+  type: http
+  seq: 3
+}
+
+get {
+  url: {{baseUrl}}/api/v1/roles/
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{accessToken}}
+}
+
+script:post-response {
+  if (res.body && res.body.data) {
+    res.body.data.forEach(function(r) {
+      if (r.name === 'employee') bru.setVar('employeeId', r.id);
+      if (r.name === 'superadmin') bru.setVar('superadminId', r.id);
+      if (r.name === 'business_admin') bru.setVar('businessAdminRoleId', r.id);
+    });
+  }
+}
+
+tests {
+  test("responde 200 con los roles del sistema", function() {
+    expect(res.status).to.equal(200);
+    expect(res.body.success).to.equal(true);
+    const names = res.body.data.map(r => r.name);
+    expect(names).to.include('employee');
+    expect(names).to.include('superadmin');
+  });
+
+  test("los roles a modificar existen y están activos", function() {
+    const employee = res.body.data.find(r => r.name === 'employee');
+    const superadmin = res.body.data.find(r => r.name === 'superadmin');
+    expect(employee).to.not.equal(undefined);
+    expect(superadmin).to.not.equal(undefined);
+    expect(employee.status).to.equal('active');
+    expect(superadmin.status).to.equal('active');
+    expect(employee.id).to.be.a('string');
+    expect(superadmin.id).to.be.a('string');
+  });
+}

@@ -1,0 +1,39 @@
+meta {
+  name: Create Permission
+  type: http
+  seq: 2
+}
+
+post {
+  url: {{baseUrl}}/api/v1/permissions/
+  body: json
+  auth: bearer
+}
+
+headers {
+  Content-Type: application/json
+}
+
+auth:bearer {
+  token: {{accessToken}}
+}
+
+body:json {
+  {
+    "module": "products",
+    "operation": "export",
+    "description": "Exportar productos"
+  }
+}
+
+tests {
+  test("registra el permiso (201) o responde 409 si ya existe", function() {
+    expect([201, 409]).to.include(res.status);
+    if (res.status === 201) {
+      expect(res.body.success).to.equal(true);
+      expect(res.body.data.code).to.equal('products.export');
+    } else {
+      expect(res.body.error.code).to.equal('CONFLICT');
+    }
+  });
+}

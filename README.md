@@ -79,8 +79,10 @@ cp .env.example .env
 | `SIGIF_JWT_ACCESS_TOKEN_EXPIRY` | Expiración del token (min) | 15 |
 | `SIGIF_SEED_ADMIN_EMAIL` | Email del admin inicial | admin@sigif.com |
 | `SIGIF_SEED_ADMIN_PASSWORD` | Contraseña del admin inicial | admin123 |
+| `SIGIF_SEED_BUSINESS_ADMIN_EMAIL` | Email del `business_admin` de prueba | negocio@sigif.com |
+| `SIGIF_SEED_BUSINESS_ADMIN_PASSWORD` | Contraseña del `business_admin` de prueba | negocio123 |
 
-> El admin inicial se crea en la primera migración si no existe ningún usuario. Cambia su contraseña en producción.
+> El admin inicial se crea en la primera migración si no existe ningún usuario. Cambia su contraseña en producción. El usuario `business_admin` de prueba (`negocio@sigif.com`) permite verificar los accesos de solo lectura.
 
 ## Quick Start
 
@@ -122,6 +124,60 @@ DELETE /api/v1/users/:id              # Eliminar usuario (users.delete)
 POST   /api/v1/users/:id/activate     # Activar (users.activate)
 POST   /api/v1/users/:id/deactivate   # Desactivar (users.deactivate)
 ```
+
+### Permisos (catálogo, HU-082-01)
+
+```
+GET  /api/v1/permissions/modules   # Catálogo de módulos y operaciones (permiso permissions.read)
+GET  /api/v1/permissions           # Listar permisos; opcional ?module=<módulo> (permissions.read)
+POST /api/v1/permissions           # Registrar un permiso (permissions.create)
+```
+
+```json
+POST /api/v1/permissions
+{
+  "module": "products",
+  "operation": "export",
+  "description": "Exportar productos"
+}
+```
+
+`module` debe pertenecer al catálogo y `operation` a las operaciones soportadas del módulo. El código (`code`) se deriva del backend como `module.operation`; si se envía debe coincidir. Los pares repetidos responden `409 CONFLICT` (índice único `(module, operation)`).
+
+### Roles (listado, HU-082-02)
+
+```
+GET /api/v1/roles/   # Listar roles (permiso roles.list) — solo lectura
+```
+
+Params opcionales: `q` (búsqueda parcial e insensible a mayúsculas sobre el nombre, máx. 100), `type` (`system` | `custom`), `status` (`active` | `inactive` | `all`, por defecto `all`), `page` (≥1) y `limit` (1–100, por defecto 20).
+
+```json
+GET /api/v1/roles/?q=vendedor&type=custom&status=active&page=1&limit=20
+```
+
+Respuesta:
+
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "id": "...",
+      "company_id": null,
+      "name": "superadmin",
+      "type": "system",
+      "status": "active",
+      "permissions_count": 22,
+      "description": "Acceso total al sistema",
+      "created_at": "2026-10-05T12:00:00Z"
+    }
+  ],
+  "meta": { "page": 1, "limit": 20, "total": 4, "total_pages": 1 }
+}
+```
+
+Los roles visibles son los del sistema (`company_id` nulo) más los de la empresa del token; un usuario sin empresa solo ve los del sistema. `permissions_count` cuenta los permisos asignados a cada rol. Una lista vacía responde `200` con `data: []` y `total: 0` (nunca `404`).
 
 ### Registro de usuario
 

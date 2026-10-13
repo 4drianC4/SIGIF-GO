@@ -46,3 +46,54 @@ type RegisterUserResponse struct {
 	dto.User
 	GeneratedPassword string `json:"generated_password"`
 }
+
+// CreatePermissionRequest is the body of POST /permissions (HU-082-01). The
+// code is optional and, when sent, must match module.operation.
+type CreatePermissionRequest struct {
+	Module      string `json:"module" validate:"required,min=1,max=60"`
+	Operation   string `json:"operation" validate:"required,min=1,max=60"`
+	Code        string `json:"code" validate:"omitempty,max=80"`
+	Description string `json:"description" validate:"omitempty,max=200"`
+}
+
+// ListPermissionsRequest holds the query string of GET /permissions. Page and
+// limit are pointers so an explicit 0 is rejected instead of defaulted.
+type ListPermissionsRequest struct {
+	Module string `json:"module" query:"module" validate:"omitempty,max=60"`
+	Page   *int   `json:"page" query:"page" validate:"omitempty,min=1"`
+	Limit  *int   `json:"limit" query:"limit" validate:"omitempty,min=1"`
+}
+
+// StatusAll lists roles in every status.
+const StatusAll = "all"
+
+// ListRolesRequest holds the query string of GET /roles (HU-082-02). Page and
+// limit are pointers so an explicit 0 is rejected instead of defaulted.
+type ListRolesRequest struct {
+	Q      string `json:"q" query:"q" validate:"max=100"`
+	Type   string `json:"type" query:"type" validate:"omitempty,oneof=system custom"`
+	Status string `json:"status" query:"status" validate:"omitempty,oneof=active inactive all"`
+	Page   *int   `json:"page" query:"page" validate:"omitempty,min=1"`
+	Limit  *int   `json:"limit" query:"limit" validate:"omitempty,min=1"`
+}
+
+// ChangeRoleStatusRequest is the body of PATCH /roles/:id/status (HU-082-04).
+type ChangeRoleStatusRequest struct {
+	Status string `json:"status" validate:"required,oneof=active inactive"`
+}
+
+// RoleStatusFromRequest maps the request value to the role status domain type.
+func RoleStatusFromRequest(s string) entity.RoleStatus {
+	return entity.RoleStatus(s)
+}
+
+// UpdatePermissionRequest is the body of PATCH /permissions/:id. Only the
+// description is editable: module and operation define the permission code.
+type UpdatePermissionRequest struct {
+	Description *string `json:"description" validate:"required,max=200"`
+}
+
+// ExportPermissionsRequest holds the query string of GET /permissions/export.
+type ExportPermissionsRequest struct {
+	Module string `json:"module" query:"module" validate:"omitempty,max=60"`
+}

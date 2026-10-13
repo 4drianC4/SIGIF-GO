@@ -57,6 +57,9 @@ func (s *UserService) Edit(ctx context.Context, id uuid.UUID, in EditUserInput) 
 		if role == nil {
 			return nil, sharedErrors.New(sharedErrors.CodeValidation, "invalid role", 400)
 		}
+		if !role.IsActive() {
+			return nil, ErrRoleInactive
+		}
 		roleID = &role.ID
 	}
 
