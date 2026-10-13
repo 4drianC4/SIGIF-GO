@@ -17,6 +17,8 @@ var Module = fx.Options(
 	fx.Provide(
 		fx.Annotate(gorm.NewProductGormRepository, fx.As(new(repository.ProductRepository))),
 		fx.Annotate(gorm.NewCategoryGormRepository, fx.As(new(repository.CategoryRepository))),
+		fx.Annotate(gorm.NewPriceHistoryGormRepository, fx.As(new(repository.PriceHistoryRepository))),
+		fx.Annotate(gorm.NewStockGormRepository, fx.As(new(repository.StockRepository))),
 		service.NewCatalogService,
 		handler.NewCatalogCommandHandler,
 	),

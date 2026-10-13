@@ -45,6 +45,8 @@ type testServer struct {
 	jwtManager *jwt.JWTManager
 	products   *testutil.MemoryProductRepository
 	perms      *stubPermissions
+	history    *testutil.MemoryPriceHistoryRepository
+	stock      *testutil.MemoryStockRepository
 }
 
 type activeSessions struct{}
@@ -73,7 +75,9 @@ func newTestServer(t *testing.T) *testServer {
 	products := testutil.NewMemoryProductRepository()
 	categories := testutil.NewMemoryCategoryRepository()
 	clk := clock.NewMockClock(time.Date(2026, 10, 2, 12, 0, 0, 0, time.UTC))
-	svc := service.NewCatalogService(products, categories, clk)
+	history := testutil.NewMemoryPriceHistoryRepository()
+	stock := &testutil.MemoryStockRepository{}
+	svc := service.NewCatalogService(products, categories, history, stock, clk)
 	h := httpHandler.NewCatalogHTTPHandler(appHandler.NewCatalogCommandHandler(svc), validator.New())
 	perms := &stubPermissions{byUser: map[uuid.UUID]map[string]bool{}}
 
@@ -81,7 +85,7 @@ func newTestServer(t *testing.T) *testServer {
 	app.Use(middleware.AuthRequired(jwtManager, activeSessions{}))
 	router.RegisterCatalogRoutes(app.Group("/api/v1"), h, perms)
 
-	return &testServer{app: app, jwtManager: jwtManager, products: products, perms: perms}
+	return &testServer{app: app, jwtManager: jwtManager, products: products, perms: perms, history: history, stock: stock}
 }
 
 func (s *testServer) token(t *testing.T, companyID string, perms ...string) string {

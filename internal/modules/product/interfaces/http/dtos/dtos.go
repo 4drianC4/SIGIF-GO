@@ -45,6 +45,7 @@ type UpdateProductRequest struct {
 	UnitOfMeasure string           `json:"unit_of_measure" validate:"required,oneof=unit kg g l ml m box pack"`
 	CostPrice     *decimal.Decimal `json:"cost_price"`
 	SalePrice     *decimal.Decimal `json:"sale_price" validate:"required"`
+	Reason        string           `json:"reason" validate:"omitempty,max=160"`
 }
 
 func (r *UpdateProductRequest) Normalize() {
@@ -54,4 +55,15 @@ func (r *UpdateProductRequest) Normalize() {
 	r.Name = strings.TrimSpace(r.Name)
 	r.Description = strings.TrimSpace(r.Description)
 	r.UnitOfMeasure = strings.TrimSpace(r.UnitOfMeasure)
+	r.Reason = strings.TrimSpace(r.Reason)
+}
+
+type UpdateProductPriceRequest struct {
+	CostPrice *decimal.Decimal `json:"cost_price"`
+	SalePrice *decimal.Decimal `json:"sale_price"`
+	Reason    string           `json:"reason" validate:"omitempty,max=160"`
+}
+
+func (r *UpdateProductPriceRequest) Normalize() {
+	r.Reason = strings.TrimSpace(r.Reason)
 }

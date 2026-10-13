@@ -6,15 +6,25 @@ import (
 )
 
 type CatalogService struct {
-	products   repository.ProductRepository
-	categories repository.CategoryRepository
-	clock      clock.Clock
+	products     repository.ProductRepository
+	categories   repository.CategoryRepository
+	priceHistory repository.PriceHistoryRepository
+	stock        repository.StockRepository
+	clock        clock.Clock
 }
 
-func NewCatalogService(products repository.ProductRepository, categories repository.CategoryRepository, clock clock.Clock) *CatalogService {
+func NewCatalogService(
+	products repository.ProductRepository,
+	categories repository.CategoryRepository,
+	priceHistory repository.PriceHistoryRepository,
+	stock repository.StockRepository,
+	clock clock.Clock,
+) *CatalogService {
 	return &CatalogService{
-		products:   products,
-		categories: categories,
-		clock:      clock,
+		products:     products,
+		categories:   categories,
+		priceHistory: priceHistory,
+		stock:        stock,
+		clock:        clock,
 	}
 }

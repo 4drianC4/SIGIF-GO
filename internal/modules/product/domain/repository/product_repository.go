@@ -15,6 +15,7 @@ type ProductFilters struct {
 }
 
 type ProductRepository interface {
+	WithinTransaction(ctx context.Context, fn func(context.Context) error) error
 	Create(ctx context.Context, product *entity.Product) error
 	Update(ctx context.Context, product *entity.Product) error
 	GetByID(ctx context.Context, companyID, id uuid.UUID) (*entity.Product, error)

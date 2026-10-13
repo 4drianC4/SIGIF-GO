@@ -1,0 +1,27 @@
+meta {
+  name: Update Product Price
+  type: http
+  seq: 18
+}
+
+patch {
+  url: {{baseUrl}}/api/v1/products/{{productId}}/price
+  body: json
+  auth: bearer
+}
+
+headers {
+  Content-Type: application/json
+}
+
+auth:bearer {
+  token: {{accessToken}}
+}
+
+body:json {
+  {
+    "cost_price": 13.30,
+    "sale_price": 16.90,
+    "reason": "Ajuste por costo"
+  }
+}

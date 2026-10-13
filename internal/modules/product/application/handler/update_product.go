@@ -20,5 +20,7 @@ func (h *CatalogCommandHandler) HandleUpdateProduct(ctx context.Context, cmd com
 		UnitOfMeasure: cmd.UnitOfMeasure,
 		CostPrice:     cmd.CostPrice,
 		SalePrice:     cmd.SalePrice,
+		UserID:        cmd.UserID,
+		Reason:        cmd.Reason,
 	})
 }

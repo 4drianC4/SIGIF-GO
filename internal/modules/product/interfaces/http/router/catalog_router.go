@@ -14,6 +14,8 @@ func RegisterCatalogRoutes(router fiber.Router, h *handler.CatalogHTTPHandler, c
 	router.Post("/products", middleware.RequirePermission(checker, "products", "create"), h.CreateProduct)
 	router.Get("/products/:id", middleware.RequirePermission(checker, "products", "read"), h.GetProduct)
 	router.Put("/products/:id", middleware.RequirePermission(checker, "products", "update"), h.UpdateProduct)
+	router.Patch("/products/:id/price", middleware.RequirePermission(checker, "products", "update"), h.UpdateProductPrice)
 	router.Patch("/products/:id/status", middleware.RequirePermission(checker, "products", "update"), h.SetProductStatus)
 	router.Delete("/products/:id", middleware.RequirePermission(checker, "products", "delete"), h.DeleteProduct)
+	router.Get("/products/:id/price-history", middleware.RequirePermission(checker, "products", "read"), h.GetPriceHistory)
 }

@@ -69,3 +69,44 @@ func FromProductList(products []*entity.Product) []Product {
 	}
 	return result
 }
+
+type ProductDetail struct {
+	Product
+	StockTotal string `json:"stock_total"`
+}
+
+func FromProductDetail(p *entity.ProductDetail) ProductDetail {
+	return ProductDetail{Product: FromProduct(p.Product), StockTotal: p.StockTotal.StringFixed(3)}
+}
+
+type PriceHistoryEntry struct {
+	ID            string `json:"id"`
+	UserFullName  string `json:"user_full_name"`
+	UserRole      string `json:"user_role"`
+	PreviousCost  string `json:"previous_cost"`
+	NewCost       string `json:"new_cost"`
+	PreviousPrice string `json:"previous_price"`
+	NewPrice      string `json:"new_price"`
+	MarginPct     string `json:"margin_pct"`
+	Reason        string `json:"reason,omitempty"`
+	CreatedAt     string `json:"created_at"`
+}
+
+func FromPriceHistory(entries []*entity.PriceHistoryEntry) []PriceHistoryEntry {
+	result := make([]PriceHistoryEntry, 0, len(entries))
+	for _, e := range entries {
+		result = append(result, PriceHistoryEntry{
+			ID:            e.ID.String(),
+			UserFullName:  e.UserFullName,
+			UserRole:      e.UserRole,
+			PreviousCost:  e.PreviousCost.StringFixed(2),
+			NewCost:       e.NewCost.StringFixed(2),
+			PreviousPrice: e.PreviousPrice.StringFixed(2),
+			NewPrice:      e.NewPrice.StringFixed(2),
+			MarginPct:     e.MarginPct.String() + "%",
+			Reason:        e.Reason,
+			CreatedAt:     e.CreatedAt.Format(timeLayout),
+		})
+	}
+	return result
+}
