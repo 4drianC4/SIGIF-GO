@@ -111,6 +111,18 @@ func (c *Customer) IsDeleted() bool {
 	return c.DeletedAt != nil
 }
 
+// IsActive reports whether the customer can be used in new operations
+// (sales, credits, loyalty): it must be active and not deleted.
+func (c *Customer) IsActive() bool {
+	return c.Status == CustomerStatusActive && !c.IsDeleted()
+}
+
+// HasBalanceOrPoints reports whether the customer holds credit balance or
+// loyalty points, data that must not be lost by deleting the customer.
+func (c *Customer) HasBalanceOrPoints() bool {
+	return !c.CreditBalance.IsZero() || c.PointsAccrued > 0
+}
+
 func trimStringPtr(s *string) *string {
 	if s == nil {
 		return nil
