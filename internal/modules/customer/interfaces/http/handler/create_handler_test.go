@@ -35,7 +35,7 @@ func TestCreateCustomerCreditLimitRoundTrip(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			s := newTestServer(t)
-			token := s.token(t, companyA, "customers.create", "customers.read")
+			token := s.token(t, companyA, "customers.create", "customers.read", "customers.list")
 			body := map[string]any{"legal_name": "Credit customer"}
 			if tt.value != "" {
 				body["credit_limit"] = json.RawMessage(tt.value)
@@ -66,6 +66,13 @@ func TestCreateCustomerCreditLimitRoundTrip(t *testing.T) {
 			}
 			if fetched != created {
 				t.Fatalf("fetched credit = %+v, want %+v", fetched, created)
+			}
+			status, resp, items := s.list(t, "", token)
+			if status != fiber.StatusOK || !resp.Success || len(items) != 1 {
+				t.Fatalf("list status = %d, response = %+v, items = %+v", status, resp, items)
+			}
+			if items[0].ID != created.ID || items[0].CreditLimit != tt.want {
+				t.Fatalf("listed customer = %+v, want id %s and credit limit %s", items[0], created.ID, tt.want)
 			}
 		})
 	}
