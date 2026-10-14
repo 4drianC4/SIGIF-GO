@@ -69,7 +69,8 @@ Ninguno.
   "document_type": "tax_id",
   "document_number": "1020304050",
   "phone": "+59170000000",
-  "email": "contacto@ejemplo.com"
+  "email": "contacto@ejemplo.com",
+  "credit_limit": "2000.00"
 }
 ```
 
@@ -80,6 +81,7 @@ Ninguno.
 | `document_number` | string | No | Máximo 30 caracteres. Si se informa, debe ser único por empresa y tipo de documento entre clientes no eliminados. |
 | `phone` | string | No | Máximo 30 caracteres. |
 | `email` | string | No | Formato email, máximo 160 caracteres. |
+| `credit_limit` | decimal (string o número JSON) | No | Entre 0 y 9999999999.99, con hasta dos posiciones decimales (se aceptan ceros adicionales al final). Omitido, `null` o 0 significa sin crédito. Se recomienda enviarlo como string decimal sin separadores de miles. |
 
 ### Respuesta exitosa
 
@@ -96,7 +98,7 @@ Ninguno.
     "document_number": "1020304050",
     "phone": "+59170000000",
     "email": "contacto@ejemplo.com",
-    "credit_limit": "0",
+    "credit_limit": "2000",
     "credit_balance": "0",
     "points_accrued": 0,
     "status": "active",

@@ -16,5 +16,6 @@ func (h *CustomerCommandHandler) HandleCreate(ctx context.Context, cmd command.C
 		DocumentNumber: cmd.DocumentNumber,
 		Phone:          cmd.Phone,
 		Email:          cmd.Email,
+		CreditLimit:    cmd.CreditLimit,
 	})
 }
