@@ -13,6 +13,7 @@ import (
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/google/uuid"
+	"github.com/shopspring/decimal"
 
 	appHandler "github.com/sigif/sigif-go/internal/modules/customer/application/handler"
 	"github.com/sigif/sigif-go/internal/modules/customer/domain/entity"
@@ -55,6 +56,7 @@ type customerItem struct {
 	CompanyID      string  `json:"company_id"`
 	LegalName      string  `json:"legal_name"`
 	DocumentNumber *string `json:"document_number"`
+	CreditLimit    string  `json:"credit_limit"`
 	Status         string  `json:"status"`
 }
 
@@ -233,23 +235,35 @@ func TestListCustomersEndpointDefaultsToActive(t *testing.T) {
 	}
 }
 
-func TestListCustomersEndpointReturnsOnlyIdentificationFields(t *testing.T) {
+func TestListCustomersEndpointReturnsIdentificationAndCreditLimit(t *testing.T) {
 	s := newTestServer(t)
-	s.seed(t, companyA, "Ferreteria Central", "1020304050", entity.CustomerStatusActive)
+	customer := s.seed(t, companyA, "Ferreteria Central", "1020304050", entity.CustomerStatusActive)
+	customer.CreditLimit = decimal.RequireFromString("2000.25")
+	if err := s.customers.Update(context.Background(), customer); err != nil {
+		t.Fatalf("set credit limit: %v", err)
+	}
 
-	_, resp, _ := s.list(t, "", s.reader(t, companyA))
+	status, resp, _ := s.list(t, "", s.reader(t, companyA))
+	if status != fiber.StatusOK || !resp.Success {
+		t.Fatalf("status = %d, want 200 (error %+v)", status, resp.Error)
+	}
 
 	var raw []map[string]any
-	_ = json.Unmarshal(resp.Data, &raw)
+	if err := json.Unmarshal(resp.Data, &raw); err != nil {
+		t.Fatalf("decode listing: %v", err)
+	}
 	if len(raw) != 1 {
 		t.Fatalf("expected 1 item, got %d", len(raw))
 	}
-	for _, field := range []string{"id", "legal_name", "document_type", "document_number", "phone", "email", "status"} {
+	for _, field := range []string{"id", "legal_name", "document_type", "document_number", "phone", "email", "credit_limit", "status"} {
 		if _, ok := raw[0][field]; !ok {
 			t.Errorf("missing field %q in %v", field, raw[0])
 		}
 	}
-	for _, field := range []string{"credit_limit", "credit_balance", "points_accrued", "address"} {
+	if raw[0]["credit_limit"] != "2000.25" {
+		t.Errorf("credit_limit = %v, want decimal string 2000.25", raw[0]["credit_limit"])
+	}
+	for _, field := range []string{"credit_balance", "points_accrued", "address"} {
 		if _, ok := raw[0][field]; ok {
 			t.Errorf("listing must not expose %q", field)
 		}
