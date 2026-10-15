@@ -32,7 +32,7 @@ func Seed(ctx context.Context, db *gorm.DB, cfg *config.Config) error {
 		if err != nil {
 			return err
 		}
-		_, err = ensureRole(tx, entity.RoleEmployee, "Empleado sin permisos asignados", true, true)
+		employeeID, err := ensureRole(tx, entity.RoleEmployee, "Empleado sin permisos asignados", true, true)
 		if err != nil {
 			return err
 		}
@@ -47,6 +47,19 @@ func Seed(ctx context.Context, db *gorm.DB, cfg *config.Config) error {
 			// HU-082-02: business_admin must list the roles of its company.
 			// Read-only: no create/update/delete/assign permissions are granted.
 			permIDs[entity.PermRolesList],
+			// HU-10-02: business_admin supervises the cash registers in use and
+			// can free them; it cannot take one.
+			permIDs[entity.PermCashRegistersList],
+			permIDs[entity.PermCashRegistersReleaseAny],
+		}); err != nil {
+			return err
+		}
+		// HU-10-01: employees work as cashiers. They take an available cash
+		// register and release their own at the end of the shift.
+		if err := assignPermissions(tx, employeeID, []uuid.UUID{
+			permIDs[entity.PermCashRegistersList],
+			permIDs[entity.PermCashRegistersAssign],
+			permIDs[entity.PermCashRegistersRelease],
 		}); err != nil {
 			return err
 		}
@@ -55,7 +68,10 @@ func Seed(ctx context.Context, db *gorm.DB, cfg *config.Config) error {
 			return err
 		}
 
-		return seedCompanyAndAdmin(tx, cfg, superadminID, adminID)
+		if err := seedCompanyAndAdmin(tx, cfg, superadminID, adminID); err != nil {
+			return err
+		}
+		return seedCashierUsers(tx, cfg, employeeID)
 	})
 }
 

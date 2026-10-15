@@ -35,6 +35,9 @@ var SupportedOperations = []string{
 	"deactivate",
 	"change_password",
 	"status",
+	"assign",
+	"release",
+	"release_any",
 }
 
 // IsSupportedOperation reports whether operation belongs to the catalog.
@@ -111,6 +114,14 @@ const (
 	PermPermissionsUpdate   = "permissions.update"
 	PermPermissionsDelete   = "permissions.delete"
 	PermPermissionsExport   = "permissions.export"
+)
+
+// Cash register permissions (RF-10).
+const (
+	PermCashRegistersList       = "cash_registers.list"
+	PermCashRegistersAssign     = "cash_registers.assign"
+	PermCashRegistersRelease    = "cash_registers.release"
+	PermCashRegistersReleaseAny = "cash_registers.release_any"
 )
 
 // IsSystemPermission reports whether the pair module.operation belongs to the
@@ -195,6 +206,15 @@ func AllPermissions() []Permission {
 			ops: []struct{ op, desc string }{
 				{"list", "Listar roles"},
 				{"status", "Activar y desactivar roles"},
+			},
+		},
+		{
+			module: "cash_registers",
+			ops: []struct{ op, desc string }{
+				{"list", "Listar cajas y su disponibilidad"},
+				{"assign", "Tomar una caja disponible y ver la caja asignada"},
+				{"release", "Liberar la caja propia al finalizar el turno"},
+				{"release_any", "Liberar la caja de cualquier cajero"},
 			},
 		},
 	}
