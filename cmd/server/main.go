@@ -19,6 +19,7 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/sigif/sigif-go/internal/modules/auth"
+	"github.com/sigif/sigif-go/internal/modules/cashregister"
 	"github.com/sigif/sigif-go/internal/modules/customer"
 	"github.com/sigif/sigif-go/internal/modules/product"
 	"github.com/sigif/sigif-go/internal/modules/user"
@@ -46,6 +47,7 @@ func main() {
 		auth.Module,
 		customer.Module,
 		product.Module,
+		cashregister.Module,
 		fx.Invoke(registerHooks),
 		fx.Invoke(startServer),
 	)
