@@ -1,0 +1,33 @@
+meta {
+  name: 01 List Cash Registers
+  type: http
+  seq: 9
+}
+
+get {
+  url: {{baseUrl}}/api/v1/cash-registers/
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{accessTokenA}}
+}
+
+tests {
+  test("responde 200 con las cajas activas de la empresa y su disponibilidad", function() {
+    expect(res.status).to.equal(200);
+    expect(res.body.success).to.equal(true);
+    expect(res.body.meta.total).to.be.at.least(2);
+    const found = res.body.data.map(function(r) { return r.code; });
+    expect(found).to.include('CAJA-01');
+    expect(found).to.include('CAJA-02');
+    res.body.data.forEach(function(r) {
+      expect(r.status).to.equal('active');
+      expect(['available', 'in_use']).to.include(r.availability);
+    });
+  });
+  test("no lista la caja inactiva CAJA-03", function() {
+    expect(res.body.data.map(function(r) { return r.code; })).to.not.include('CAJA-03');
+  });
+}

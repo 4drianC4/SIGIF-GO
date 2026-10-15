@@ -1,0 +1,23 @@
+meta {
+  name: 03 Invalid Availability (400)
+  type: http
+  seq: 11
+}
+
+get {
+  url: {{baseUrl}}/api/v1/cash-registers/?availability=ocupada
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{accessTokenA}}
+}
+
+tests {
+  test("responde 400 VALIDATION_ERROR", function() {
+    expect(res.status).to.equal(400);
+    expect(res.body.error.code).to.equal('VALIDATION_ERROR');
+    expect(res.body.error.details.availability).to.be.a('string');
+  });
+}

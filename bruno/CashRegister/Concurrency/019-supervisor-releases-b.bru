@@ -1,0 +1,23 @@
+meta {
+  name: 11 Supervisor Releases Cashier B
+  type: http
+  seq: 19
+}
+
+post {
+  url: {{baseUrl}}/api/v1/cash-register-assignments/{{assignmentBId}}/release
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{accessTokenSupervisor}}
+}
+
+tests {
+  test("business_admin libera la caja de otro cajero con release_any", function() {
+    expect(res.status).to.equal(200);
+    expect(res.body.data.status).to.equal('released');
+    expect(res.body.data.released_by).to.equal(bru.getVar('businessAdminId'));
+  });
+}

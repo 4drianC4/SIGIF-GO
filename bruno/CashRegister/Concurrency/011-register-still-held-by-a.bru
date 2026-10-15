@@ -1,0 +1,24 @@
+meta {
+  name: 03 Register Still Held By Cashier A
+  type: http
+  seq: 11
+}
+
+get {
+  url: {{baseUrl}}/api/v1/cash-registers/?availability=in_use
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{accessTokenB}}
+}
+
+tests {
+  test("el rechazo no cambió la asignación", function() {
+    expect(res.status).to.equal(200);
+    const item = res.body.data.find(function(r) { return r.code === 'CAJA-01'; });
+    expect(item.assigned_to.id).to.equal(bru.getVar('cashierAId'));
+    expect(item.assignment_id).to.equal(bru.getVar('assignmentAId'));
+  });
+}

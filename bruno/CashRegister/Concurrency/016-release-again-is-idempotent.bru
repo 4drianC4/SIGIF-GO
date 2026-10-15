@@ -1,0 +1,23 @@
+meta {
+  name: 08 Release Again Is Idempotent
+  type: http
+  seq: 16
+}
+
+post {
+  url: {{baseUrl}}/api/v1/cash-register-assignments/{{assignmentAId}}/release
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{accessTokenA}}
+}
+
+tests {
+  test("responde 200 con la misma liberación, sin cambios", function() {
+    expect(res.status).to.equal(200);
+    expect(res.body.data.status).to.equal('released');
+    expect(res.body.data.released_at).to.equal(bru.getVar('releasedAtA'));
+  });
+}

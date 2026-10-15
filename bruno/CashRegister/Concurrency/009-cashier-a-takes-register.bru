@@ -1,0 +1,36 @@
+meta {
+  name: 01 Cashier A Takes Cash Register
+  type: http
+  seq: 9
+}
+
+post {
+  url: {{baseUrl}}/api/v1/cash-register-assignments/
+  body: json
+  auth: bearer
+}
+
+headers {
+  Content-Type: application/json
+}
+
+auth:bearer {
+  token: {{accessTokenA}}
+}
+
+body:json {
+  {
+    "cash_register_id": "{{register1Id}}"
+  }
+}
+
+script:post-response {
+  bru.setVar('assignmentAId', res.body && res.body.data ? res.body.data.id : '');
+}
+
+tests {
+  test("responde 201 para el cajero A", function() {
+    expect(res.status).to.equal(201);
+    expect(res.body.data.cashier.id).to.equal(bru.getVar('cashierAId'));
+  });
+}

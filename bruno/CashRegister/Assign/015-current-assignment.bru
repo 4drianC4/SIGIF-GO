@@ -1,0 +1,24 @@
+meta {
+  name: 07 Current Assignment
+  type: http
+  seq: 15
+}
+
+get {
+  url: {{baseUrl}}/api/v1/cash-register-assignments/current
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{accessTokenA}}
+}
+
+tests {
+  test("muestra la caja asignada durante el turno", function() {
+    expect(res.status).to.equal(200);
+    expect(res.body.data.id).to.equal(bru.getVar('assignmentAId'));
+    expect(res.body.data.cash_register.code).to.equal('CAJA-01');
+    expect(res.body.data.status).to.equal('active');
+  });
+}

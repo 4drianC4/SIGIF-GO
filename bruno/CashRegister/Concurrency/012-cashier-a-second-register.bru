@@ -1,0 +1,32 @@
+meta {
+  name: 04 Cashier A Takes A Second Register (409)
+  type: http
+  seq: 12
+}
+
+post {
+  url: {{baseUrl}}/api/v1/cash-register-assignments/
+  body: json
+  auth: bearer
+}
+
+headers {
+  Content-Type: application/json
+}
+
+auth:bearer {
+  token: {{accessTokenA}}
+}
+
+body:json {
+  {
+    "cash_register_id": "{{register2Id}}"
+  }
+}
+
+tests {
+  test("responde 409 CASHIER_ALREADY_ASSIGNED", function() {
+    expect(res.status).to.equal(409);
+    expect(res.body.error.code).to.equal('CASHIER_ALREADY_ASSIGNED');
+  });
+}

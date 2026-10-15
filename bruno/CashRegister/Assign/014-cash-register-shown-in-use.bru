@@ -1,0 +1,26 @@
+meta {
+  name: 06 Cash Register Shown In Use
+  type: http
+  seq: 14
+}
+
+get {
+  url: {{baseUrl}}/api/v1/cash-registers/?availability=in_use
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{accessTokenA}}
+}
+
+tests {
+  test("CAJA-01 aparece en uso con su cajero", function() {
+    expect(res.status).to.equal(200);
+    const item = res.body.data.find(function(r) { return r.code === 'CAJA-01'; });
+    expect(item.availability).to.equal('in_use');
+    expect(item.assigned_to.id).to.equal(bru.getVar('cashierAId'));
+    expect(item.assignment_id).to.equal(bru.getVar('assignmentAId'));
+    expect(item.assigned_at).to.be.a('string');
+  });
+}

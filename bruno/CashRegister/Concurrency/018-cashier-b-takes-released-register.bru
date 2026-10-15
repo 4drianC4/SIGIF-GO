@@ -1,0 +1,37 @@
+meta {
+  name: 10 Cashier B Takes Released Register
+  type: http
+  seq: 18
+}
+
+post {
+  url: {{baseUrl}}/api/v1/cash-register-assignments/
+  body: json
+  auth: bearer
+}
+
+headers {
+  Content-Type: application/json
+}
+
+auth:bearer {
+  token: {{accessTokenB}}
+}
+
+body:json {
+  {
+    "cash_register_id": "{{register1Id}}"
+  }
+}
+
+script:post-response {
+  bru.setVar('assignmentBId', res.body && res.body.data ? res.body.data.id : '');
+}
+
+tests {
+  test("responde 201: la caja se reasigna al terminar el turno", function() {
+    expect(res.status).to.equal(201);
+    expect(res.body.data.cashier.id).to.equal(bru.getVar('cashierBId'));
+    expect(res.body.data.id).to.not.equal(bru.getVar('assignmentAId'));
+  });
+}

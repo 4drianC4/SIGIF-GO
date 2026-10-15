@@ -1,0 +1,22 @@
+meta {
+  name: 06 Cashier B Releases Assignment Of A (403)
+  type: http
+  seq: 14
+}
+
+post {
+  url: {{baseUrl}}/api/v1/cash-register-assignments/{{assignmentAId}}/release
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{accessTokenB}}
+}
+
+tests {
+  test("otro cajero no puede liberar la caja: 403 FORBIDDEN", function() {
+    expect(res.status).to.equal(403);
+    expect(res.body.error.code).to.equal('FORBIDDEN');
+  });
+}
