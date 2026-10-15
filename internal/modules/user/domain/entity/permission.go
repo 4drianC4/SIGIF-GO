@@ -111,6 +111,11 @@ const (
 	PermPermissionsUpdate   = "permissions.update"
 	PermPermissionsDelete   = "permissions.delete"
 	PermPermissionsExport   = "permissions.export"
+	PermSuppliersCreate     = "suppliers.create"
+	PermSuppliersList       = "suppliers.list"
+	PermSuppliersRead       = "suppliers.read"
+	PermSuppliersUpdate     = "suppliers.update"
+	PermSuppliersDeactivate = "suppliers.deactivate"
 )
 
 // IsSystemPermission reports whether the pair module.operation belongs to the
@@ -178,6 +183,16 @@ func AllPermissions() []Permission {
 				{"update", "Actualizar clientes"},
 				{"status", "Cambiar estado de clientes"},
 				{"delete", "Eliminar clientes"},
+			},
+		},
+		{
+			module: "suppliers",
+			ops: []struct{ op, desc string }{
+				{"create", "Registrar proveedores"},
+				{"list", "Listar proveedores y ver su resumen"},
+				{"read", "Ver proveedores y sus productos"},
+				{"update", "Editar proveedores"},
+				{"deactivate", "Desactivar proveedores"},
 			},
 		},
 		{
