@@ -125,6 +125,17 @@ POST   /api/v1/users/:id/activate     # Activar (users.activate)
 POST   /api/v1/users/:id/deactivate   # Desactivar (users.deactivate)
 ```
 
+### Cajas (RF-10)
+
+```
+GET  /api/v1/cash-registers/                             # Cajas activas y su disponibilidad (cash_registers.list) — HU-10-01
+POST /api/v1/cash-register-assignments/                  # Tomar una caja disponible (cash_registers.assign) — HU-10-01
+GET  /api/v1/cash-register-assignments/current           # Caja asignada al cajero (cash_registers.assign) — HU-10-01
+POST /api/v1/cash-register-assignments/:id/release       # Liberar la caja (cash_registers.release o release_any) — HU-10-02
+```
+
+El cajero y la empresa salen del token. Una caja tiene un solo cajero y un cajero una sola caja a la vez; la regla la garantizan índices únicos parciales, también ante peticiones simultáneas (`409 CASH_REGISTER_IN_USE` / `409 CASHIER_ALREADY_ASSIGNED`). Liberar conserva el historial. El rol `employee` trabaja como cajero; `business_admin` ve las cajas en uso y puede liberarlas. Detalle en `docs/api/HU-10-01-endpoints.md` y `docs/api/HU-10-02-endpoints.md`.
+
 ### Permisos (catálogo, HU-082-01)
 
 ```
