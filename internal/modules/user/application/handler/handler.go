@@ -6,6 +6,7 @@ import (
 	"github.com/sigif/sigif-go/internal/modules/user/application/command"
 	"github.com/sigif/sigif-go/internal/modules/user/application/query"
 	"github.com/sigif/sigif-go/internal/modules/user/domain/entity"
+	"github.com/sigif/sigif-go/internal/modules/user/domain/repository"
 	"github.com/sigif/sigif-go/internal/modules/user/domain/service"
 )
 
@@ -73,4 +74,46 @@ func (h *UserQueryHandler) HandleGetByEmail(ctx context.Context, q query.GetUser
 
 func (h *UserQueryHandler) HandleList(ctx context.Context, q query.ListUsers) ([]*entity.AppUser, int64, error) {
 	return h.service.List(ctx, q.Offset, q.Limit)
+}
+
+func (h *UserCommandHandler) HandleCreatePermission(ctx context.Context, cmd command.CreatePermission) (*entity.Permission, error) {
+	return h.service.CreatePermission(ctx, service.CreatePermissionParams{
+		Module:      cmd.Module,
+		Operation:   cmd.Operation,
+		Code:        cmd.Code,
+		Description: cmd.Description,
+	})
+}
+
+func (h *UserQueryHandler) HandleListPermissions(ctx context.Context, q query.ListPermissions) ([]*entity.Permission, int64, error) {
+	return h.service.ListPermissions(ctx, q.Module, q.Offset, q.Limit)
+}
+
+func (h *UserCommandHandler) HandleUpdatePermission(ctx context.Context, cmd command.UpdatePermission) (*entity.Permission, error) {
+	return h.service.UpdatePermission(ctx, cmd.ID, cmd.Description)
+}
+
+func (h *UserCommandHandler) HandleDeletePermission(ctx context.Context, cmd command.DeletePermission) error {
+	return h.service.DeletePermission(ctx, cmd.ID)
+}
+
+func (h *UserQueryHandler) HandleExportPermissions(ctx context.Context, q query.ExportPermissions) ([]*entity.Permission, error) {
+	return h.service.ExportPermissions(ctx, q.Module)
+}
+
+func (h *UserQueryHandler) HandleListPermissionModules(_ context.Context, _ query.ListPermissionModules) []entity.ModuleWithOperations {
+	return h.service.PermissionModules()
+}
+
+func (h *UserQueryHandler) HandleListRoles(ctx context.Context, q query.ListRoles) ([]*entity.Role, int64, error) {
+	return h.service.ListRoles(ctx, repository.RoleListFilter{
+		CompanyID: q.CompanyID,
+		Q:         q.Q,
+		Type:      q.Type,
+		Status:    q.Status,
+	}, q.Offset, q.Limit)
+}
+
+func (h *UserCommandHandler) HandleChangeRoleStatus(ctx context.Context, cmd command.ChangeRoleStatus) (*entity.Role, error) {
+	return h.service.ChangeRoleStatus(ctx, cmd.CompanyID, cmd.ID, cmd.Status)
 }

@@ -9,6 +9,7 @@ import (
 	"github.com/shopspring/decimal"
 
 	"github.com/sigif/sigif-go/internal/modules/product/domain/entity"
+	"github.com/sigif/sigif-go/internal/modules/product/domain/repository"
 	sharedErrors "github.com/sigif/sigif-go/internal/shared/errors"
 )
 
@@ -16,21 +17,21 @@ type UpdateProductPriceParams struct {
 	CompanyID uuid.UUID
 	ProductID uuid.UUID
 	UserID    uuid.UUID
-	CostPrice *decimal.Decimal
+	Cost      *decimal.Decimal
 	SalePrice *decimal.Decimal
 	Reason    string
 }
 
-func (s *CatalogService) UpdateProductPrice(ctx context.Context, params UpdateProductPriceParams) (*entity.Product, error) {
+func (s *CatalogService) UpdateProductPrice(ctx context.Context, params UpdateProductPriceParams) (*repository.ProductListItem, error) {
 	if params.CompanyID == uuid.Nil {
 		return nil, ErrCompanyRequired
 	}
 	if params.UserID == uuid.Nil {
 		return nil, sharedErrors.ErrUnauthorized
 	}
-	if params.CostPrice == nil && params.SalePrice == nil {
+	if params.Cost == nil && params.SalePrice == nil {
 		return nil, sharedErrors.New(sharedErrors.CodeValidation, "validation failed", 400).
-			WithDetails(map[string]string{"prices": "debe enviar cost_price o sale_price"})
+			WithDetails(map[string]string{"prices": "debe enviar cost o sale_price"})
 	}
 	params.Reason = strings.TrimSpace(params.Reason)
 	if utf8.RuneCountInString(params.Reason) > 160 {
@@ -41,18 +42,15 @@ func (s *CatalogService) UpdateProductPrice(ctx context.Context, params UpdatePr
 	var product *entity.Product
 	err := s.products.WithinTransaction(ctx, func(txCtx context.Context) error {
 		var err error
-		product, err = s.products.GetByID(txCtx, params.CompanyID, params.ProductID)
+		product, err = s.findProduct(txCtx, params.CompanyID, params.ProductID)
 		if err != nil {
 			return err
 		}
-		if product == nil {
-			return ErrProductNotFound
-		}
-		previousCost, previousPrice := product.CostPrice, product.SalePrice
+		previousCost, previousPrice := product.Cost, product.SalePrice
 		previousUpdatedAt := product.UpdatedAt
 		costPrice, salePrice := previousCost, previousPrice
-		if params.CostPrice != nil {
-			costPrice = *params.CostPrice
+		if params.Cost != nil {
+			costPrice = *params.Cost
 		}
 		if params.SalePrice != nil {
 			salePrice = *params.SalePrice
@@ -73,5 +71,5 @@ func (s *CatalogService) UpdateProductPrice(ctx context.Context, params UpdatePr
 	if err != nil {
 		return nil, err
 	}
-	return product, nil
+	return s.withCategoryName(ctx, product)
 }

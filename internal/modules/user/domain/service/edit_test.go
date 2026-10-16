@@ -8,6 +8,7 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/sigif/sigif-go/internal/modules/user/domain/entity"
+	"github.com/sigif/sigif-go/internal/modules/user/domain/repository"
 	"github.com/sigif/sigif-go/internal/shared/clock"
 	sharedErrors "github.com/sigif/sigif-go/internal/shared/errors"
 	"github.com/sigif/sigif-go/internal/shared/security"
@@ -93,10 +94,63 @@ func (r *memoryRoleRepo) GetByName(_ context.Context, name string) (*entity.Role
 	return r.byName[name], nil
 }
 
+// List is unused by the edit flows; the listing tests live with the HTTP
+// handler.
+func (r *memoryRoleRepo) List(_ context.Context, _ repository.RoleListFilter, _, _ int) ([]*entity.Role, int64, error) {
+	return nil, 0, nil
+}
+
+// Update persists the mutable status of a role for the status tests.
+func (r *memoryRoleRepo) Update(_ context.Context, role *entity.Role) error {
+	for _, stored := range r.byName {
+		if stored.ID == role.ID {
+			stored.Status = role.Status
+			return nil
+		}
+	}
+	return nil
+}
+
 type noopPermRepo struct{}
 
 func (noopPermRepo) HasPermission(_ context.Context, _ uuid.UUID, _, _ string) (bool, error) {
 	return false, nil
+}
+
+func (noopPermRepo) List(_ context.Context, _ string, _, _ int) ([]*entity.Permission, int64, error) {
+	return nil, 0, nil
+}
+
+func (noopPermRepo) GetByModuleOperation(_ context.Context, _, _ string) (*entity.Permission, error) {
+	return nil, nil
+}
+
+func (noopPermRepo) Create(_ context.Context, _ *entity.Permission) error {
+	return nil
+}
+
+func (noopPermRepo) GetByID(_ context.Context, _ uuid.UUID) (*entity.Permission, error) {
+	return nil, nil
+}
+
+func (noopPermRepo) ListAll(_ context.Context, _ string) ([]*entity.Permission, error) {
+	return nil, nil
+}
+
+func (noopPermRepo) ListByRole(_ context.Context, _ uuid.UUID) ([]*entity.Permission, error) {
+	return nil, nil
+}
+
+func (noopPermRepo) Update(_ context.Context, _ *entity.Permission) error {
+	return nil
+}
+
+func (noopPermRepo) Delete(_ context.Context, _ uuid.UUID) error {
+	return nil
+}
+
+func (noopPermRepo) CountRolesByPermission(_ context.Context, _ uuid.UUID) (int64, error) {
+	return 0, nil
 }
 
 func seedTestUser(t *testing.T, email string) *entity.AppUser {
@@ -121,8 +175,8 @@ func seedTestUser(t *testing.T, email string) *entity.AppUser {
 func setupEditService() (*UserService, *memoryUserRepo, *memoryRoleRepo) {
 	users := newMemoryUserRepo()
 	roles := &memoryRoleRepo{byName: map[string]*entity.Role{
-		entity.RoleSuperadmin:    {ID: uuid.New(), Name: entity.RoleSuperadmin},
-		entity.RoleBusinessAdmin: {ID: uuid.New(), Name: entity.RoleBusinessAdmin},
+		entity.RoleSuperadmin:    {ID: uuid.New(), Name: entity.RoleSuperadmin, Status: entity.RoleStatusActive},
+		entity.RoleBusinessAdmin: {ID: uuid.New(), Name: entity.RoleBusinessAdmin, Status: entity.RoleStatusActive},
 	}}
 	svc := NewUserService(users, roles, noopPermRepo{}, clock.NewMockClock(time.Now()), &memoryCompanyRepo{})
 	return svc, users, roles

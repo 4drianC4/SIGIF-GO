@@ -8,59 +8,51 @@ import (
 )
 
 type CreateCategory struct {
-	CompanyID   uuid.UUID
-	Name        string
-	Description string
+	CompanyID    uuid.UUID
+	ParentID     *uuid.UUID
+	Name         string
+	Description  string
+	DefaultTax   *string
+	TargetMargin *decimal.Decimal
 }
 
 type CreateProduct struct {
-	CompanyID     uuid.UUID
-	CategoryID    uuid.UUID
-	SKU           string
-	Barcode       string
-	Name          string
-	Description   string
-	UnitOfMeasure entity.UnitOfMeasure
-	CostPrice     decimal.Decimal
-	SalePrice     decimal.Decimal
+	CompanyID       uuid.UUID
+	CategoryID      uuid.UUID
+	UnitOfMeasureID uuid.UUID
+	SKU             string
+	Barcode         string
+	Name            string
+	Description     string
+	Cost            decimal.Decimal
+	SalePrice       decimal.Decimal
+	InitialStock    decimal.Decimal
+	MinStock        decimal.Decimal
 }
 
 type UpdateProduct struct {
-	CompanyID     uuid.UUID
-	ProductID     uuid.UUID
-	CategoryID    uuid.UUID
-	SKU           string
-	Barcode       string
-	Name          string
-	Description   string
-	UnitOfMeasure entity.UnitOfMeasure
-	CostPrice     decimal.Decimal
-	SalePrice     decimal.Decimal
-	UserID        uuid.UUID
-	Reason        string
-}
-
-type GetProduct struct {
-	CompanyID uuid.UUID
-	ProductID uuid.UUID
+	CompanyID       uuid.UUID
+	ProductID       uuid.UUID
+	CategoryID      uuid.UUID
+	UnitOfMeasureID uuid.UUID
+	SKU             string
+	Barcode         string
+	Name            string
+	Description     string
+	Cost            decimal.Decimal
+	SalePrice       decimal.Decimal
+	MinStock        *decimal.Decimal
+	UserID          uuid.UUID
+	Reason          string
 }
 
 type UpdateProductPrice struct {
 	CompanyID uuid.UUID
 	ProductID uuid.UUID
 	UserID    uuid.UUID
-	CostPrice *decimal.Decimal
+	Cost      *decimal.Decimal
 	SalePrice *decimal.Decimal
 	Reason    string
-}
-
-type ListProducts struct {
-	CompanyID  uuid.UUID
-	Name       string
-	CategoryID *uuid.UUID
-	Status     *entity.Status
-	Page       int
-	Limit      int
 }
 
 type SetProductStatus struct {

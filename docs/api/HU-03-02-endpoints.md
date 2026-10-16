@@ -1,5 +1,20 @@
 # Reporte de endpoints — HU-03-02 Edición de producto y categoría
 
+> **Nota de integración (`feature/integration-product`).** Este documento se redactó contra el catálogo anterior a HU-03-01. Al integrarlo con `dev`, el contrato del **producto** cambió como indica la tabla. Rutas, permisos, códigos de error, `stock_total`, historial de precios y paginación no cambiaron. La forma completa del producto está en [HU-03-01](HU-03-01-endpoints.md).
+>
+> | En este documento | Contrato integrado |
+> |---|---|
+> | `cost_price` (peticiones y respuestas) | `cost` |
+> | `sale_price` en **respuestas** de producto | `price` (en **peticiones** sigue siendo `sale_price`) |
+> | `unit_of_measure` (texto: `unit`, `kg`…) | `unit_of_measure_id` (uuid; ver `GET /units-of-measure`) |
+> | Importes como texto (`"13.30"`) en el producto | Números con 2 decimales (`13.30`). El historial de precios sigue usando texto |
+> | El producto trae `company_id` y `category_id` | Trae `category: { id, name }`, `margin`, `stock`, `min_stock` y `stock_status` |
+> | El costo puede ser `0` | El costo debe ser mayor que 0. `PUT /products/:id` y `PATCH /products/:id/price` validan `cost` y `sale_price` con la misma regla |
+> | `PUT /products/:id` sin stock mínimo | Acepta `min_stock` opcional |
+>
+> `stock_total` (suma de `stock_balance`) y `stock` (cantidad guardada en el propio producto) son valores independientes hasta que los movimientos de inventario mantengan ambos.
+
+
 ## Información general
 
 - HU: HU-03-02 — Edición de producto y categoría

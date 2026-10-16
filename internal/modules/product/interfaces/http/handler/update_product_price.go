@@ -16,7 +16,7 @@ import (
 func (h *CatalogHTTPHandler) UpdateProductPrice(c *fiber.Ctx) error {
 	productID, err := uuid.Parse(c.Params("id"))
 	if err != nil {
-		return response.Error(c, fiber.StatusBadRequest, sharedErrors.New(sharedErrors.CodeBadRequest, "invalid product id", 400))
+		return response.Error(c, fiber.StatusBadRequest, errInvalidProductID)
 	}
 	var req dtos.UpdateProductPriceRequest
 	if err := c.BodyParser(&req); err != nil {
@@ -38,12 +38,12 @@ func (h *CatalogHTTPHandler) UpdateProductPrice(c *fiber.Ctx) error {
 		CompanyID: companyID,
 		ProductID: productID,
 		UserID:    userID,
-		CostPrice: req.CostPrice,
+		Cost:      req.Cost,
 		SalePrice: req.SalePrice,
 		Reason:    req.Reason,
 	})
 	if err != nil {
 		return response.Error(c, fiber.StatusInternalServerError, err)
 	}
-	return response.Success(c, dto.FromProduct(product))
+	return response.Success(c, dto.FromProduct(*product))
 }

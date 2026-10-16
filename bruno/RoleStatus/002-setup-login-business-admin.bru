@@ -1,0 +1,36 @@
+meta {
+  name: Setup - Login Business Admin
+  type: http
+  seq: 2
+}
+
+post {
+  url: {{baseUrl}}/api/v1/auth/login
+  body: json
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "email": "{{businessAdminEmail}}",
+    "password": "{{businessAdminPassword}}"
+  }
+}
+
+script:post-response {
+  if (res.body && res.body.data) {
+    bru.setVar('tokenWithoutRolesStatus', res.body.data.token.access_token);
+  }
+}
+
+tests {
+  test("responde 200 con un token sin roles.status", function() {
+    expect(res.status).to.equal(200);
+    expect(res.body.data.token.access_token).to.be.a('string');
+    expect(res.body.data.user.role).to.equal('business_admin');
+  });
+}

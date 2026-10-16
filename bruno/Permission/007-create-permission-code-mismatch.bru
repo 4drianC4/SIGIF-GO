@@ -1,0 +1,35 @@
+meta {
+  name: Create Permission - Code Mismatch (400)
+  type: http
+  seq: 7
+}
+
+post {
+  url: {{baseUrl}}/api/v1/permissions/
+  body: json
+  auth: bearer
+}
+
+headers {
+  Content-Type: application/json
+}
+
+auth:bearer {
+  token: {{accessToken}}
+}
+
+body:json {
+  {
+    "module": "products",
+    "operation": "update",
+    "code": "users.read"
+  }
+}
+
+tests {
+  test("rechaza con 400 un code distinto de module.operation", function() {
+    expect(res.status).to.equal(400);
+    expect(res.body.error.code).to.equal('VALIDATION_ERROR');
+    expect(res.body.error.details.code).to.equal('must match module.operation');
+  });
+}

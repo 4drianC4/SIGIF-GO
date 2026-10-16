@@ -6,6 +6,7 @@ import (
 	"context"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/shopspring/decimal"
@@ -17,10 +18,7 @@ import (
 )
 
 func TestStockTotalByProduct(t *testing.T) {
-	db := openDatabase(t)
-	if err := db.DB.AutoMigrate(&model.StockBalanceModel{}); err != nil {
-		t.Fatal(err)
-	}
+	r := openDatabase(t)
 	companyID, otherCompanyID, productID, otherProductID := uuid.New(), uuid.New(), uuid.New(), uuid.New()
 	rows := []model.StockBalanceModel{
 		{CompanyID: companyID, ProductID: productID, BranchID: 1, LocationID: 1, Quantity: decimal.RequireFromString("2.125")},
@@ -29,13 +27,11 @@ func TestStockTotalByProduct(t *testing.T) {
 		{CompanyID: otherCompanyID, ProductID: productID, BranchID: 3, LocationID: 4, Quantity: decimal.NewFromInt(100)},
 		{CompanyID: companyID, ProductID: otherProductID, BranchID: 1, LocationID: 1, Quantity: decimal.NewFromInt(100)},
 	}
-	if err := db.DB.Create(&rows).Error; err != nil {
+	if err := r.db.DB.Create(&rows).Error; err != nil {
 		t.Fatal(err)
 	}
-	t.Cleanup(func() {
-		db.DB.Where("company_id IN ?", []uuid.UUID{companyID, otherCompanyID}).Delete(&model.StockBalanceModel{})
-	})
-	repo := productGorm.NewStockGormRepository(db)
+
+	repo := productGorm.NewStockGormRepository(r.db)
 	total, err := repo.GetTotalByProduct(context.Background(), companyID, productID)
 	if err != nil || !total.Equal(decimal.NewFromInt(8)) {
 		t.Fatalf("total = %s, %v", total, err)
@@ -47,57 +43,56 @@ func TestStockTotalByProduct(t *testing.T) {
 }
 
 func TestProductAndPriceHistoryTransactionRollsBack(t *testing.T) {
-	db := openDatabase(t)
-	if err := db.DB.AutoMigrate(&model.ProductPriceHistoryModel{}); err != nil {
+	r := openDatabase(t)
+	ctx := context.Background()
+	clk := clock.NewMockClock(time.Now().UTC())
+	companyID := uuid.New()
+	history := productGorm.NewPriceHistoryGormRepository(r.db)
+
+	units, err := r.units.List(ctx)
+	if err != nil {
 		t.Fatal(err)
 	}
-	ctx := context.Background()
-	clk := clock.NewRealClock()
-	companyID := uuid.New()
-	categories := productGorm.NewCategoryGormRepository(db)
-	products := productGorm.NewProductGormRepository(db)
-	history := productGorm.NewPriceHistoryGormRepository(db)
-	category := entity.NewCategory(clk, companyID, "Bebidas", "")
-	if err := categories.Create(ctx, category); err != nil {
+	category, err := entity.NewCategory(clk, entity.NewCategoryParams{CompanyID: companyID, Name: "Bebidas"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := r.categories.Create(ctx, category); err != nil {
 		t.Fatal(err)
 	}
 	p, err := entity.NewProduct(clk, entity.NewProductParams{
-		CompanyID: companyID, CategoryID: category.ID, SKU: "PRICE-TX", Name: "Producto",
-		UnitOfMeasure: entity.UnitPiece, CostPrice: decimal.NewFromInt(3), SalePrice: decimal.NewFromInt(5),
+		CompanyID: companyID, CategoryID: category.ID, UnitOfMeasureID: units[0].ID, SKU: "PRICE-TX", Name: "Producto",
+		Cost: decimal.NewFromInt(3), SalePrice: decimal.NewFromInt(5),
 	})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := products.Create(ctx, p); err != nil {
+	if err := r.products.Create(ctx, p); err != nil {
 		t.Fatal(err)
 	}
-	t.Cleanup(func() {
-		db.DB.Where("product_id = ?", p.ID).Delete(&model.ProductPriceHistoryModel{})
-		db.DB.Unscoped().Where("id = ?", p.ID).Delete(&model.ProductModel{})
-		db.DB.Unscoped().Where("id = ?", category.ID).Delete(&model.CategoryModel{})
-	})
-	err = products.WithinTransaction(ctx, func(txCtx context.Context) error {
-		product, err := products.GetByID(txCtx, companyID, p.ID)
+
+	err = r.products.WithinTransaction(ctx, func(txCtx context.Context) error {
+		product, err := r.products.GetByID(txCtx, companyID, p.ID)
 		if err != nil {
 			return err
 		}
 		product.SalePrice = decimal.NewFromInt(6)
-		if err := products.Update(txCtx, product); err != nil {
+		if err := r.products.Update(txCtx, product); err != nil {
 			return err
 		}
 		// Exceeds varchar(160), forcing the history insert to fail in PostgreSQL.
-		return history.Record(txCtx, p.ID, uuid.New(), p.CostPrice, p.CostPrice,
+		return history.Record(txCtx, p.ID, uuid.New(), p.Cost, p.Cost,
 			p.SalePrice, product.SalePrice, strings.Repeat("x", 161))
 	})
 	if err == nil {
 		t.Fatal("expected history insertion error")
 	}
-	stored, err := products.GetByID(ctx, companyID, p.ID)
+	stored, err := r.products.GetByID(ctx, companyID, p.ID)
 	if err != nil || !stored.SalePrice.Equal(p.SalePrice) {
 		t.Fatalf("rollback failed: %+v, %v", stored, err)
 	}
 	var count int64
-	if err := db.DB.Model(&model.ProductPriceHistoryModel{}).Where("product_id = ?", p.ID).Count(&count).Error; err != nil {
+	if err := r.db.DB.Model(&model.ProductPriceHistoryModel{}).Where("product_id = ?", p.ID).Count(&count).Error; err != nil {
 		t.Fatal(err)
 	}
 	if count != 0 {

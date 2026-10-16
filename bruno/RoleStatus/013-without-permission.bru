@@ -1,0 +1,33 @@
+meta {
+  name: Without Permission roles.status (403)
+  type: http
+  seq: 13
+}
+
+patch {
+  url: {{baseUrl}}/api/v1/roles/{{employeeId}}/status
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{tokenWithoutRolesStatus}}
+}
+
+headers {
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "status": "inactive"
+  }
+}
+
+tests {
+  test("rechaza con 403 FORBIDDEN sin roles.status", function() {
+    expect(res.status).to.equal(403);
+    expect(res.body.success).to.equal(false);
+    expect(res.body.error.code).to.equal('FORBIDDEN');
+  });
+}

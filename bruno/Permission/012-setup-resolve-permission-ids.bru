@@ -1,0 +1,36 @@
+meta {
+  name: Setup - Resolve Permission Ids
+  type: http
+  seq: 12
+}
+
+get {
+  url: {{baseUrl}}/api/v1/permissions/?limit=100
+  body: none
+  auth: bearer
+}
+
+params:query {
+  limit: 100
+}
+
+auth:bearer {
+  token: {{accessToken}}
+}
+
+script:post-response {
+  if (res.body && res.body.data) {
+    const editable = res.body.data.find(p => p.code === 'products.export');
+    const system = res.body.data.find(p => p.code === 'permissions.read');
+    if (editable) bru.setVar('editablePermissionId', editable.id);
+    if (system) bru.setVar('systemPermissionId', system.id);
+  }
+}
+
+tests {
+  test("resuelve el id de un permiso editable y de uno del sistema", function() {
+    expect(res.status).to.equal(200);
+    expect(bru.getVar('editablePermissionId')).to.be.a('string');
+    expect(bru.getVar('systemPermissionId')).to.be.a('string');
+  });
+}

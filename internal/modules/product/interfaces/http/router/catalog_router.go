@@ -8,14 +8,22 @@ import (
 )
 
 func RegisterCatalogRoutes(router fiber.Router, h *handler.CatalogHTTPHandler, checker middleware.PermissionChecker) {
-	router.Post("/categories", middleware.RequirePermission(checker, "categories", "create"), h.CreateCategory)
+	products := router.Group("/products")
+	products.Get("/", middleware.RequirePermission(checker, "products", "list"), h.ListProducts)
+	products.Get("/summary", middleware.RequirePermission(checker, "products", "list"), h.ProductSummary)
+	products.Get("/validate-duplicate", middleware.RequirePermission(checker, "products", "create"), h.ValidateDuplicate)
+	products.Post("/", middleware.RequirePermission(checker, "products", "create"), h.CreateProduct)
+	products.Get("/:id", middleware.RequirePermission(checker, "products", "read"), h.GetProduct)
+	products.Put("/:id", middleware.RequirePermission(checker, "products", "update"), h.UpdateProduct)
+	products.Patch("/:id/price", middleware.RequirePermission(checker, "products", "update"), h.UpdateProductPrice)
+	products.Patch("/:id/status", middleware.RequirePermission(checker, "products", "update"), h.SetProductStatus)
+	products.Get("/:id/price-history", middleware.RequirePermission(checker, "products", "read"), h.GetPriceHistory)
+	products.Delete("/:id", middleware.RequirePermission(checker, "products", "delete"), h.DeleteProduct)
 
-	router.Get("/products", middleware.RequirePermission(checker, "products", "read"), h.ListProducts)
-	router.Post("/products", middleware.RequirePermission(checker, "products", "create"), h.CreateProduct)
-	router.Get("/products/:id", middleware.RequirePermission(checker, "products", "read"), h.GetProduct)
-	router.Put("/products/:id", middleware.RequirePermission(checker, "products", "update"), h.UpdateProduct)
-	router.Patch("/products/:id/price", middleware.RequirePermission(checker, "products", "update"), h.UpdateProductPrice)
-	router.Patch("/products/:id/status", middleware.RequirePermission(checker, "products", "update"), h.SetProductStatus)
-	router.Delete("/products/:id", middleware.RequirePermission(checker, "products", "delete"), h.DeleteProduct)
-	router.Get("/products/:id/price-history", middleware.RequirePermission(checker, "products", "read"), h.GetPriceHistory)
+	categories := router.Group("/categories")
+	categories.Get("/", middleware.RequirePermission(checker, "categories", "list"), h.ListCategories)
+	categories.Post("/", middleware.RequirePermission(checker, "categories", "create"), h.CreateCategory)
+
+	router.Get("/units-of-measure", h.ListUnitsOfMeasure)
+	router.Get("/taxes", h.ListTaxes)
 }

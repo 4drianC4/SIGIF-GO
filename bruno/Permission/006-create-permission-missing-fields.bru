@@ -1,0 +1,32 @@
+meta {
+  name: Create Permission - Missing Fields (400)
+  type: http
+  seq: 6
+}
+
+post {
+  url: {{baseUrl}}/api/v1/permissions/
+  body: json
+  auth: bearer
+}
+
+headers {
+  Content-Type: application/json
+}
+
+auth:bearer {
+  token: {{accessToken}}
+}
+
+body:json {
+  {}
+}
+
+tests {
+  test("rechaza con 400 el body vacío", function() {
+    expect(res.status).to.equal(400);
+    expect(res.body.error.code).to.equal('VALIDATION_ERROR');
+    expect(res.body.error.details.module).to.be.a('string');
+    expect(res.body.error.details.operation).to.be.a('string');
+  });
+}

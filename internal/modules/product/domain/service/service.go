@@ -8,6 +8,8 @@ import (
 type CatalogService struct {
 	products     repository.ProductRepository
 	categories   repository.CategoryRepository
+	units        repository.UnitOfMeasureRepository
+	taxes        repository.TaxRepository
 	priceHistory repository.PriceHistoryRepository
 	stock        repository.StockRepository
 	clock        clock.Clock
@@ -16,6 +18,8 @@ type CatalogService struct {
 func NewCatalogService(
 	products repository.ProductRepository,
 	categories repository.CategoryRepository,
+	units repository.UnitOfMeasureRepository,
+	taxes repository.TaxRepository,
 	priceHistory repository.PriceHistoryRepository,
 	stock repository.StockRepository,
 	clock clock.Clock,
@@ -23,6 +27,8 @@ func NewCatalogService(
 	return &CatalogService{
 		products:     products,
 		categories:   categories,
+		units:        units,
+		taxes:        taxes,
 		priceHistory: priceHistory,
 		stock:        stock,
 		clock:        clock,

@@ -47,6 +47,7 @@ type LoginParams struct {
 
 type LoginResult struct {
 	User        *userEntity.AppUser
+	Permissions []string
 	AccessToken string
 	ExpiresIn   int
 	TokenType   string
@@ -107,8 +108,14 @@ func (s *AuthService) Login(ctx context.Context, params LoginParams) (LoginResul
 	))
 	_ = s.userRepo.RecordAccess(ctx, user.ID)
 
+	permissions, err := s.userRepo.PermissionsByRole(ctx, user.RoleID)
+	if err != nil {
+		return LoginResult{}, err
+	}
+
 	return LoginResult{
 		User:        user,
+		Permissions: permissions,
 		AccessToken: token,
 		ExpiresIn:   expiresIn,
 		TokenType:   "Bearer",
@@ -127,8 +134,22 @@ func (s *AuthService) Logout(ctx context.Context, tokenHash string) error {
 	return s.sessionRepo.End(ctx, session.ID, s.clock.NowUTC(), entity.CloseReasonManual)
 }
 
-func (s *AuthService) Me(ctx context.Context, userID uuid.UUID) (*userEntity.AppUser, error) {
-	return s.userRepo.GetByID(ctx, userID)
+// Me returns the authenticated user together with the codes of the
+// permissions granted to its role.
+func (s *AuthService) Me(ctx context.Context, userID uuid.UUID) (*userEntity.AppUser, []string, error) {
+	user, err := s.userRepo.GetByID(ctx, userID)
+	if err != nil {
+		return nil, nil, err
+	}
+	if user == nil {
+		return nil, nil, nil
+	}
+
+	permissions, err := s.userRepo.PermissionsByRole(ctx, user.RoleID)
+	if err != nil {
+		return nil, nil, err
+	}
+	return user, permissions, nil
 }
 
 func companyIDOf(user *userEntity.AppUser) *uuid.UUID {

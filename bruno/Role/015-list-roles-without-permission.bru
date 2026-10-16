@@ -1,0 +1,22 @@
+meta {
+  name: List Roles - Without Permission (403)
+  type: http
+  seq: 15
+}
+
+get {
+  url: {{baseUrl}}/api/v1/roles/
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{tokenWithoutRolesList}}
+}
+
+tests {
+  test("rechaza con 403 FORBIDDEN sin roles.list", function() {
+    expect(res.status).to.equal(403);
+    expect(res.body.error.code).to.equal('FORBIDDEN');
+  });
+}

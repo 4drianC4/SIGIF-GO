@@ -1,0 +1,39 @@
+meta {
+  name: Create Subcategory
+  type: http
+  seq: 2
+}
+
+post {
+  url: {{baseUrl}}/api/v1/categories
+  body: json
+  auth: bearer
+}
+
+headers {
+  Content-Type: application/json
+}
+
+auth:bearer {
+  token: {{accessToken}}
+}
+
+body:json {
+  {
+    "name": "Aceites",
+    "parent_id": "{{categoryId}}"
+  }
+}
+
+script:post-response {
+  bru.setVar('subcategoryId', res.body && res.body.data ? res.body.data.id : '');
+}
+
+tests {
+  test("hereda impuesto y margen guardando null", function() {
+    expect(res.status).to.equal(201);
+    expect(res.body.data.parent_id).to.equal(bru.getVar('categoryId'));
+    expect(res.body.data.default_tax).to.equal(null);
+    expect(res.body.data.target_margin).to.equal(null);
+  });
+}

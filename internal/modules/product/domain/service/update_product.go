@@ -7,114 +7,88 @@ import (
 	"github.com/shopspring/decimal"
 
 	"github.com/sigif/sigif-go/internal/modules/product/domain/entity"
+	"github.com/sigif/sigif-go/internal/modules/product/domain/repository"
 )
 
 type UpdateProductParams struct {
-	CompanyID     uuid.UUID
-	ProductID     uuid.UUID
-	CategoryID    uuid.UUID
-	SKU           string
-	Barcode       string
-	Name          string
-	Description   string
-	UnitOfMeasure entity.UnitOfMeasure
-	CostPrice     decimal.Decimal
-	SalePrice     decimal.Decimal
-	UserID        uuid.UUID
-	Reason        string
+	CompanyID       uuid.UUID
+	ProductID       uuid.UUID
+	CategoryID      uuid.UUID
+	UnitOfMeasureID uuid.UUID
+	SKU             string
+	Barcode         string
+	Name            string
+	Description     string
+	Cost            decimal.Decimal
+	SalePrice       decimal.Decimal
+	MinStock        *decimal.Decimal
+	UserID          uuid.UUID
+	Reason          string
 }
 
-func (s *CatalogService) UpdateProduct(ctx context.Context, params UpdateProductParams) (*entity.Product, error) {
+// UpdateProduct edits a product and, when its cost or selling price change and
+// the author is known, records the change in the price history. Both writes
+// share one transaction and the product row is locked while it is read.
+func (s *CatalogService) UpdateProduct(ctx context.Context, params UpdateProductParams) (*repository.ProductListItem, error) {
 	if params.CompanyID == uuid.Nil {
 		return nil, ErrCompanyRequired
 	}
-	var product *entity.Product
+	var item *repository.ProductListItem
 	err := s.products.WithinTransaction(ctx, func(txCtx context.Context) error {
 		var err error
-		product, err = s.updateProduct(txCtx, params)
+		item, err = s.updateProduct(txCtx, params)
 		return err
 	})
 	if err != nil {
 		return nil, err
 	}
-	return product, nil
+	return item, nil
 }
 
-func (s *CatalogService) updateProduct(ctx context.Context, params UpdateProductParams) (*entity.Product, error) {
-	product, err := s.products.GetByID(ctx, params.CompanyID, params.ProductID)
+func (s *CatalogService) updateProduct(ctx context.Context, params UpdateProductParams) (*repository.ProductListItem, error) {
+	product, err := s.findProduct(ctx, params.CompanyID, params.ProductID)
 	if err != nil {
 		return nil, err
 	}
-	if product == nil {
-		return nil, ErrProductNotFound
+
+	previousCost, previousPrice := product.Cost, product.SalePrice
+	minStock := product.MinStock
+	if params.MinStock != nil {
+		minStock = *params.MinStock
 	}
-
-	previousCost := product.CostPrice
-	previousPrice := product.SalePrice
-
 	if err := product.Update(s.clock, entity.UpdateProductParams{
-		CategoryID:    params.CategoryID,
-		SKU:           params.SKU,
-		Barcode:       params.Barcode,
-		Name:          params.Name,
-		Description:   params.Description,
-		UnitOfMeasure: params.UnitOfMeasure,
-		CostPrice:     params.CostPrice,
-		SalePrice:     params.SalePrice,
+		CategoryID:      params.CategoryID,
+		UnitOfMeasureID: params.UnitOfMeasureID,
+		SKU:             params.SKU,
+		Barcode:         params.Barcode,
+		Name:            params.Name,
+		Description:     params.Description,
+		Cost:            params.Cost,
+		SalePrice:       params.SalePrice,
+		MinStock:        minStock,
 	}); err != nil {
 		return nil, err
 	}
 
-	category, err := s.categories.GetByID(ctx, product.CompanyID, product.CategoryID)
+	category, err := s.checkProductReferences(ctx, product, product.ID)
 	if err != nil {
 		return nil, err
 	}
-	if category == nil {
-		return nil, ErrCategoryNotFound
-	}
-	if !category.IsActive() {
-		return nil, ErrCategoryInactive
-	}
 
-	skuTaken, err := s.products.ExistsBySKUExcluding(ctx, product.CompanyID, product.SKU, product.ID)
-	if err != nil {
-		return nil, err
-	}
-	if skuTaken {
-		return nil, ErrSKUTaken
-	}
-
-	if product.Barcode != "" {
-		barcodeTaken, err := s.products.ExistsByBarcodeExcluding(ctx, product.CompanyID, product.Barcode, product.ID)
-		if err != nil {
-			return nil, err
-		}
-		if barcodeTaken {
-			return nil, ErrBarcodeTaken
-		}
-	}
-
-	priceChanged := !previousPrice.Equal(params.SalePrice)
-	costChanged := !previousCost.Equal(params.CostPrice)
 	if err := s.products.Update(ctx, product); err != nil {
 		return nil, err
 	}
-	if (priceChanged || costChanged) && params.UserID != uuid.Nil {
-		err = s.priceHistory.Record(ctx,
-			product.ID, params.UserID,
-			previousCost, params.CostPrice,
-			previousPrice, params.SalePrice,
-			params.Reason,
-		)
-		if err != nil {
+
+	pricesChanged := !previousCost.Equal(product.Cost) || !previousPrice.Equal(product.SalePrice)
+	if pricesChanged && params.UserID != uuid.Nil {
+		if err := s.priceHistory.Record(ctx, product.ID, params.UserID,
+			previousCost, product.Cost, previousPrice, product.SalePrice, params.Reason); err != nil {
 			return nil, err
 		}
 	}
-
-	return product, nil
+	return &repository.ProductListItem{Product: product, CategoryName: category.Name}, nil
 }
 
-// GetPriceHistory devuelve el historial de precios paginado de un producto.
 type GetPriceHistoryParams struct {
 	CompanyID uuid.UUID
 	ProductID uuid.UUID
@@ -122,16 +96,10 @@ type GetPriceHistoryParams struct {
 	Limit     int
 }
 
+// GetPriceHistory returns the paginated price changes of a product, newest first.
 func (s *CatalogService) GetPriceHistory(ctx context.Context, params GetPriceHistoryParams) ([]*entity.PriceHistoryEntry, int64, error) {
-	if params.CompanyID == uuid.Nil {
-		return nil, 0, ErrCompanyRequired
-	}
-	product, err := s.products.GetByID(ctx, params.CompanyID, params.ProductID)
-	if err != nil {
+	if _, err := s.findProduct(ctx, params.CompanyID, params.ProductID); err != nil {
 		return nil, 0, err
-	}
-	if product == nil {
-		return nil, 0, ErrProductNotFound
 	}
 	if params.Page < 1 {
 		params.Page = 1

@@ -1,0 +1,38 @@
+meta {
+  name: Reactivate Role
+  type: http
+  seq: 5
+}
+
+patch {
+  url: {{baseUrl}}/api/v1/roles/{{employeeId}}/status
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{accessToken}}
+}
+
+headers {
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "status": "active"
+  }
+}
+
+tests {
+  test("responde 200 con el rol reactivado", function() {
+    expect(res.status).to.equal(200);
+    expect(res.body.success).to.equal(true);
+    expect(res.body.data.id).to.equal(bru.getVar('employeeId'));
+    expect(res.body.data.status).to.equal('active');
+  });
+
+  test("los permisos se conservan tras reactivar", function() {
+    expect(res.body.data.permissions_count).to.be.a('number');
+  });
+}
