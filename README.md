@@ -136,6 +136,15 @@ POST /api/v1/cash-register-assignments/:id/release       # Liberar la caja (cash
 
 El cajero y la empresa salen del token. Una caja tiene un solo cajero y un cajero una sola caja a la vez; la regla la garantizan índices únicos parciales, también ante peticiones simultáneas (`409 CASH_REGISTER_IN_USE` / `409 CASHIER_ALREADY_ASSIGNED`). Liberar conserva el historial. El rol `employee` trabaja como cajero; `business_admin` ve las cajas en uso y puede liberarlas. Detalle en `docs/api/HU-10-01-endpoints.md` y `docs/api/HU-10-02-endpoints.md`.
 
+### Sesión de caja (RF-09)
+
+```
+POST /api/v1/cash-sessions/          # Abrir la sesión de caja con el monto inicial (cash_sessions.open) — HU-009
+GET  /api/v1/cash-sessions/current   # Sesión abierta del cajero (cash_sessions.read) — HU-009
+```
+
+La sesión se abre sobre la caja asignada al cajero (HU-10), con un monto inicial de 0 o más. Solo hay una sesión abierta por cajero y por caja (`409 CASH_SESSION_ALREADY_OPEN`). Las operaciones de caja de otros módulos se protegen con `middleware.RequireOpenCashSession`, que responde `409 CASH_SESSION_REQUIRED` sin sesión abierta. Detalle en `docs/api/HU-009-endpoints.md`.
+
 ### Permisos (catálogo, HU-082-01)
 
 ```
