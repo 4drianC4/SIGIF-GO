@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"strings"
 
 	"github.com/google/uuid"
 	"github.com/shopspring/decimal"
@@ -40,7 +41,8 @@ func (s *CatalogService) UpdateProduct(ctx context.Context, params UpdateProduct
 		return err
 	})
 	if err != nil {
-		return nil, err
+		return nil, s.detailDuplicate(ctx, err, params.CompanyID, entity.NormalizeName(params.Name),
+			entity.NormalizeSKU(params.SKU), strings.TrimSpace(params.Barcode), params.ProductID)
 	}
 	return item, nil
 }

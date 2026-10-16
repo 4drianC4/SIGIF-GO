@@ -64,9 +64,13 @@ type ProductSummary struct {
 	NoMovement90Days int64 `json:"no_movement_90_days"`
 }
 
+// DuplicateCheck is the response of GET /products/validate-duplicate. Field
+// is the first duplicated field; Conflicts lists every one with the product
+// that holds it, in the same shape as the details of a 409 (HU-06-01).
 type DuplicateCheck struct {
-	Exists bool    `json:"exists"`
-	Field  *string `json:"field"`
+	Exists    bool                        `json:"exists"`
+	Field     *string                     `json:"field"`
+	Conflicts []service.DuplicateConflict `json:"conflicts"`
 }
 
 type UnitOfMeasure struct {
@@ -156,7 +160,11 @@ func FromSummary(s repository.ProductSummary) ProductSummary {
 }
 
 func FromDuplicateResult(r *service.DuplicateResult) DuplicateCheck {
-	return DuplicateCheck{Exists: r.Exists, Field: optional(r.Field)}
+	conflicts := r.Conflicts
+	if conflicts == nil {
+		conflicts = []service.DuplicateConflict{}
+	}
+	return DuplicateCheck{Exists: r.Exists, Field: optional(r.Field), Conflicts: conflicts}
 }
 
 func FromUnits(units []*entity.UnitOfMeasure) []UnitOfMeasure {

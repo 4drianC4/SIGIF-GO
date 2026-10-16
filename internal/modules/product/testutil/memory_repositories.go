@@ -60,10 +60,17 @@ func (s *MemoryStore) PriceHistoryRepository() repository.PriceHistoryRepository
 
 func (s *MemoryStore) StockRepository() repository.StockRepository { return s.Stock }
 
+// ProductCount returns how many products are not deleted.
 func (s *MemoryStore) ProductCount() int {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	return len(s.Products)
+	count := 0
+	for _, p := range s.Products {
+		if p.DeletedAt == nil {
+			count++
+		}
+	}
+	return count
 }
 
 type memoryCategories struct{ s *MemoryStore }
@@ -167,7 +174,7 @@ func (r memoryProducts) GetByID(_ context.Context, companyID, id uuid.UUID) (*en
 	r.s.mu.Lock()
 	defer r.s.mu.Unlock()
 	product, ok := r.s.Products[id]
-	if !ok || product.CompanyID != companyID {
+	if !ok || product.CompanyID != companyID || product.DeletedAt != nil {
 		return nil, nil
 	}
 	copied := *product
@@ -186,33 +193,47 @@ func (r memoryProducts) SetStatus(_ context.Context, companyID, id uuid.UUID, st
 func (r memoryProducts) Delete(_ context.Context, companyID, id uuid.UUID) error {
 	r.s.mu.Lock()
 	defer r.s.mu.Unlock()
-	if product, ok := r.s.Products[id]; ok && product.CompanyID == companyID {
-		delete(r.s.Products, id)
+	// Soft delete, as the GORM repository does: the row keeps its SKU and
+	// barcode reserved (HU-06-01).
+	if product, ok := r.s.Products[id]; ok && product.CompanyID == companyID && product.DeletedAt == nil {
+		now := time.Now().UTC()
+		product.DeletedAt = &now
 	}
 	return nil
 }
 
-func (r memoryProducts) ExistsByName(_ context.Context, companyID uuid.UUID, name string, excludeID uuid.UUID) (bool, error) {
-	return r.any(companyID, excludeID, func(p *entity.Product) bool { return strings.EqualFold(p.Name, name) }), nil
+func (r memoryProducts) FindByName(_ context.Context, companyID uuid.UUID, name string, excludeID uuid.UUID) (*entity.Product, error) {
+	return r.holder(companyID, excludeID, false, func(p *entity.Product) bool { return strings.EqualFold(p.Name, name) }), nil
 }
 
-func (r memoryProducts) ExistsBySKU(_ context.Context, companyID uuid.UUID, sku string, excludeID uuid.UUID) (bool, error) {
-	return r.any(companyID, excludeID, func(p *entity.Product) bool { return p.SKU == sku }), nil
+func (r memoryProducts) FindBySKU(_ context.Context, companyID uuid.UUID, sku string, excludeID uuid.UUID) (*entity.Product, error) {
+	return r.holder(companyID, excludeID, true, func(p *entity.Product) bool { return p.SKU == sku }), nil
 }
 
-func (r memoryProducts) ExistsByBarcode(_ context.Context, companyID uuid.UUID, barcode string, excludeID uuid.UUID) (bool, error) {
-	return r.any(companyID, excludeID, func(p *entity.Product) bool { return p.Barcode == barcode }), nil
+func (r memoryProducts) FindByBarcode(_ context.Context, companyID uuid.UUID, barcode string, excludeID uuid.UUID) (*entity.Product, error) {
+	return r.holder(companyID, excludeID, true, func(p *entity.Product) bool { return p.Barcode == barcode }), nil
 }
 
-func (r memoryProducts) any(companyID, excludeID uuid.UUID, match func(*entity.Product) bool) bool {
+// holder returns a copy of the product of the company that matches, skipping
+// excludeID. Deleted products only count when withDeleted is set, and a live
+// product is preferred over a deleted one.
+func (r memoryProducts) holder(companyID, excludeID uuid.UUID, withDeleted bool, match func(*entity.Product) bool) *entity.Product {
 	r.s.mu.Lock()
 	defer r.s.mu.Unlock()
+	var found *entity.Product
 	for _, p := range r.s.Products {
-		if p.CompanyID == companyID && p.ID != excludeID && match(p) {
-			return true
+		if p.CompanyID != companyID || p.ID == excludeID || !match(p) {
+			continue
+		}
+		if p.DeletedAt != nil && (!withDeleted || found != nil) {
+			continue
+		}
+		if found == nil || found.DeletedAt != nil {
+			copied := *p
+			found = &copied
 		}
 	}
-	return false
+	return found
 }
 
 func (r memoryProducts) List(_ context.Context, companyID uuid.UUID, filter repository.ProductFilter, offset, limit int) ([]repository.ProductListItem, int64, error) {
@@ -221,7 +242,7 @@ func (r memoryProducts) List(_ context.Context, companyID uuid.UUID, filter repo
 	search := strings.ToLower(strings.TrimSpace(filter.Search))
 	var items []repository.ProductListItem
 	for _, p := range r.s.Products {
-		if p.CompanyID != companyID {
+		if p.CompanyID != companyID || p.DeletedAt != nil {
 			continue
 		}
 		if search != "" && !strings.Contains(strings.ToLower(p.Name), search) &&
@@ -255,7 +276,7 @@ func (r memoryProducts) Summary(_ context.Context, companyID uuid.UUID, noMoveme
 	defer r.s.mu.Unlock()
 	summary := repository.ProductSummary{InventoryValue: decimal.Zero}
 	for _, p := range r.s.Products {
-		if p.CompanyID != companyID || p.Status != entity.StatusActive {
+		if p.CompanyID != companyID || p.DeletedAt != nil || p.Status != entity.StatusActive {
 			continue
 		}
 		summary.ActiveProducts++

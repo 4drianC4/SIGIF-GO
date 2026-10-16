@@ -48,8 +48,10 @@ func translateDuplicate(db *gorm.DB, err error) error {
 		return service.ErrProductNameTaken
 	case strings.Contains(err.Error(), "idx_products_company_barcode"):
 		return service.ErrBarcodeTaken
-	default:
+	case strings.Contains(err.Error(), "idx_products_company_sku"):
 		return service.ErrSKUTaken
+	default:
+		return err
 	}
 }
 
@@ -105,26 +107,35 @@ func (r *ProductGormRepository) Delete(ctx context.Context, companyID, id uuid.U
 	return nil
 }
 
-func (r *ProductGormRepository) ExistsByName(ctx context.Context, companyID uuid.UUID, name string, excludeID uuid.UUID) (bool, error) {
-	return r.exists(ctx, excludeID, "company_id = ? AND LOWER(name) = LOWER(?)", companyID, name)
+func (r *ProductGormRepository) FindByName(ctx context.Context, companyID uuid.UUID, name string, excludeID uuid.UUID) (*entity.Product, error) {
+	return findHolder(r.db.GetDB(ctx), excludeID, "company_id = ? AND LOWER(name) = LOWER(?)", companyID, name)
 }
 
-func (r *ProductGormRepository) ExistsBySKU(ctx context.Context, companyID uuid.UUID, sku string, excludeID uuid.UUID) (bool, error) {
-	return r.exists(ctx, excludeID, "company_id = ? AND sku = ?", companyID, sku)
+func (r *ProductGormRepository) FindBySKU(ctx context.Context, companyID uuid.UUID, sku string, excludeID uuid.UUID) (*entity.Product, error) {
+	return findHolder(r.db.GetDB(ctx).Unscoped(), excludeID, "company_id = ? AND sku = ?", companyID, sku)
 }
 
-func (r *ProductGormRepository) ExistsByBarcode(ctx context.Context, companyID uuid.UUID, barcode string, excludeID uuid.UUID) (bool, error) {
-	return r.exists(ctx, excludeID, "company_id = ? AND barcode = ?", companyID, barcode)
+func (r *ProductGormRepository) FindByBarcode(ctx context.Context, companyID uuid.UUID, barcode string, excludeID uuid.UUID) (*entity.Product, error) {
+	return findHolder(r.db.GetDB(ctx).Unscoped(), excludeID, "company_id = ? AND barcode = ?", companyID, barcode)
 }
 
-func (r *ProductGormRepository) exists(ctx context.Context, excludeID uuid.UUID, condition string, args ...any) (bool, error) {
-	db := r.db.GetDB(ctx).Model(&model.ProductModel{}).Where(condition, args...)
+// findHolder returns the product that matches condition, skipping excludeID
+// and preferring a live product over a deleted one.
+func findHolder(db *gorm.DB, excludeID uuid.UUID, condition string, args ...any) (*entity.Product, error) {
+	query := db.Where(condition, args...)
 	if excludeID != uuid.Nil {
-		db = db.Where("id <> ?", excludeID)
+		query = query.Where("id <> ?", excludeID)
 	}
-	var count int64
-	err := db.Count(&count).Error
-	return count > 0, err
+	// Find with a limit instead of First: not finding a holder is the usual
+	// case and must not be logged as an error.
+	var found []model.ProductModel
+	if err := query.Order("deleted_at IS NOT NULL, created_at").Limit(1).Find(&found).Error; err != nil {
+		return nil, err
+	}
+	if len(found) == 0 {
+		return nil, nil
+	}
+	return mapper.ProductToDomain(&found[0]), nil
 }
 
 type productRow struct {

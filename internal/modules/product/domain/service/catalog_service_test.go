@@ -736,7 +736,17 @@ func TestDeleteProduct(t *testing.T) {
 	}
 	assertAppError(t, remove(companyA, original.ID), sharedErrors.CodeNotFound, 404)
 
-	f.product(t, nil)
+	// The deleted product keeps its SKU (HU-06-01) but frees its name.
+	again := validProduct(companyA, original.CategoryID)
+	_, err := f.svc.CreateProduct(context.Background(), again)
+	assertAppError(t, err, sharedErrors.CodeConflict, 409)
+	if !errors.Is(err, service.ErrSKUTaken) {
+		t.Errorf("error = %v, want the SKU held by the deleted product", err)
+	}
+	again.SKU = "ABA-413"
+	if _, err := f.svc.CreateProduct(context.Background(), again); err != nil {
+		t.Errorf("the name of a deleted product must be free: %v", err)
+	}
 }
 
 func TestValidateDuplicateCanExcludeTheProductBeingEdited(t *testing.T) {

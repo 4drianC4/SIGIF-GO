@@ -202,8 +202,10 @@ func TestCatalogRepositories(t *testing.T) {
 		Update("deleted_at", time.Now()).Error; err != nil {
 		t.Fatalf("soft delete: %v", err)
 	}
-	if err := r.products.Create(ctx, newProduct("Galletas María", "ABA-412", "7750000000001", "4.20", "1", "0")); err != nil {
-		t.Errorf("deleted product must free name, sku and barcode: %v", err)
+	// A deleted product frees its name; its SKU and barcode stay reserved
+	// (see uniqueness_integration_test.go).
+	if err := r.products.Create(ctx, newProduct("Galletas María", "", "", "4.20", "1", "0")); err != nil {
+		t.Errorf("deleted product must free its name: %v", err)
 	}
 }
 
@@ -247,33 +249,41 @@ func TestProductLifecycleRepository(t *testing.T) {
 		t.Errorf("GetByID must be scoped by company")
 	}
 
-	exists := []struct {
+	finders := []struct {
 		name    string
-		check   func(uuid.UUID) (bool, error)
+		find    func(uuid.UUID) (*entity.Product, error)
 		exclude uuid.UUID
-		want    bool
+		want    *entity.Product
 	}{
-		{"name, no exclusion", func(id uuid.UUID) (bool, error) {
-			return r.products.ExistsByName(ctx, companyID, "wiskas GATO adulto", id)
-		}, uuid.Nil, true},
-		{"name, excluding itself", func(id uuid.UUID) (bool, error) {
-			return r.products.ExistsByName(ctx, companyID, "wiskas GATO adulto", id)
-		}, first.ID, false},
-		{"name, excluding another", func(id uuid.UUID) (bool, error) {
-			return r.products.ExistsByName(ctx, companyID, "wiskas GATO adulto", id)
-		}, second.ID, true},
-		{"sku, excluding itself", func(id uuid.UUID) (bool, error) { return r.products.ExistsBySKU(ctx, companyID, "WIA-879", id) }, first.ID, false},
-		{"sku, excluding another", func(id uuid.UUID) (bool, error) { return r.products.ExistsBySKU(ctx, companyID, "WIA-879", id) }, second.ID, true},
-		{"barcode, excluding itself", func(id uuid.UUID) (bool, error) {
-			return r.products.ExistsByBarcode(ctx, companyID, "7750000000011", id)
-		}, first.ID, false},
-		{"barcode, excluding another", func(id uuid.UUID) (bool, error) {
-			return r.products.ExistsByBarcode(ctx, companyID, "7750000000011", id)
-		}, second.ID, true},
+		{"name, no exclusion", func(id uuid.UUID) (*entity.Product, error) {
+			return r.products.FindByName(ctx, companyID, "wiskas GATO adulto", id)
+		}, uuid.Nil, first},
+		{"name, excluding itself", func(id uuid.UUID) (*entity.Product, error) {
+			return r.products.FindByName(ctx, companyID, "wiskas GATO adulto", id)
+		}, first.ID, nil},
+		{"name, excluding another", func(id uuid.UUID) (*entity.Product, error) {
+			return r.products.FindByName(ctx, companyID, "wiskas GATO adulto", id)
+		}, second.ID, first},
+		{"sku, excluding itself", func(id uuid.UUID) (*entity.Product, error) {
+			return r.products.FindBySKU(ctx, companyID, "WIA-879", id)
+		}, first.ID, nil},
+		{"sku, excluding another", func(id uuid.UUID) (*entity.Product, error) {
+			return r.products.FindBySKU(ctx, companyID, "WIA-879", id)
+		}, second.ID, first},
+		{"barcode, excluding itself", func(id uuid.UUID) (*entity.Product, error) {
+			return r.products.FindByBarcode(ctx, companyID, "7750000000011", id)
+		}, first.ID, nil},
+		{"barcode, excluding another", func(id uuid.UUID) (*entity.Product, error) {
+			return r.products.FindByBarcode(ctx, companyID, "7750000000011", id)
+		}, second.ID, first},
+		{"sku of another company", func(id uuid.UUID) (*entity.Product, error) {
+			return r.products.FindBySKU(ctx, otherCompany, "WIA-879", id)
+		}, uuid.Nil, nil},
 	}
-	for _, tt := range exists {
-		if ok, err := tt.check(tt.exclude); err != nil || ok != tt.want {
-			t.Errorf("%s: got %v, %v; want %v", tt.name, ok, err, tt.want)
+	for _, tt := range finders {
+		found, err := tt.find(tt.exclude)
+		if err != nil || (found == nil) != (tt.want == nil) || (found != nil && found.ID != tt.want.ID) {
+			t.Errorf("%s: got %+v, %v; want %v", tt.name, found, err, tt.want)
 		}
 	}
 

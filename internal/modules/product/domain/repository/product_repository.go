@@ -42,9 +42,14 @@ type ProductRepository interface {
 	GetByID(ctx context.Context, companyID, id uuid.UUID) (*entity.Product, error)
 	SetStatus(ctx context.Context, companyID, id uuid.UUID, status entity.Status) error
 	Delete(ctx context.Context, companyID, id uuid.UUID) error
-	ExistsByName(ctx context.Context, companyID uuid.UUID, name string, excludeID uuid.UUID) (bool, error)
-	ExistsBySKU(ctx context.Context, companyID uuid.UUID, sku string, excludeID uuid.UUID) (bool, error)
-	ExistsByBarcode(ctx context.Context, companyID uuid.UUID, barcode string, excludeID uuid.UUID) (bool, error)
+	// FindByName returns the product of the company, other than excludeID,
+	// whose name matches ignoring case. Deleted products free their name.
+	FindByName(ctx context.Context, companyID uuid.UUID, name string, excludeID uuid.UUID) (*entity.Product, error)
+	// FindBySKU and FindByBarcode return the product that holds the value,
+	// other than excludeID. Inactive and deleted products keep holding it
+	// (HU-06-01); a live product is returned before a deleted one.
+	FindBySKU(ctx context.Context, companyID uuid.UUID, sku string, excludeID uuid.UUID) (*entity.Product, error)
+	FindByBarcode(ctx context.Context, companyID uuid.UUID, barcode string, excludeID uuid.UUID) (*entity.Product, error)
 	List(ctx context.Context, companyID uuid.UUID, filter ProductFilter, offset, limit int) ([]ProductListItem, int64, error)
 	Summary(ctx context.Context, companyID uuid.UUID, noMovementSince time.Time) (ProductSummary, error)
 }

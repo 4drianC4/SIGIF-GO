@@ -42,9 +42,9 @@ type apiResponse struct {
 	Data    json.RawMessage `json:"data"`
 	Meta    json.RawMessage `json:"meta"`
 	Error   *struct {
-		Code    string            `json:"code"`
-		Message string            `json:"message"`
-		Details map[string]string `json:"details"`
+		Code    string         `json:"code"`
+		Message string         `json:"message"`
+		Details map[string]any `json:"details"`
 	} `json:"error"`
 	raw string
 }
@@ -390,14 +390,14 @@ func TestValidateDuplicateEndpoint(t *testing.T) {
 	s.do(t, fiber.MethodPost, "/api/v1/products", token, productBody(s.createCategory(t, token, map[string]any{"name": "Abarrotes"})))
 
 	tests := map[string]string{
-		"name=Galletas%20Mar%C3%ADa%20200g&sku=ABA-412": `{"exists":true,"field":"name"}`,
-		"sku=aba-412":          `{"exists":true,"field":"sku"}`,
-		"name=Nuevo&sku=NEW-1": `{"exists":false,"field":null}`,
+		"name=Galletas%20Mar%C3%ADa%20200g&sku=ABA-412": `{"exists":true,"field":"name","conflicts":[{"field":"name"`,
+		"sku=aba-412":          `{"exists":true,"field":"sku","conflicts":[{"field":"sku"`,
+		"name=Nuevo&sku=NEW-1": `{"exists":false,"field":null,"conflicts":[]}`,
 	}
 	for query, want := range tests {
 		status, resp := s.do(t, fiber.MethodGet, "/api/v1/products/validate-duplicate?"+query, token, nil)
-		if status != 200 || string(resp.Data) != want {
-			t.Errorf("%s: got %d %s, want %s", query, status, resp.Data, want)
+		if status != 200 || !strings.HasPrefix(string(resp.Data), want) {
+			t.Errorf("%s: got %d %s, want it to start with %s", query, status, resp.Data, want)
 		}
 	}
 
@@ -754,6 +754,13 @@ func TestDeleteProductEndpoint(t *testing.T) {
 	status, resp = s.do(t, fiber.MethodDelete, "/api/v1/products/abc", token, nil)
 	expectError(t, status, resp, 400, "BAD_REQUEST")
 
+	// The deleted product keeps its SKU (HU-06-01) but frees its name.
+	status, resp = s.do(t, fiber.MethodPost, "/api/v1/products", token, body)
+	expectError(t, status, resp, 409, "CONFLICT")
+	if !strings.Contains(resp.raw, `"code":"SKU_DUPLICATE"`) || !strings.Contains(resp.raw, `"deleted":true`) {
+		t.Errorf("conflict must point to the deleted product: %s", resp.raw)
+	}
+	body["sku"] = "ABA-413"
 	s.createProduct(t, token, body)
 }
 
@@ -763,11 +770,11 @@ func TestValidateDuplicateExcludeID(t *testing.T) {
 	productID := s.createProduct(t, token, productBody(s.createCategory(t, token, map[string]any{"name": "Abarrotes"})))
 
 	status, resp := s.do(t, fiber.MethodGet, "/api/v1/products/validate-duplicate?sku=ABA-412&exclude_id="+productID, token, nil)
-	if status != 200 || string(resp.Data) != `{"exists":false,"field":null}` {
+	if status != 200 || string(resp.Data) != `{"exists":false,"field":null,"conflicts":[]}` {
 		t.Errorf("own product must be excluded: %d %s", status, resp.raw)
 	}
 	status, resp = s.do(t, fiber.MethodGet, "/api/v1/products/validate-duplicate?sku=ABA-412&exclude_id="+uuid.NewString(), token, nil)
-	if status != 200 || string(resp.Data) != `{"exists":true,"field":"sku"}` {
+	if status != 200 || !strings.HasPrefix(string(resp.Data), `{"exists":true,"field":"sku","conflicts":[{"field":"sku"`) {
 		t.Errorf("another product must still be detected: %d %s", status, resp.raw)
 	}
 	status, resp = s.do(t, fiber.MethodGet, "/api/v1/products/validate-duplicate?sku=ABA-412&exclude_id=abc", token, nil)
