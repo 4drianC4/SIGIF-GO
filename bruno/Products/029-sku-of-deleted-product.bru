@@ -1,0 +1,44 @@
+meta {
+  name: SKU Of A Deleted Product (409)
+  type: http
+  seq: 29
+}
+
+post {
+  url: {{baseUrl}}/api/v1/products
+  body: json
+  auth: bearer
+}
+
+headers {
+  Content-Type: application/json
+}
+
+auth:bearer {
+  token: {{accessToken}}
+}
+
+body:json {
+  {
+    "name": "Reusa {{productName}}",
+    "sku": "{{deletedSku}}",
+    "category_id": "{{categoryId}}",
+    "unit_of_measure_id": "{{unitId}}",
+    "cost": 1,
+    "sale_price": 2
+  }
+}
+
+script:pre-request {
+  bru.setVar('deletedSku', (String(bru.getVar('productSku')) + '-edit').toUpperCase());
+}
+
+tests {
+  test("el SKU de un producto eliminado sigue ocupado", function() {
+    expect(res.status).to.equal(409);
+    const c = res.body.error.details.conflicts[0];
+    expect(c.code).to.equal('SKU_DUPLICATE');
+    expect(c.existing_product.id).to.equal(bru.getVar('productId'));
+    expect(c.existing_product.deleted).to.equal(true);
+  });
+}
