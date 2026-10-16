@@ -1,5 +1,5 @@
 meta {
-  name: Me
+  name: Me (cookie)
   type: http
   seq: 2
 }
@@ -7,17 +7,16 @@ meta {
 get {
   url: {{baseUrl}}/api/v1/auth/me
   body: none
-  auth: bearer
+  auth: none
 }
 
 headers {
-  Authorization: Bearer {{accessToken}}
+  Cookie: sigif_access_token={{authCookieToken}}
 }
 
-auth:bearer {
-  token: {{auth}}
-}
-
-vars:pre-request {
-  accessToken: 
+tests {
+  test("autentica con la cookie, sin Authorization", function() {
+    expect(res.status).to.equal(200);
+    expect(res.body.data.email).to.equal(bru.getEnvVar('companyAdminEmail'));
+  });
 }

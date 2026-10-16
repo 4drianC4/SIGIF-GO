@@ -13,6 +13,7 @@ import (
 	"github.com/sigif/sigif-go/internal/modules/user/domain/entity"
 	"github.com/sigif/sigif-go/internal/modules/user/domain/service"
 	"github.com/sigif/sigif-go/internal/modules/user/testutil"
+	"github.com/sigif/sigif-go/internal/shared/authcookie"
 	"github.com/sigif/sigif-go/internal/shared/clock"
 	"github.com/sigif/sigif-go/internal/shared/config"
 	"github.com/sigif/sigif-go/internal/shared/jwt"
@@ -249,7 +250,7 @@ func TestInactiveRoleRevokesPermissionsForExistingSession(t *testing.T) {
 	}
 
 	app := fiber.New()
-	app.Use(middleware.AuthRequired(jwtManager, activeSessions{}))
+	app.Use(middleware.AuthRequired(jwtManager, activeSessions{}, authcookie.Default()))
 	app.Patch("/api/v1/roles/:id/status",
 		middleware.RequirePermission(svc, "roles", "status"),
 		func(c *fiber.Ctx) error { return c.SendStatus(fiber.StatusOK) })

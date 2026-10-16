@@ -1,0 +1,22 @@
+meta {
+  name: Me tras logout
+  type: http
+  seq: 6
+}
+
+get {
+  url: {{baseUrl}}/api/v1/auth/me
+  body: none
+  auth: none
+}
+
+headers {
+  Cookie: sigif_access_token={{authCookieToken}}
+}
+
+tests {
+  test("la sesión revocada ya no autentica", function() {
+    expect(res.status).to.equal(401);
+    expect(res.body.error.code).to.equal('UNAUTHORIZED');
+  });
+}
