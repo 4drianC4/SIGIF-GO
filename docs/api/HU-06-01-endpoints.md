@@ -181,6 +181,7 @@ La migración se puede revertir (`go run ./cmd/migrate down`): vuelve a los índ
 |---|---|
 | `domain/service/duplicate_error.go` | Error `409` con `details.conflicts`. Su causa es `ErrSKUTaken`, `ErrBarcodeTaken` o `ErrProductNameTaken`, así que `errors.Is` sigue funcionando. |
 | `domain/service/duplicates.go` | Busca todos los conflictos; traduce una violación del índice único (concurrencia) al mismo `409`. |
+| `CreateProduct` | Ejecuta dentro de una transacción la validación de referencias y duplicados, junto con la inserción. |
 | Repositorio | `ExistsByName/BySKU/ByBarcode` pasan a `FindByName/BySKU/ByBarcode`, que devuelven el producto. SKU y código de barras incluyen eliminados. |
 | `validate-duplicate` | Añade `conflicts`. |
 | Migración `000004` | Ver arriba. |
@@ -196,7 +197,7 @@ La migración se puede revertir (`go run ./cmd/migrate down`): vuelve a los índ
 | 5 | Ignora mayúsculas y espacios | Normalización al guardar y en la migración. | `TestSKUComparisonIgnoresCaseAndOuterSpaces`, `TestReservedCodesNormalizeStoredValues`, Bruno 026 |
 | 6 | Solo dentro de la empresa | Filtro e índices por `company_id`. | `TestUniquenessIsPerCompany` |
 | 7 | Varios productos sin código de barras | Los vacíos se guardan como `NULL`. | `TestProductsWithoutBarcodeOrSKUAreNotDuplicates`, Bruno 031–032 |
-| 8 | Nada persistido ante error | Comprobación previa e índice único como red de seguridad. | `TestConcurrentCreationsWithTheSameSKU` (Postgres, 20 altas simultáneas) |
+| 8 | Nada persistido ante error | Validación e inserción dentro de una transacción; el índice único es la red de seguridad ante concurrencia. | `TestConcurrentCreationsWithTheSameSKU` (Postgres, 20 altas simultáneas) |
 | 9 | Inactivo o eliminado sigue ocupado | Búsqueda que incluye eliminados e índices de la migración `000004`. | `TestInactiveAndDeletedProductsKeepTheirSKUAndBarcode`, `TestDeletedProductsKeepTheirSKUAndBarcodeInPostgres`, Bruno 029 |
 
 ## Pruebas
