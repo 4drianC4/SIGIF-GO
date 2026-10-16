@@ -10,7 +10,7 @@ import (
 
 type ProductModel struct {
 	ID              uuid.UUID           `gorm:"type:uuid;primaryKey;default:gen_random_uuid()"`
-	CompanyID       uuid.UUID           `gorm:"type:uuid;not null;uniqueIndex:idx_products_company_name,where:deleted_at IS NULL;uniqueIndex:idx_products_company_sku,where:deleted_at IS NULL AND sku IS NOT NULL;uniqueIndex:idx_products_company_barcode,where:deleted_at IS NULL AND barcode IS NOT NULL"`
+	CompanyID       uuid.UUID           `gorm:"type:uuid;not null;uniqueIndex:idx_products_company_name,where:deleted_at IS NULL;uniqueIndex:idx_products_company_sku,where:sku IS NOT NULL;uniqueIndex:idx_products_company_barcode,where:barcode IS NOT NULL"`
 	CategoryID      uuid.UUID           `gorm:"type:uuid;not null;index"`
 	Category        *CategoryModel      `gorm:"foreignKey:CategoryID;constraint:OnUpdate:CASCADE,OnDelete:RESTRICT"`
 	UnitOfMeasureID uuid.UUID           `gorm:"type:uuid;not null;index"`
