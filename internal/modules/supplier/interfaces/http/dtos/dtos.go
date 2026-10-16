@@ -1,6 +1,7 @@
 package dtos
 
 import (
+	"github.com/google/uuid"
 	"github.com/shopspring/decimal"
 	"github.com/sigif/sigif-go/internal/modules/supplier/domain/entity"
 	"github.com/sigif/sigif-go/internal/modules/supplier/domain/repository"
@@ -48,4 +49,35 @@ func (q ListQuery) Filter() repository.ListFilter {
 
 type ProductsQuery struct {
 	Search string `query:"search" json:"search" validate:"omitempty,max=160"`
+}
+
+type ProductOptionsQuery struct {
+	Search     string `query:"search" json:"search" validate:"omitempty,max=160"`
+	CategoryID string `query:"category_id" json:"category_id" validate:"omitempty,uuid"`
+}
+
+func (q ProductOptionsQuery) Filter() repository.ProductOptionFilter {
+	f := repository.ProductOptionFilter{Search: q.Search}
+	if q.CategoryID != "" {
+		id, _ := uuid.Parse(q.CategoryID)
+		f.CategoryID = &id
+	}
+	return f
+}
+
+type AssociateProductRequest struct {
+	ProductID    string           `json:"product_id" validate:"required,uuid"`
+	SupplierCode *string          `json:"supplier_code"`
+	LeadTimeDays *int             `json:"lead_time_days"`
+	CurrentCost  *decimal.Decimal `json:"current_cost" validate:"required"`
+	Preferred    *bool            `json:"preferred"`
+}
+type AssociateProductsRequest struct {
+	ProductIDs []string `json:"product_ids" validate:"required,min=1,max=100,dive,uuid"`
+}
+type UpdateAssociationRequest struct {
+	SupplierCode *string          `json:"supplier_code"`
+	LeadTimeDays *int             `json:"lead_time_days"`
+	CurrentCost  *decimal.Decimal `json:"current_cost"`
+	Preferred    *bool            `json:"preferred"`
 }

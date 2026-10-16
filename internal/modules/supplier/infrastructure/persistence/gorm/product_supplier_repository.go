@@ -22,6 +22,7 @@ type productRow struct {
 	model.ProductSupplierModel `gorm:"embedded"`
 	Name                       string
 	SKU                        *string
+	EffectiveLeadTimeDays      *int
 }
 
 func (r *ProductSupplierGormRepository) List(ctx context.Context, companyID, supplierID uuid.UUID, search string, offset, limit int) ([]repository.ProductItem, int64, error) {
@@ -29,6 +30,7 @@ func (r *ProductSupplierGormRepository) List(ctx context.Context, companyID, sup
 	var total int64
 	base := func(tx *gorm.DB) *gorm.DB {
 		db := tx.Table("product_suppliers AS ps").Joins("JOIN products p ON p.id = ps.product_id AND p.company_id = ps.company_id").
+			Joins("JOIN suppliers s ON s.id = ps.supplier_id AND s.company_id = ps.company_id AND s.deleted_at IS NULL").
 			Where("ps.company_id = ? AND ps.supplier_id = ? AND p.deleted_at IS NULL", companyID, supplierID)
 		if strings.TrimSpace(search) != "" {
 			db = db.Where("(LOWER(p.name) LIKE ? OR LOWER(p.sku) LIKE ?)", pattern(search), pattern(search))
@@ -39,7 +41,7 @@ func (r *ProductSupplierGormRepository) List(ctx context.Context, companyID, sup
 		if err := base(tx).Count(&total).Error; err != nil {
 			return err
 		}
-		return base(tx).Select("ps.*, p.name, p.sku").
+		return base(tx).Select("ps.*, p.name, p.sku, COALESCE(ps.lead_time_days, s.lead_time_days) AS effective_lead_time_days").
 			Order("p.name ASC, ps.product_id ASC").Offset(offset).Limit(limit).Scan(&rows).Error
 	}, &sql.TxOptions{Isolation: sql.LevelRepeatableRead, ReadOnly: true})
 	if err != nil {
@@ -47,7 +49,7 @@ func (r *ProductSupplierGormRepository) List(ctx context.Context, companyID, sup
 	}
 	items := make([]repository.ProductItem, len(rows))
 	for i := range rows {
-		items[i] = repository.ProductItem{Association: mapper.AssociationToDomain(&rows[i].ProductSupplierModel), Name: rows[i].Name, SKU: rows[i].SKU}
+		items[i] = repository.ProductItem{Association: mapper.AssociationToDomain(&rows[i].ProductSupplierModel), Name: rows[i].Name, SKU: rows[i].SKU, EffectiveLeadTimeDays: rows[i].EffectiveLeadTimeDays}
 	}
 	return items, total, nil
 }

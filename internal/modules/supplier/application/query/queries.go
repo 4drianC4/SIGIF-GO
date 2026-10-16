@@ -21,3 +21,15 @@ type ListSupplierProducts struct {
 	Search                string
 	Offset, Limit         int
 }
+
+type ListProductSuppliers struct {
+	CompanyID, ProductID uuid.UUID
+	Search               string
+	Offset, Limit        int
+}
+type ProductOptions struct {
+	CompanyID, SupplierID uuid.UUID
+	Filter                repository.ProductOptionFilter
+	Offset, Limit         int
+}
+type SupplierOptions ListProductSuppliers

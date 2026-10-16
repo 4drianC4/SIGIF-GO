@@ -2,7 +2,7 @@
 
 ## Información general
 
-- Flujo: Proveedores — lista, detalle, alta, edición, desactivación y consulta de productos asociados desde el detalle.
+- Flujo: Proveedores — lista, detalle, alta, edición, desactivación y gestión de asociaciones desde proveedor y ficha de producto.
 - Rama: `feat/suppliers-management`.
 - Prefijo base: `/api/v1`.
 - Requiere contexto autenticado del backend: `user_id` y `company_id`, obtenidos de un JWT válido con sesión activa.
@@ -26,6 +26,13 @@ El backend devuelve únicamente datos implementados. El frontend debe mockear co
 | `PUT` | `/api/v1/suppliers/:id` | `suppliers.update` | Editar proveedor. |
 | `PATCH` | `/api/v1/suppliers/:id/deactivate` | `suppliers.deactivate` | Desactivar proveedor. |
 | `GET` | `/api/v1/suppliers/:id/products` | `suppliers.read` | Listar productos asociados. |
+| `GET` | `/api/v1/suppliers/:id/product-options` | `suppliers.update` | Productos para el selector de asociación. |
+| `POST` | `/api/v1/suppliers/:id/products/batch` | `suppliers.update` | Asociar varios productos. |
+| `POST` | `/api/v1/suppliers/:id/products` | `suppliers.update` | Asociar un proveedor a un producto. |
+| `PUT` | `/api/v1/suppliers/:id/products/:product_id` | `suppliers.update` | Editar datos de la asociación. |
+| `DELETE` | `/api/v1/suppliers/:id/products/:product_id` | `suppliers.update` | Desvincular proveedor y producto. |
+| `GET` | `/api/v1/products/:product_id/suppliers` | `suppliers.read` | Listar proveedores de un producto. |
+| `GET` | `/api/v1/products/:product_id/supplier-options` | `suppliers.update` | Proveedores para el selector del producto. |
 
 ---
 
@@ -42,7 +49,7 @@ Permisos usados en este flujo: `suppliers.list`, `suppliers.read`, `suppliers.cr
 
 El seed incorpora estos permisos al catálogo y los asigna al rol `superadmin`, como hace con los demás módulos. `business_admin` y `employee` no reciben permisos nuevos automáticamente. Para operar hace falta además un usuario vinculado a una empresa; un superadmin sin empresa recibe `400 BAD_REQUEST`.
 
-La consulta de productos asociados usa `suppliers.read`. Agregar, editar o desvincular asociaciones y el selector de productos quedan fuera de este alcance.
+Las listas de asociados usan `suppliers.read`. Los selectores y todas las modificaciones de asociaciones usan `suppliers.update`. Todas estas rutas se implementan dentro de supplier.
 
 ---
 
@@ -513,7 +520,7 @@ No aplica.
 }
 ```
 
-Es un reemplazo completo (PUT): hay que reenviar legal_name y todos los opcionales que se desee conservar. Omitir un opcional lo limpia a null. Se puede conservar el propio NIT. No cambia costos ni plazos de las asociaciones; su modificación queda fuera de alcance.
+Es un reemplazo completo (PUT): hay que reenviar legal_name y todos los opcionales que se desee conservar. Omitir un opcional lo limpia a null. Se puede conservar el propio NIT. No cambia costos ni plazos de las asociaciones; estas se editan por separado.
 
 ### Códigos de error
 
@@ -652,6 +659,8 @@ No aplica.
       "id": "b2222222-2222-4222-8222-222222222222",
       "supplier_id": "a1111111-1111-4111-8111-111111111111",
       "product_id": "c3333333-3333-4333-8333-333333333333",
+      "supplier_code": "DA-ACE-900",
+      "preferred": false,
       "lead_time_days": 5,
       "current_cost": 13.3,
       "created_at": "2026-10-15T14:05:00Z",
@@ -697,6 +706,568 @@ Ejemplo de error:
 
 ---
 
+
+## 9) Productos para el selector de asociación — `GET /api/v1/suppliers/:id/product-options`
+
+Incluye productos ya asociados para mostrarlos deshabilitados. También se muestran inactivos, con selectable=false. El stock es el total actual del producto, sin filtro de sucursal. El catálogo de categorías del dropdown sigue disponible en GET /api/v1/categories.
+
+### Permiso
+
+`suppliers.update`
+
+### Params de ruta
+
+- id: UUID del proveedor.
+
+### Query params
+
+- `search` (opcional, máximo 160): nombre, SKU o código de barras; búsqueda parcial sin distinguir mayúsculas.
+- `category_id` (opcional): UUID; incluye la categoría y sus descendientes.
+- `page` (opcional, por defecto 1): número de página.
+- `limit` (opcional, por defecto 20): tamaño de página, máximo 100.
+
+### Body
+
+No aplica.
+
+### Respuesta exitosa
+
+**`200`**
+
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "id": "c3333333-3333-4333-8333-333333333333",
+      "name": "Aceite Fino 900 ml",
+      "sku": "ABA-210",
+      "barcode": "7772000002103",
+      "status": "active",
+      "category": {
+        "id": "d4444444-4444-4444-8444-444444444444",
+        "name": "Aceites",
+        "path": "Abarrotes / Aceites"
+      },
+      "stock": 8,
+      "unit_abbreviation": "UNIT",
+      "is_associated": true,
+      "selectable": false
+    }
+  ],
+  "meta": {
+    "page": 1,
+    "limit": 20,
+    "total": 1,
+    "total_pages": 1
+  }
+}
+```
+
+### Códigos de error
+
+| Code | HTTP | Causa |
+|---|---|---|
+| `BAD_REQUEST` | 400 | UUID de ruta inválido, JSON incompatible o falta empresa en el contexto. |
+| `VALIDATION_ERROR` | 400 | IDs, filtros, código, costo, precisión o plazo inválidos. |
+| `NOT_FOUND` | 404 | Proveedor, producto o relación inexistente, eliminado o ajeno a la empresa. |
+| `UNAUTHORIZED` | 401 | Token ausente/inválido o sesión inactiva. |
+| `FORBIDDEN` | 403 | Falta el permiso de la ruta. |
+| `INTERNAL_ERROR` | 500 | Error interno de persistencia. |
+
+Ejemplo de error:
+
+```json
+{
+  "success": false,
+  "error": {
+    "code": "NOT_FOUND",
+    "message": "product not found"
+  }
+}
+```
+
+---
+
+## 10) Asociar varios productos — `POST /api/v1/suppliers/:id/products/batch`
+
+Operación atómica: un producto inexistente, ajeno, inactivo o ya asociado rechaza la selección completa. Guarda código, costo y plazo específico como null, y preferred=false. Se completan después desde la edición de la relación. La respuesta respeta el orden de product_ids.
+
+### Permiso
+
+`suppliers.update`
+
+### Params de ruta
+
+- id: UUID del proveedor.
+
+### Query params
+
+No aplica.
+
+### Body
+
+```json
+{
+  "product_ids": [
+    "c3333333-3333-4333-8333-333333333333",
+    "c5555555-5555-4555-8555-555555555555"
+  ]
+}
+```
+
+| Campo | Tipo | Obligatorio | Restricciones / notas |
+|---|---|---|---|
+| product_ids | string[] | Sí | Entre 1 y 100 UUID distintos de productos activos de la empresa. |
+
+### Respuesta exitosa
+
+**`201`**
+
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "id": "b2222222-2222-4222-8222-222222222222",
+      "supplier_id": "a1111111-1111-4111-8111-111111111111",
+      "product_id": "c3333333-3333-4333-8333-333333333333",
+      "supplier_code": null,
+      "lead_time_days": null,
+      "current_cost": null,
+      "preferred": false,
+      "created_at": "2026-10-16T14:00:00Z",
+      "updated_at": null
+    },
+    {
+      "id": "b6666666-6666-4666-8666-666666666666",
+      "supplier_id": "a1111111-1111-4111-8111-111111111111",
+      "product_id": "c5555555-5555-4555-8555-555555555555",
+      "supplier_code": null,
+      "lead_time_days": null,
+      "current_cost": null,
+      "preferred": false,
+      "created_at": "2026-10-16T14:00:00Z",
+      "updated_at": null
+    }
+  ]
+}
+```
+
+### Códigos de error
+
+| Code | HTTP | Causa |
+|---|---|---|
+| `BAD_REQUEST` | 400 | UUID de ruta inválido, JSON incompatible o falta empresa en el contexto. |
+| `VALIDATION_ERROR` | 400 | IDs, filtros, código, costo, precisión o plazo inválidos. |
+| `NOT_FOUND` | 404 | Proveedor, producto o relación inexistente, eliminado o ajeno a la empresa. |
+| `CONFLICT` | 409 | Relación duplicada, recurso inactivo al asociar o conflicto de preferencia. |
+| `UNAUTHORIZED` | 401 | Token ausente/inválido o sesión inactiva. |
+| `FORBIDDEN` | 403 | Falta el permiso de la ruta. |
+| `INTERNAL_ERROR` | 500 | Error interno de persistencia. |
+
+Ejemplo de error:
+
+```json
+{
+  "success": false,
+  "error": {
+    "code": "NOT_FOUND",
+    "message": "product not found"
+  }
+}
+```
+
+---
+
+## 11) Asociar un proveedor a un producto — `POST /api/v1/suppliers/:id/products`
+
+Es la confirmación del segundo modal, después de seleccionar el proveedor existente. Requiere proveedor activo. Crear un proveedor mediante POST /suppliers sigue siendo independiente: no lo asocia automáticamente. No existe un endpoint de escritura duplicado en /products; ambos lados usan esta misma relación.
+
+### Permiso
+
+`suppliers.update`
+
+### Params de ruta
+
+- id: UUID del proveedor seleccionado.
+
+### Query params
+
+No aplica.
+
+### Body
+
+```json
+{
+  "product_id": "c3333333-3333-4333-8333-333333333333",
+  "lead_time_days": 3,
+  "current_cost": 13.1
+}
+```
+
+| Campo | Tipo | Obligatorio | Restricciones / notas |
+|---|---|---|---|
+| product_id | string UUID | Sí | Producto activo y no eliminado de la misma empresa. |
+| lead_time_days | integer o null | No | 0–32767 días; null permite usar el plazo general en la vista. |
+| current_cost | number | Sí | 0–9999999999.99, máximo 2 decimales; cero es válido. |
+| supplier_code | string o null | No | Máximo 60 caracteres; vacío se convierte en null. |
+| preferred | boolean | No | Por defecto false. true cambia el preferido de este producto de forma atómica. |
+
+### Respuesta exitosa
+
+**`201`**
+
+```json
+{
+  "success": true,
+  "data": {
+    "id": "b2222222-2222-4222-8222-222222222222",
+    "supplier_id": "a1111111-1111-4111-8111-111111111111",
+    "product_id": "c3333333-3333-4333-8333-333333333333",
+    "supplier_code": "DA-ACE-900",
+    "lead_time_days": 3,
+    "current_cost": 13.1,
+    "preferred": false,
+    "created_at": "2026-10-16T14:00:00Z",
+    "updated_at": null
+  }
+}
+```
+
+### Códigos de error
+
+| Code | HTTP | Causa |
+|---|---|---|
+| `BAD_REQUEST` | 400 | UUID de ruta inválido, JSON incompatible o falta empresa en el contexto. |
+| `VALIDATION_ERROR` | 400 | IDs, filtros, código, costo, precisión o plazo inválidos. |
+| `NOT_FOUND` | 404 | Proveedor, producto o relación inexistente, eliminado o ajeno a la empresa. |
+| `CONFLICT` | 409 | Relación duplicada, recurso inactivo al asociar o conflicto de preferencia. |
+| `UNAUTHORIZED` | 401 | Token ausente/inválido o sesión inactiva. |
+| `FORBIDDEN` | 403 | Falta el permiso de la ruta. |
+| `INTERNAL_ERROR` | 500 | Error interno de persistencia. |
+
+Ejemplo de error:
+
+```json
+{
+  "success": false,
+  "error": {
+    "code": "NOT_FOUND",
+    "message": "product not found"
+  }
+}
+```
+
+---
+
+## 12) Editar datos de la asociación — `PUT /api/v1/suppliers/:id/products/:product_id`
+
+No crea una relación inexistente. PUT reemplaza código, costo y plazo: reenviar los valores que se quieran conservar. No cambia el producto general. Permite editar una relación existente de un proveedor inactivo, pero no marcarlo como nuevo preferido.
+
+### Permiso
+
+`suppliers.update`
+
+### Params de ruta
+
+- id: UUID del proveedor.
+- product_id: UUID del producto; no es el ID de la asociación.
+
+### Query params
+
+No aplica.
+
+### Body
+
+```json
+{
+  "supplier_code": "DA-ACE-900",
+  "lead_time_days": 3,
+  "current_cost": 13.1,
+  "preferred": true
+}
+```
+
+| Campo | Tipo | Obligatorio | Restricciones / notas |
+|---|---|---|---|
+| supplier_code | string o null | No | Máximo 60; omitido o vacío limpia el código. |
+| lead_time_days | integer o null | No | 0–32767; omitido o null limpia el plazo específico. |
+| current_cost | number o null | No | Mismo rango y precisión que al asociar; omitido o null limpia el costo pendiente de completar. |
+| preferred | boolean | No | Si se omite conserva el valor actual. true cambia el preferido; false lo desmarca. |
+
+### Respuesta exitosa
+
+**`200`**
+
+```json
+{
+  "success": true,
+  "data": {
+    "id": "b2222222-2222-4222-8222-222222222222",
+    "supplier_id": "a1111111-1111-4111-8111-111111111111",
+    "product_id": "c3333333-3333-4333-8333-333333333333",
+    "supplier_code": "DA-ACE-900",
+    "lead_time_days": 3,
+    "current_cost": 13.1,
+    "preferred": true,
+    "created_at": "2026-10-16T14:00:00Z",
+    "updated_at": "2026-10-16T15:00:00Z"
+  }
+}
+```
+
+### Códigos de error
+
+| Code | HTTP | Causa |
+|---|---|---|
+| `BAD_REQUEST` | 400 | UUID de ruta inválido, JSON incompatible o falta empresa en el contexto. |
+| `VALIDATION_ERROR` | 400 | IDs, filtros, código, costo, precisión o plazo inválidos. |
+| `NOT_FOUND` | 404 | Proveedor, producto o relación inexistente, eliminado o ajeno a la empresa. |
+| `CONFLICT` | 409 | Relación duplicada, recurso inactivo al asociar o conflicto de preferencia. |
+| `UNAUTHORIZED` | 401 | Token ausente/inválido o sesión inactiva. |
+| `FORBIDDEN` | 403 | Falta el permiso de la ruta. |
+| `INTERNAL_ERROR` | 500 | Error interno de persistencia. |
+
+Ejemplo de error:
+
+```json
+{
+  "success": false,
+  "error": {
+    "code": "NOT_FOUND",
+    "message": "product not found"
+  }
+}
+```
+
+---
+
+## 13) Desvincular proveedor y producto — `DELETE /api/v1/suppliers/:id/products/:product_id`
+
+Usado por ambos modales de confirmación. Elimina solo product_suppliers; no elimina ni altera proveedor, producto, stock ni otros productos asociados. Si era preferred=true, el frontend puede mostrar el aviso usando el dato de la lista. No elige un sustituto automáticamente. Repetir la solicitud responde 404.
+
+### Permiso
+
+`suppliers.update`
+
+### Params de ruta
+
+- id: UUID del proveedor.
+- product_id: UUID del producto.
+
+### Query params
+
+No aplica.
+
+### Body
+
+No aplica.
+
+### Respuesta exitosa
+
+**`204`**
+
+Sin contenido.
+
+### Códigos de error
+
+| Code | HTTP | Causa |
+|---|---|---|
+| `BAD_REQUEST` | 400 | UUID de ruta inválido, JSON incompatible o falta empresa en el contexto. |
+| `VALIDATION_ERROR` | 400 | IDs, filtros, código, costo, precisión o plazo inválidos. |
+| `NOT_FOUND` | 404 | Proveedor, producto o relación inexistente, eliminado o ajeno a la empresa. |
+| `UNAUTHORIZED` | 401 | Token ausente/inválido o sesión inactiva. |
+| `FORBIDDEN` | 403 | Falta el permiso de la ruta. |
+| `INTERNAL_ERROR` | 500 | Error interno de persistencia. |
+
+Ejemplo de error:
+
+```json
+{
+  "success": false,
+  "error": {
+    "code": "NOT_FOUND",
+    "message": "product not found"
+  }
+}
+```
+
+---
+
+## 14) Listar proveedores de un producto — `GET /api/v1/products/:product_id/suppliers`
+
+El endpoint se implementa íntegramente en el módulo supplier, aunque la URL parte del producto. Incluye proveedores inactivos asociados, excluye eliminados lógicamente. Ordena primero el preferido y luego por nombre e ID.
+
+### Permiso
+
+`suppliers.read`
+
+### Params de ruta
+
+- product_id: UUID del producto de la empresa autenticada.
+
+### Query params
+
+- `search` (opcional, máximo 160): nombre comercial, razón social, NIT o código del proveedor.
+- `page` (opcional, por defecto 1): número de página.
+- `limit` (opcional, por defecto 20): tamaño de página, máximo 100.
+
+### Body
+
+No aplica.
+
+### Respuesta exitosa
+
+**`200`**
+
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "id": "b2222222-2222-4222-8222-222222222222",
+      "supplier_id": "a1111111-1111-4111-8111-111111111111",
+      "product_id": "c3333333-3333-4333-8333-333333333333",
+      "supplier_code": "DA-ACE-900",
+      "lead_time_days": 3,
+      "current_cost": 13.1,
+      "preferred": false,
+      "created_at": "2026-10-16T14:00:00Z",
+      "updated_at": null,
+      "supplier": {
+        "id": "a1111111-1111-4111-8111-111111111111",
+        "name": "Distribuidora Andina",
+        "legal_name": "Distribuidora Andina S.R.L.",
+        "tax_id": "1044556677",
+        "main_industry": "Abarrotes",
+        "status": "active",
+        "lead_time_days": 2
+      },
+      "effective_lead_time_days": 3
+    }
+  ],
+  "meta": {
+    "page": 1,
+    "limit": 20,
+    "total": 1,
+    "total_pages": 1
+  }
+}
+```
+
+### Códigos de error
+
+| Code | HTTP | Causa |
+|---|---|---|
+| `BAD_REQUEST` | 400 | UUID de ruta inválido, JSON incompatible o falta empresa en el contexto. |
+| `VALIDATION_ERROR` | 400 | IDs, filtros, código, costo, precisión o plazo inválidos. |
+| `NOT_FOUND` | 404 | Proveedor, producto o relación inexistente, eliminado o ajeno a la empresa. |
+| `UNAUTHORIZED` | 401 | Token ausente/inválido o sesión inactiva. |
+| `FORBIDDEN` | 403 | Falta el permiso de la ruta. |
+| `INTERNAL_ERROR` | 500 | Error interno de persistencia. |
+
+Ejemplo de error:
+
+```json
+{
+  "success": false,
+  "error": {
+    "code": "NOT_FOUND",
+    "message": "product not found"
+  }
+}
+```
+
+---
+
+## 15) Proveedores para el selector del producto — `GET /api/v1/products/:product_id/supplier-options`
+
+Los ya asociados permanecen en la lista con is_associated=true y selectable=false. Los proveedores inactivos también son no seleccionables. Ordena por nombre e ID. El proveedor recién creado aparece aquí sin asociación; el frontend conoce su ID por la respuesta de creación y puede marcarlo como “Nuevo” en ese modal sin un indicador persistido en el backend.
+
+### Permiso
+
+`suppliers.update`
+
+### Params de ruta
+
+- product_id: UUID del producto de la empresa autenticada.
+
+### Query params
+
+- `search` (opcional, máximo 160): nombre comercial, razón social o NIT.
+- `page` (opcional, por defecto 1): número de página.
+- `limit` (opcional, por defecto 20): tamaño de página, máximo 100.
+
+### Body
+
+No aplica.
+
+### Respuesta exitosa
+
+**`200`**
+
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "id": "a1111111-1111-4111-8111-111111111111",
+      "name": "Distribuidora Andina",
+      "legal_name": "Distribuidora Andina S.R.L.",
+      "tax_id": "1044556677",
+      "main_industry": "Abarrotes",
+      "status": "active",
+      "lead_time_days": 2,
+      "is_associated": true,
+      "selectable": false
+    },
+    {
+      "id": "a7777777-7777-4777-8777-777777777777",
+      "name": "Importadora del Valle",
+      "legal_name": "Importadora del Valle SRL",
+      "tax_id": "1042387654",
+      "main_industry": "Abarrotes",
+      "status": "active",
+      "lead_time_days": 2,
+      "is_associated": false,
+      "selectable": true
+    }
+  ],
+  "meta": {
+    "page": 1,
+    "limit": 20,
+    "total": 2,
+    "total_pages": 1
+  }
+}
+```
+
+### Códigos de error
+
+| Code | HTTP | Causa |
+|---|---|---|
+| `BAD_REQUEST` | 400 | UUID de ruta inválido, JSON incompatible o falta empresa en el contexto. |
+| `VALIDATION_ERROR` | 400 | IDs, filtros, código, costo, precisión o plazo inválidos. |
+| `NOT_FOUND` | 404 | Proveedor, producto o relación inexistente, eliminado o ajeno a la empresa. |
+| `UNAUTHORIZED` | 401 | Token ausente/inválido o sesión inactiva. |
+| `FORBIDDEN` | 403 | Falta el permiso de la ruta. |
+| `INTERNAL_ERROR` | 500 | Error interno de persistencia. |
+
+Ejemplo de error:
+
+```json
+{
+  "success": false,
+  "error": {
+    "code": "NOT_FOUND",
+    "message": "product not found"
+  }
+}
+```
+
+---
+
 ## Estructura de respuesta de entidad `Supplier`
 
 ```json
@@ -735,6 +1306,8 @@ Ejemplo de error:
   "id": "b2222222-2222-4222-8222-222222222222",
   "supplier_id": "a1111111-1111-4111-8111-111111111111",
   "product_id": "c3333333-3333-4333-8333-333333333333",
+  "supplier_code": "DA-ACE-900",
+  "preferred": false,
   "lead_time_days": 5,
   "current_cost": 13.3,
   "created_at": "2026-10-15T14:05:00Z",
@@ -742,7 +1315,7 @@ Ejemplo de error:
 }
 ```
 
-En el listado de productos asociados se agregan `name` y `sku` (string o null). El costo es específico del proveedor y `lead_time_days` puede ser null. El backend no copia automáticamente el plazo general del proveedor a la asociación.
+En el listado de productos asociados se agregan `name`, `sku` (string o null) y `effective_lead_time_days`. El costo es específico del proveedor y puede ser null al asociar en lote. `effective_lead_time_days` usa el plazo de la asociación y, si falta, el plazo general del proveedor; respeta el valor cero. No copia ese valor a la relación.
 
 ## Estructura de respuesta de entidad `SupplierSummary`
 
@@ -777,8 +1350,8 @@ Solo ese contador está implementado. No hay valores simulados ni ceros sustituy
 | `VALIDATION_ERROR` | 400 | Campos requeridos, filtros, longitudes, NIT, correo, días o importes inválidos. |
 | `UNAUTHORIZED` | 401 | Token ausente/inválido/vencido o sesión inactiva. |
 | `FORBIDDEN` | 403 | Falta el permiso de la ruta. |
-| `NOT_FOUND` | 404 | Proveedor inexistente, eliminado o fuera de la empresa. |
-| `CONFLICT` | 409 | NIT repetido dentro de la empresa. |
+| `NOT_FOUND` | 404 | Proveedor, producto o asociación inexistente, eliminado o fuera de la empresa. |
+| `CONFLICT` | 409 | NIT repetido, asociación duplicada, recursos inactivos al asociar o conflicto de preferencia. |
 | `INTERNAL_ERROR` | 500 | Error interno; no se exponen detalles SQL. |
 
 Los mensajes actuales del backend están en inglés. El frontend puede traducir por código y usar `details` para marcar campos.
@@ -787,8 +1360,16 @@ Los mensajes actuales del backend están en inglés. El frontend puede traducir 
 
 ## Casos borde / comportamiento no obvio
 
+- Esta etapa agrega siete rutas y reutiliza GET /suppliers/:id/products. No se agregan solicitudes de login ni scripts de Bruno.
+- AutoMigrate incorpora supplier_code y preferred a product_suppliers y permite current_cost=null para el alta múltiple. Conserva los datos previos; ejecutar la migración habitual antes de usar estas rutas. No hay archivos SQL nuevos.
+- Un producto tiene como máximo un proveedor preferido dentro de su empresa. preferred=true cambia esa preferencia dentro de la misma transacción; si falla la operación se conserva la anterior. El índice parcial garantiza la unicidad.
+- Desvincular el preferido deja el producto sin preferido; el frontend solicita al usuario elegir otro cuando corresponda. No se generan órdenes automáticas.
+- Los selectores muestran is_associated y selectable. Crear un proveedor no lo asocia: hay que volver al selector y confirmar la asociación.
+- La asociación múltiple admite hasta 100 productos distintos y se aplica completa o no se aplica. Código y costo pendientes son null, no cero.
+- La edición y desvinculación solo cambian la relación. No cambian el costo/stock del producto ni el resto del catálogo del proveedor.
+
 - En Bruno, definir manualmente `supplierId` en las variables de la carpeta Supplier con el ID obtenido al crear o listar. Las rutas correctas son `PUT /api/v1/suppliers/:id` y `PATCH /api/v1/suppliers/:id/deactivate`. Una variable vacía produce `/suppliers/` o `/suppliers//deactivate`, que no son rutas válidas. No hay scripts para seleccionar o guardar IDs.
-- Crear un proveedor no lo asocia a productos. Las asociaciones existentes se muestran solo para consulta.
+- Crear un proveedor no lo asocia a productos. Las asociaciones se crean y modifican exclusivamente mediante sus rutas, nunca al guardar el proveedor.
 
 - La lista entrega suficientes datos para agrupar columnas en este orden sugerido: Proveedor (`name`, `legal_name`, `tax_id`); Rubro; Persona de contacto; Teléfono/correo; Plazo de entrega; Estado. La condición de pago puede ser una columna opcional.
 - Todas las consultas y cambios se limitan a la empresa del token. Un ID de otra empresa responde 404 en las rutas de detalle y modificación.
@@ -803,7 +1384,7 @@ Los mensajes actuales del backend están en inglés. El frontend puede traducir 
 - Proveedores pertenecen a la empresa, sin filtro por sucursal en estos endpoints.
 - Compras, entrega a tiempo, saldo por pagar, devoluciones y última compra se mockean exclusivamente en el frontend. El aviso de saldo pendiente del modal de desactivación también queda del lado del frontend hasta implementar cuentas por pagar.
 - El frontend muestra confirmaciones, detecta cambios sin guardar y presenta notificaciones según el resultado HTTP. No hay endpoints para confirmar/cancelar ni para descartar cambios.
-- No se incluyen agregar, editar o desvincular asociaciones, el selector de productos, la pantalla de devoluciones, los flujos de la ficha de producto ni módulos de compras o cuentas por pagar.
+- No se incluyen la pantalla de devoluciones ni módulos de órdenes de compra o cuentas por pagar.
 
 ---
 

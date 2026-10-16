@@ -284,24 +284,91 @@ func TestSupplierRoutePermissionsAndTenantIsolation(t *testing.T) {
 	}
 }
 
-func TestSupplierProductsAreReadOnly(t *testing.T) {
+func TestSupplierAssociationFlows(t *testing.T) {
 	s := newServer(t)
 	token := s.token(t, s.company, "allowed")
-	id := object(t, s.request(t, "POST", "/suppliers", token, `{"legal_name":"Andina"}`, 201).Data)["id"].(string)
-	product := s.product(t, s.company, "Aceite")
-	s.exec(t, "INSERT INTO product_suppliers (id,company_id,supplier_id,product_id,current_cost,lead_time_days,created_at) VALUES (?,?,?,?,13.30,5,?)",
-		uuid.New(), s.company, id, product, s.clk.NowUTC())
+	id := object(t, s.request(t, "POST", "/suppliers", token, `{"legal_name":"Andina","lead_time_days":2}`, 201).Data)["id"].(string)
+	first, second := s.product(t, s.company, "Aceite"), s.product(t, s.company, "Arroz")
 	base := "/suppliers/" + id
+	options := array(t, s.request(t, "GET", base+"/product-options", token, "", 200).Data)
+	if len(options) != 2 || options[0]["selectable"] != true {
+		t.Fatalf("product options: %v", options)
+	}
+	s.request(t, "POST", base+"/products/batch", token, `{"product_ids":["`+first.String()+`","`+second.String()+`"]}`, 201)
 	items := array(t, s.request(t, "GET", base+"/products", token, "", 200).Data)
-	if len(items) != 1 || items[0]["name"] != "Aceite" || items[0]["current_cost"] != float64(13.3) {
-		t.Fatalf("products: %v", items)
+	if len(items) != 2 || items[0]["current_cost"] != nil || items[0]["supplier_code"] != nil || items[0]["effective_lead_time_days"] != float64(2) {
+		t.Fatalf("incomplete batch items: %v", items)
 	}
-	s.request(t, "PATCH", base+"/deactivate", token, "", 200)
-	if len(array(t, s.request(t, "GET", base+"/products", token, "", 200).Data)) != 1 {
-		t.Fatal("deactivation removed association")
+	options = array(t, s.request(t, "GET", base+"/product-options", token, "", 200).Data)
+	for _, p := range options {
+		if p["is_associated"] != true || p["selectable"] != false {
+			t.Fatalf("associated option selectable: %v", p)
+		}
 	}
-	s.request(t, "GET", base+"/available-products", token, "", 404)
-	s.request(t, "POST", base+"/products", token, "{}", 405)
-	s.request(t, "PUT", base+"/products/"+product.String(), token, "{}", 404)
-	s.request(t, "DELETE", base+"/products/"+product.String(), token, "", 404)
+	s.request(t, "POST", base+"/products", token, `{"product_id":"`+first.String()+`","current_cost":13.10}`, 409)
+	updated := object(t, s.request(t, "PUT", base+"/products/"+first.String(), token, `{"supplier_code":" DA-ACE-900 ","current_cost":13.10,"lead_time_days":3,"preferred":true}`, 200).Data)
+	if updated["supplier_code"] != "DA-ACE-900" || updated["preferred"] != true {
+		t.Fatalf("update: %v", updated)
+	}
+	reverse := array(t, s.request(t, "GET", "/products/"+first.String()+"/suppliers", token, "", 200).Data)
+	if len(reverse) != 1 || reverse[0]["supplier"].(map[string]any)["id"] != id || reverse[0]["preferred"] != true {
+		t.Fatalf("reverse list: %v", reverse)
+	}
+	supplierOptions := array(t, s.request(t, "GET", "/products/"+first.String()+"/supplier-options", token, "", 200).Data)
+	if len(supplierOptions) != 1 || supplierOptions[0]["is_associated"] != true || supplierOptions[0]["selectable"] != false {
+		t.Fatalf("supplier options: %v", supplierOptions)
+	}
+	other := object(t, s.request(t, "POST", "/suppliers", token, `{"legal_name":"Nuevo proveedor"}`, 201).Data)["id"].(string)
+	supplierOptions = array(t, s.request(t, "GET", "/products/"+first.String()+"/supplier-options", token, "", 200).Data)
+	for _, o := range supplierOptions {
+		if o["id"] == other && (o["is_associated"] != false || o["selectable"] != true) {
+			t.Fatal("new supplier was automatically associated")
+		}
+	}
+	s.request(t, "POST", "/suppliers/"+other+"/products", token, `{"product_id":"`+first.String()+`","current_cost":0,"lead_time_days":0,"preferred":true}`, 201)
+	reverse = array(t, s.request(t, "GET", "/products/"+first.String()+"/suppliers", token, "", 200).Data)
+	if len(reverse) != 2 || reverse[0]["supplier_id"] != other || reverse[1]["preferred"] != false {
+		t.Fatalf("preference switch: %v", reverse)
+	}
+	third := s.product(t, s.company, "Sal")
+	foreign := s.product(t, uuid.New(), "Ajeno")
+	s.request(t, "POST", base+"/products/batch", token, `{"product_ids":["`+third.String()+`","`+foreign.String()+`"]}`, 404)
+	if len(array(t, s.request(t, "GET", base+"/products", token, "", 200).Data)) != 2 {
+		t.Fatal("foreign batch partially inserted")
+	}
+	s.request(t, "DELETE", "/suppliers/"+other+"/products/"+first.String(), token, "", 204)
+	s.request(t, "DELETE", "/suppliers/"+other+"/products/"+first.String(), token, "", 404)
+	reverse = array(t, s.request(t, "GET", "/products/"+first.String()+"/suppliers", token, "", 200).Data)
+	if len(reverse) != 1 || reverse[0]["preferred"] != false {
+		t.Fatal("unlink chose another preferred supplier")
+	}
+	var cost string
+	if err := s.db.Raw("SELECT cost::text FROM products WHERE id = ?", first).Scan(&cost).Error; err != nil {
+		t.Fatal(err)
+	}
+	if cost != "8.00" {
+		t.Fatal("relationship changed global product cost")
+	}
+}
+
+func TestAssociationAutoMigrateUpgrade(t *testing.T) {
+	s := newServer(t)
+	token := s.token(t, s.company, "allowed")
+	id := object(t, s.request(t, "POST", "/suppliers", token, `{"legal_name":"Legacy supplier"}`, 201).Data)["id"].(string)
+	product := s.product(t, s.company, "Legacy product")
+	s.exec(t, "INSERT INTO product_suppliers (id,company_id,supplier_id,product_id,current_cost,created_at) VALUES (?,?,?,?,13.30,?)", uuid.New(), s.company, id, product, s.clk.NowUTC())
+	// Reproduce the old association schema on this isolated test schema only.
+	s.exec(t, "ALTER TABLE product_suppliers DROP COLUMN supplier_code, DROP COLUMN preferred, ALTER COLUMN current_cost SET NOT NULL")
+	if err := s.db.AutoMigrate(&model.SupplierModel{}, &model.ProductSupplierModel{}); err != nil {
+		t.Fatal(err)
+	}
+	items := array(t, s.request(t, "GET", "/suppliers/"+id+"/products", token, "", 200).Data)
+	if len(items) != 1 || items[0]["current_cost"] != float64(13.3) || items[0]["supplier_code"] != nil || items[0]["preferred"] != false {
+		t.Fatalf("legacy data lost: %v", items)
+	}
+	next := s.product(t, s.company, "New batch product")
+	created := array(t, s.request(t, "POST", "/suppliers/"+id+"/products/batch", token, `{"product_ids":["`+next.String()+`"]}`, 201).Data)
+	if created[0]["current_cost"] != nil {
+		t.Fatal("AutoMigrate did not make cost nullable")
+	}
 }

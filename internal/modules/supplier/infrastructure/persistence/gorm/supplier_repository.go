@@ -37,6 +37,10 @@ func translateError(err error) error {
 		switch pgErr.ConstraintName {
 		case "idx_suppliers_company_tax_id":
 			return service.ErrTaxIDTaken
+		case "uq_product_suppliers_pair":
+			return service.ErrAlreadyAssociated
+		case "idx_product_suppliers_preferred":
+			return service.ErrPreferredConflict
 		}
 	}
 	return err

@@ -25,5 +25,12 @@ func ToDomain(m *model.SupplierModel) *entity.Supplier {
 func AssociationToDomain(a *model.ProductSupplierModel) *entity.ProductSupplier {
 	return &entity.ProductSupplier{ID: a.ID, CompanyID: a.CompanyID, SupplierID: a.SupplierID,
 		ProductID: a.ProductID, LeadTimeDays: a.LeadTimeDays, CurrentCost: a.CurrentCost,
+		SupplierCode: a.SupplierCode, Preferred: a.Preferred,
 		CreatedAt: a.CreatedAt, UpdatedAt: a.UpdatedAt}
+}
+
+func AssociationToModel(a *entity.ProductSupplier) *model.ProductSupplierModel {
+	return &model.ProductSupplierModel{ID: a.ID, CompanyID: a.CompanyID, SupplierID: a.SupplierID,
+		ProductID: a.ProductID, LeadTimeDays: a.LeadTimeDays, CurrentCost: a.CurrentCost,
+		SupplierCode: a.SupplierCode, Preferred: a.Preferred, CreatedAt: a.CreatedAt, UpdatedAt: a.UpdatedAt}
 }

@@ -16,4 +16,14 @@ func RegisterSupplierRoutes(router fiber.Router, h *handler.SupplierHTTPHandler,
 	suppliers.Put("/:id", middleware.RequirePermission(checker, "suppliers", "update"), h.Update)
 	suppliers.Patch("/:id/deactivate", middleware.RequirePermission(checker, "suppliers", "deactivate"), h.Deactivate)
 	suppliers.Get("/:id/products", middleware.RequirePermission(checker, "suppliers", "read"), h.ListProducts)
+	suppliers.Get("/:id/product-options", middleware.RequirePermission(checker, "suppliers", "update"), h.ProductOptions)
+	suppliers.Post("/:id/products/batch", middleware.RequirePermission(checker, "suppliers", "update"), h.AssociateProducts)
+	suppliers.Post("/:id/products", middleware.RequirePermission(checker, "suppliers", "update"), h.AssociateProduct)
+	suppliers.Put("/:id/products/:product_id", middleware.RequirePermission(checker, "suppliers", "update"), h.UpdateAssociation)
+	suppliers.Delete("/:id/products/:product_id", middleware.RequirePermission(checker, "suppliers", "update"), h.UnlinkProduct)
+
+	// Both views use the same supplier-owned association implementation.
+	products := router.Group("/products/:product_id")
+	products.Get("/suppliers", middleware.RequirePermission(checker, "suppliers", "read"), h.ListProductSuppliers)
+	products.Get("/supplier-options", middleware.RequirePermission(checker, "suppliers", "update"), h.SupplierOptions)
 }

@@ -34,13 +34,15 @@ func (SupplierModel) TableName() string { return "suppliers" }
 
 type ProductSupplierModel struct {
 	ID           uuid.UUID                  `gorm:"type:uuid;primaryKey;default:gen_random_uuid()"`
-	CompanyID    uuid.UUID                  `gorm:"type:uuid;not null;uniqueIndex:uq_product_suppliers_pair,priority:1"`
+	CompanyID    uuid.UUID                  `gorm:"type:uuid;not null;uniqueIndex:uq_product_suppliers_pair,priority:1;uniqueIndex:idx_product_suppliers_preferred,priority:1,where:preferred = true"`
 	SupplierID   uuid.UUID                  `gorm:"type:uuid;not null;uniqueIndex:uq_product_suppliers_pair,priority:2"`
 	Supplier     *SupplierModel             `gorm:"foreignKey:CompanyID,SupplierID;references:CompanyID,ID;constraint:OnUpdate:CASCADE,OnDelete:RESTRICT"`
-	ProductID    uuid.UUID                  `gorm:"type:uuid;not null;uniqueIndex:uq_product_suppliers_pair,priority:3;index"`
+	ProductID    uuid.UUID                  `gorm:"type:uuid;not null;uniqueIndex:uq_product_suppliers_pair,priority:3;index;uniqueIndex:idx_product_suppliers_preferred,priority:2"`
 	Product      *productModel.ProductModel `gorm:"foreignKey:ProductID;constraint:OnUpdate:CASCADE,OnDelete:RESTRICT"`
 	LeadTimeDays *int                       `gorm:"type:smallint;check:chk_product_suppliers_lead_time,lead_time_days >= 0"`
-	CurrentCost  decimal.Decimal            `gorm:"type:numeric(12,2);not null;check:chk_product_suppliers_cost,current_cost >= 0"`
+	SupplierCode *string                    `gorm:"type:varchar(60)"`
+	CurrentCost  *decimal.Decimal           `gorm:"type:numeric(12,2);check:chk_product_suppliers_cost,current_cost >= 0"`
+	Preferred    bool                       `gorm:"not null;default:false"`
 	CreatedAt    time.Time                  `gorm:"not null;autoCreateTime:false"`
 	UpdatedAt    *time.Time                 `gorm:"autoUpdateTime:false"`
 }
