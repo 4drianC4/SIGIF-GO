@@ -19,6 +19,7 @@ import (
 	httpHandler "github.com/sigif/sigif-go/internal/modules/product/interfaces/http/handler"
 	"github.com/sigif/sigif-go/internal/modules/product/interfaces/http/router"
 	"github.com/sigif/sigif-go/internal/modules/product/testutil"
+	"github.com/sigif/sigif-go/internal/shared/authcookie"
 	"github.com/sigif/sigif-go/internal/shared/clock"
 	"github.com/sigif/sigif-go/internal/shared/config"
 	"github.com/sigif/sigif-go/internal/shared/jwt"
@@ -89,7 +90,7 @@ func newTestServer(t *testing.T) *testServer {
 	perms := &stubPermissions{byUser: map[uuid.UUID]map[string]bool{}}
 
 	app := fiber.New()
-	app.Use(middleware.AuthRequired(jwtManager, activeSessions{}))
+	app.Use(middleware.AuthRequired(jwtManager, activeSessions{}, authcookie.Default()))
 	router.RegisterCatalogRoutes(app.Group("/api/v1"), h, perms)
 
 	return &testServer{app: app, jwtManager: jwtManager, store: store, perms: perms}

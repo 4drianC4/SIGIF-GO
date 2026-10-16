@@ -14,6 +14,7 @@ type Config struct {
 	App        AppConfig        `mapstructure:"app"`
 	Database   DatabaseConfig   `mapstructure:"database"`
 	JWT        JWTConfig        `mapstructure:"jwt"`
+	AuthCookie AuthCookieConfig `mapstructure:"auth_cookie"`
 	CORS       CORSConfig       `mapstructure:"cors"`
 	RateLimit  RateLimitConfig  `mapstructure:"rate_limit"`
 	Pagination PaginationConfig `mapstructure:"pagination"`
@@ -52,6 +53,16 @@ type JWTConfig struct {
 	Secret            string `mapstructure:"secret"`
 	AccessTokenExpiry int    `mapstructure:"access_token_expiry"`
 	Issuer            string `mapstructure:"issuer"`
+}
+
+// AuthCookieConfig configures the HttpOnly cookie that carries the access
+// token for browser clients. HttpOnly is always enforced.
+type AuthCookieConfig struct {
+	Name     string `mapstructure:"name"`
+	Path     string `mapstructure:"path"`
+	Domain   string `mapstructure:"domain"`
+	Secure   bool   `mapstructure:"secure"`
+	SameSite string `mapstructure:"same_site"`
 }
 
 type CORSConfig struct {
@@ -126,6 +137,11 @@ func NewConfig() (*Config, error) {
 	_ = viper.BindEnv("jwt.secret", "SIGIF_JWT_SECRET")
 	_ = viper.BindEnv("jwt.access_token_expiry", "SIGIF_JWT_ACCESS_TOKEN_EXPIRY")
 	_ = viper.BindEnv("jwt.issuer", "SIGIF_JWT_ISSUER")
+	_ = viper.BindEnv("auth_cookie.name", "SIGIF_AUTH_COOKIE_NAME")
+	_ = viper.BindEnv("auth_cookie.path", "SIGIF_AUTH_COOKIE_PATH")
+	_ = viper.BindEnv("auth_cookie.domain", "SIGIF_AUTH_COOKIE_DOMAIN")
+	_ = viper.BindEnv("auth_cookie.secure", "SIGIF_AUTH_COOKIE_SECURE")
+	_ = viper.BindEnv("auth_cookie.same_site", "SIGIF_AUTH_COOKIE_SAME_SITE")
 	_ = viper.BindEnv("seed.admin_email", "SIGIF_SEED_ADMIN_EMAIL")
 	_ = viper.BindEnv("seed.admin_password", "SIGIF_SEED_ADMIN_PASSWORD")
 	_ = viper.BindEnv("seed.admin_first_name", "SIGIF_SEED_ADMIN_FIRST_NAME")

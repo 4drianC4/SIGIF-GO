@@ -1,0 +1,31 @@
+meta {
+  name: Login desde origen no permitido (CSRF)
+  type: http
+  seq: 7
+}
+
+post {
+  url: {{baseUrl}}/api/v1/auth/login
+  body: json
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+  Origin: https://evil.example
+}
+
+body:json {
+  {
+    "email": "{{companyAdminEmail}}",
+    "password": "{{companyAdminPassword}}"
+  }
+}
+
+tests {
+  test("rechaza con 403 y no emite cookie", function() {
+    expect(res.status).to.equal(403);
+    const cookies = [].concat(res.getHeader('set-cookie') || []);
+    expect(cookies.some((c) => c.startsWith('sigif_access_token='))).to.equal(false);
+  });
+}
