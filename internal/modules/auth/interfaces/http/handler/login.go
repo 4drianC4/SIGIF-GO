@@ -27,5 +27,9 @@ func (h *AuthHTTPHandler) Login(c *fiber.Ctx) error {
 		return response.Error(c, fiber.StatusUnauthorized, err)
 	}
 
-	return response.Success(c, result)
+	h.cookie.Set(c, result.AccessToken, result.ExpiresIn)
+	return response.Success(c, dtos.LoginResponse{
+		User:      result.User,
+		ExpiresIn: result.ExpiresIn,
+	})
 }

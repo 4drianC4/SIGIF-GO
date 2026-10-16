@@ -20,6 +20,7 @@ import (
 	httpHandler "github.com/sigif/sigif-go/internal/modules/cashsession/interfaces/http/handler"
 	"github.com/sigif/sigif-go/internal/modules/cashsession/interfaces/http/router"
 	"github.com/sigif/sigif-go/internal/modules/cashsession/testutil"
+	"github.com/sigif/sigif-go/internal/shared/authcookie"
 	"github.com/sigif/sigif-go/internal/shared/clock"
 	"github.com/sigif/sigif-go/internal/shared/config"
 	"github.com/sigif/sigif-go/internal/shared/jwt"
@@ -108,7 +109,7 @@ func newTestServer(t *testing.T) *testServer {
 	)
 
 	app := fiber.New()
-	app.Use(middleware.AuthRequired(jwtManager, activeSessions{}))
+	app.Use(middleware.AuthRequired(jwtManager, activeSessions{}, authcookie.Default()))
 	router.RegisterCashSessionRoutes(app.Group("/api/v1"), h, perms)
 
 	return &testServer{app: app, jwtManager: jwtManager, sessions: sessions, registers: registers, service: svc, perms: perms}

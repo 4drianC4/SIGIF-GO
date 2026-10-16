@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"strconv"
 	"strings"
 	"time"
@@ -24,6 +25,7 @@ import (
 	"github.com/sigif/sigif-go/internal/modules/customer"
 	"github.com/sigif/sigif-go/internal/modules/product"
 	"github.com/sigif/sigif-go/internal/modules/user"
+	"github.com/sigif/sigif-go/internal/shared/authcookie"
 	"github.com/sigif/sigif-go/internal/shared/clock"
 	"github.com/sigif/sigif-go/internal/shared/config"
 	"github.com/sigif/sigif-go/internal/shared/database"
@@ -40,6 +42,7 @@ func main() {
 			sharedLogger.NewLogger,
 			database.NewDatabase,
 			jwt.NewManager,
+			authcookie.New,
 			validator.New,
 			newFiberApp,
 			fx.Annotate(clock.NewRealClock, fx.As(new(clock.Clock))),
@@ -57,7 +60,16 @@ func main() {
 	app.Run()
 }
 
-func newFiberApp(cfg *config.Config, jwtManager *jwt.JWTManager, sessions middleware.SessionReader) *fiber.App {
+func newFiberApp(
+	cfg *config.Config,
+	jwtManager *jwt.JWTManager,
+	sessions middleware.SessionReader,
+	authCookie authcookie.Settings,
+) (*fiber.App, error) {
+	if err := validateCORS(cfg.CORS); err != nil {
+		return nil, err
+	}
+
 	app := fiber.New(fiber.Config{
 		AppName:      cfg.App.Name,
 		ReadTimeout:  time.Duration(cfg.App.ReadTimeout) * time.Second,
@@ -96,7 +108,10 @@ func newFiberApp(cfg *config.Config, jwtManager *jwt.JWTManager, sessions middle
 	}
 
 	app.Use(middleware.RequestID())
-	app.Use(middleware.AuthRequired(jwtManager, sessions))
+	// CSRF: the session cookie is sent automatically by the browser, so
+	// state-changing requests must come from an allowed origin.
+	app.Use(middleware.OriginGuard(cfg.CORS.AllowOrigins))
+	app.Use(middleware.AuthRequired(jwtManager, sessions, authCookie))
 
 	app.Get("/health", func(c *fiber.Ctx) error {
 		return c.JSON(fiber.Map{
@@ -106,7 +121,21 @@ func newFiberApp(cfg *config.Config, jwtManager *jwt.JWTManager, sessions middle
 		})
 	})
 
-	return app
+	return app, nil
+}
+
+// validateCORS rejects a wildcard origin when credentials are allowed: the
+// auth cookie must only be sent to explicitly trusted origins.
+func validateCORS(cfg config.CORSConfig) error {
+	if !cfg.AllowCredentials {
+		return nil
+	}
+	for _, origin := range cfg.AllowOrigins {
+		if strings.TrimSpace(origin) == "*" {
+			return errors.New("cors.allow_origins cannot contain \"*\" when cors.allow_credentials is true")
+		}
+	}
+	return nil
 }
 
 func registerHooks(lc fx.Lifecycle, cfg *config.Config, log *zap.Logger) {
@@ -114,6 +143,9 @@ func registerHooks(lc fx.Lifecycle, cfg *config.Config, log *zap.Logger) {
 		OnStart: func(ctx context.Context) error {
 			if cfg.JWT.Secret == "" || cfg.JWT.Secret == "your-super-secret-jwt-key-change-in-production" {
 				log.Warn("JWT secret is using the default placeholder value; set SIGIF_JWT_SECRET in production")
+			}
+			if !cfg.AuthCookie.Secure && cfg.App.Env == "production" {
+				log.Warn("auth cookie is not Secure in production; set SIGIF_AUTH_COOKIE_SECURE=true behind HTTPS")
 			}
 			log.Info("Application starting...")
 			return nil
