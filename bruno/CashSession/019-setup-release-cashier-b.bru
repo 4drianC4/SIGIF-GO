@@ -1,0 +1,21 @@
+meta {
+  name: Setup - Release Cashier B
+  type: http
+  seq: 19
+}
+
+post {
+  url: {{baseUrl}}/api/v1/cash-register-assignments/{{assignmentBId}}/release
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{accessTokenB}}
+}
+
+tests {
+  test("responde 200 con la asignación liberada", function() {
+    expect(res.status).to.equal(200);
+  });
+}

@@ -1,0 +1,21 @@
+meta {
+  name: Setup - Release Previous Assignment Cashier B
+  type: http
+  seq: 8
+}
+
+post {
+  url: {{baseUrl}}/api/v1/cash-register-assignments/{{previousAssignmentB}}/release
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{accessTokenB}}
+}
+
+tests {
+  test("libera la asignación previa (200) o no había ninguna (404)", function() {
+    expect([200, 404]).to.include(res.status);
+  });
+}
