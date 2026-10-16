@@ -1,0 +1,47 @@
+meta {
+  name: Setup - Create Low Stock Product
+  type: http
+  seq: 35
+}
+
+post {
+  url: {{baseUrl}}/api/v1/products
+  body: json
+  auth: bearer
+}
+
+headers {
+  Content-Type: application/json
+}
+
+auth:bearer {
+  token: {{accessToken}}
+}
+
+body:json {
+  {
+    "name": "{{lowStockName}}",
+    "sku": "{{lowStockSku}}",
+    "category_id": "{{categoryId}}",
+    "unit_of_measure_id": "{{unitId}}",
+    "cost": 1,
+    "sale_price": 2,
+    "initial_stock": 2,
+    "min_stock": 5
+  }
+}
+
+script:pre-request {
+  const now = String(Date.now());
+  bru.setVar('lowStockName', 'Aceite Bajo ' + now);
+  bru.setVar('lowStockSku', 'LOW-' + now);
+}
+
+tests {
+  test("responde 201 con stock_status low_stock", function() {
+    expect(res.status).to.equal(201);
+    expect(res.body.data.stock).to.equal('2');
+    expect(res.body.data.min_stock).to.equal('5');
+    expect(res.body.data.stock_status).to.equal('low_stock');
+  });
+}

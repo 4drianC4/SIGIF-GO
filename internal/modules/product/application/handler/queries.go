@@ -15,9 +15,10 @@ func (h *CatalogQueryHandler) HandleListProducts(ctx context.Context, q query.Li
 	return h.service.ListProducts(ctx, service.ListProductsParams{
 		CompanyID: q.CompanyID,
 		Filter: repository.ProductFilter{
-			Search:     q.Search,
-			CategoryID: q.CategoryID,
-			Status:     q.Status,
+			Search:      q.Search,
+			CategoryID:  q.CategoryID,
+			Status:      q.Status,
+			StockStatus: q.StockStatus,
 		},
 		Offset: q.Offset,
 		Limit:  q.Limit,

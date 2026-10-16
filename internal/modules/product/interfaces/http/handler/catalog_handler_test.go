@@ -41,6 +41,7 @@ type apiResponse struct {
 	Success bool            `json:"success"`
 	Data    json.RawMessage `json:"data"`
 	Meta    json.RawMessage `json:"meta"`
+	Message string          `json:"message"`
 	Error   *struct {
 		Code    string         `json:"code"`
 		Message string         `json:"message"`
@@ -365,6 +366,34 @@ func TestListProductsPaginationAndFilters(t *testing.T) {
 	}
 }
 
+func TestListProductsEmptyMessage(t *testing.T) {
+	s := newTestServer(t)
+	token := s.admin(t, companyA)
+
+	status, resp := s.do(t, fiber.MethodGet, "/api/v1/products", token, nil)
+	if status != 200 || string(resp.Data) != "[]" {
+		t.Fatalf("empty list: %d %s", status, resp.raw)
+	}
+	if resp.Message != "No hay productos registrados." {
+		t.Errorf("message = %q, want the no-products text", resp.Message)
+	}
+	if strings.Contains(resp.raw, `"message":""`) {
+		t.Errorf("empty message must be omitted: %s", resp.raw)
+	}
+
+	s.createProduct(t, token, productBody(s.createCategory(t, token, map[string]any{"name": "Abarrotes"})))
+
+	_, resp = s.do(t, fiber.MethodGet, "/api/v1/products?search=sin-resultados", token, nil)
+	if resp.Message != "No se encontraron productos para los filtros aplicados." {
+		t.Errorf("filtered message = %q, want the filtered text", resp.Message)
+	}
+
+	_, resp = s.do(t, fiber.MethodGet, "/api/v1/products", token, nil)
+	if resp.Message != "" {
+		t.Errorf("non-empty list must not carry a message, got %q", resp.Message)
+	}
+}
+
 func TestProductSummaryEndpoint(t *testing.T) {
 	s := newTestServer(t)
 	token := s.admin(t, companyA)
@@ -382,6 +411,40 @@ func TestProductSummaryEndpoint(t *testing.T) {
 	if string(resp.Data) != want {
 		t.Errorf("summary = %s, want %s", resp.Data, want)
 	}
+}
+
+func TestListProductsStockStatusFilter(t *testing.T) {
+	s := newTestServer(t)
+	token := s.admin(t, companyA)
+	categoryID := s.createCategory(t, token, map[string]any{"name": "Stock"})
+	seed := func(name, sku string, stock, minStock float64) {
+		body := productBody(categoryID)
+		body["name"], body["sku"] = name, sku
+		body["initial_stock"], body["min_stock"] = stock, minStock
+		if status, resp := s.do(t, fiber.MethodPost, "/api/v1/products", token, body); status != 201 {
+			t.Fatalf("create %s: %d %s", name, status, resp.raw)
+		}
+	}
+	seed("Normal Uno", "STK-001", 10, 2)
+	seed("Bajo Uno", "STK-002", 2, 2) // stock == min_stock is low_stock
+	seed("Agotado Uno", "STK-003", 0, 5)
+
+	for query, want := range map[string]int{
+		"stock_status=normal":               1,
+		"stock_status=low_stock":            1,
+		"stock_status=out_of_stock":         1,
+		"stock_status=normal&status=active": 1,
+	} {
+		_, resp := s.do(t, fiber.MethodGet, "/api/v1/products?"+query, token, nil)
+		var got []map[string]any
+		_ = json.Unmarshal(resp.Data, &got)
+		if len(got) != want {
+			t.Errorf("%s: got %d items, want %d (%s)", query, len(got), want, resp.raw)
+		}
+	}
+
+	status, resp := s.do(t, fiber.MethodGet, "/api/v1/products?stock_status=invalid", token, nil)
+	expectError(t, status, resp, 400, "VALIDATION_ERROR")
 }
 
 func TestValidateDuplicateEndpoint(t *testing.T) {
