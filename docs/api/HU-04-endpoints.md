@@ -5,7 +5,7 @@
 - Prefijo base: `/api/v1`.
 - La empresa se obtiene del token; solo se devuelven datos de esa empresa.
 - El stock efectivo de un producto sale de la tabla `stock_balance` (suma por producto). Mientras un producto no tenga filas en `stock_balance`, se usa `products.stock` como respaldo. Así, cualquier movimiento de inventario se refleja de inmediato en el listado y en el resumen.
-- **Contrato decimal:** los campos decimales (`stock`, `min_stock`, `cost`, `price`, `inventory_value`, `target_margin`, `percentage`) se serializan como **string** (p. ej. `"2"`, `"4.20"`), no como número JSON. En las peticiones el backend acepta tanto número como string.
+- **Contrato decimal:** se conserva el formato numérico JSON vigente para los campos decimales de productos. En las peticiones el backend acepta tanto número como string.
 - Colección Bruno: `bruno/Products/014`, `015`, `035`–`040`.
 
 ## Listado de productos
@@ -48,8 +48,8 @@ Mandar `stock_status=low_stock` devuelve solo los productos bajo mínimo; `out_o
       "id": "6e436ff1-30d4-4572-b63c-c5ba2f60996b",
       "name": "Galletas María 200g",
       "sku": "ABA-412",
-      "stock": "2",
-      "min_stock": "5",
+      "stock": 2,
+      "min_stock": 5,
       "stock_status": "low_stock",
       "status": "active"
     }
