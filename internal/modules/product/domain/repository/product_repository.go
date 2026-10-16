@@ -11,9 +11,10 @@ import (
 )
 
 type ProductFilter struct {
-	Search     string
-	CategoryID *uuid.UUID
-	Status     *entity.Status
+	Search      string
+	CategoryID  *uuid.UUID
+	Status      *entity.Status
+	StockStatus *entity.StockStatus
 }
 
 type ProductListItem struct {

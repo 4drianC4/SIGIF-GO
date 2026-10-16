@@ -161,12 +161,12 @@ func TestFreshDatabase(t *testing.T) {
 	e := newEnv(t)
 	e.up()
 	e.up()
-	e.assertVersion(4, false)
+	e.assertVersion(5, false)
 
 	status, err := migrations.Status(e.dsn)
-	if err != nil || len(status) != 4 || !status[0].Applied || !status[1].Applied || !status[2].Applied || !status[3].Applied ||
+	if err != nil || len(status) != 5 || !status[0].Applied || !status[1].Applied || !status[2].Applied || !status[3].Applied || !status[4].Applied ||
 		status[0].Name != "catalog_baseline" || status[1].Name != "catalog_contract" || status[2].Name != "price_history_and_stock_balance" ||
-		status[3].Name != "product_reserved_codes" {
+		status[3].Name != "product_reserved_codes" || status[4].Name != "inventory_branches_and_movements" {
 		t.Fatalf("Status() = %+v, %v", status, err)
 	}
 
@@ -212,7 +212,7 @@ func TestLegacyCatalogKeepsItsData(t *testing.T) {
 	e.exec(`UPDATE products SET deleted_at = now() WHERE id = ?`, deleted)
 
 	e.up()
-	e.assertVersion(4, false)
+	e.assertVersion(5, false)
 
 	type row struct {
 		Name         string
@@ -261,7 +261,7 @@ func TestLegacyCatalogKeepsItsData(t *testing.T) {
 		t.Errorf("same category name under a parent must be allowed: %v", err)
 	}
 	e.up()
-	e.assertVersion(4, false)
+	e.assertVersion(5, false)
 }
 
 func TestHybridSchemaLeftByAutoMigrate(t *testing.T) {
@@ -283,7 +283,7 @@ func TestHybridSchemaLeftByAutoMigrate(t *testing.T) {
 	if err := e.db.Create(e.newProduct("Wiskas Gato adulto", &sku)).Error; err != nil {
 		t.Fatalf("insert after migrating: %v", err)
 	}
-	e.assertVersion(4, false)
+	e.assertVersion(5, false)
 }
 
 func TestSchemaAlreadyCreatedByAutoMigrate(t *testing.T) {
@@ -304,7 +304,7 @@ func TestSchemaAlreadyCreatedByAutoMigrate(t *testing.T) {
 	}
 
 	e.up()
-	e.assertVersion(4, false)
+	e.assertVersion(5, false)
 
 	var got model.ProductModel
 	if err := e.db.First(&got, "id = ?", product.ID).Error; err != nil {
@@ -340,7 +340,7 @@ func TestFailedMigrationIsRolledBackAndCanBeRetried(t *testing.T) {
 
 	e.exec(`UPDATE products SET unit_of_measure = 'box' WHERE id = ?`, id)
 	e.up()
-	e.assertVersion(4, false)
+	e.assertVersion(5, false)
 	var unit string
 	e.db.Raw(`SELECT u.abbreviation FROM products p JOIN units_of_measure u ON u.id = p.unit_of_measure_id WHERE p.id = ?`, id).Scan(&unit)
 	if unit != "BOX" {
@@ -354,23 +354,23 @@ func TestDirtyDatabaseIsReportedAndCanBeForced(t *testing.T) {
 	e.exec(`UPDATE schema_migrations SET dirty = true`)
 
 	err := migrations.Up(e.dsn)
-	if err == nil || !strings.Contains(err.Error(), "dirty at version 4") {
+	if err == nil || !strings.Contains(err.Error(), "dirty at version 5") {
 		t.Fatalf("expected dirty database error, got %v", err)
 	}
-	if err := migrations.Force(e.dsn, 4); err != nil {
+	if err := migrations.Force(e.dsn, 5); err != nil {
 		t.Fatalf("Force() error = %v", err)
 	}
 	e.up()
-	e.assertVersion(4, false)
+	e.assertVersion(5, false)
 }
 
 func TestCatalogContractCannotBeRolledBack(t *testing.T) {
 	e := newEnv(t)
 	e.up()
 
-	// 000004 only swaps indexes and 000003 only adds tables, so both can be
-	// rolled back; 000002 cannot.
-	for _, version := range []int{3, 2} {
+	// 000005 only adds tables, 000004 only swaps indexes and 000003 only adds
+	// tables, so all three can be rolled back; 000002 cannot.
+	for _, version := range []int{4, 3, 2} {
 		if err := migrations.Down(e.dsn); err != nil {
 			t.Fatalf("rolling back to version %d: %v", version, err)
 		}
@@ -386,13 +386,13 @@ func TestCatalogContractCannotBeRolledBack(t *testing.T) {
 		t.Errorf("rejected rollback changed the schema")
 	}
 	e.up()
-	e.assertVersion(4, false)
+	e.assertVersion(5, false)
 }
 
 func TestPriceHistoryAndStockBalanceMigration(t *testing.T) {
 	e := newEnv(t)
 	e.up()
-	e.assertVersion(4, false)
+	e.assertVersion(5, false)
 	for _, table := range []string{"product_price_history", "stock_balance"} {
 		if !e.hasRelation(table) {
 			t.Fatalf("table %s was not created", table)
@@ -418,7 +418,7 @@ func TestPriceHistoryAndStockBalanceMigration(t *testing.T) {
 		}
 	}
 
-	for _, version := range []int{3, 2} {
+	for _, version := range []int{4, 3, 2} {
 		if err := migrations.Down(e.dsn); err != nil {
 			t.Fatalf("Down() to version %d error = %v", version, err)
 		}
@@ -428,7 +428,7 @@ func TestPriceHistoryAndStockBalanceMigration(t *testing.T) {
 		t.Errorf("rollback left the tables behind")
 	}
 	e.up()
-	e.assertVersion(4, false)
+	e.assertVersion(5, false)
 }
 
 func TestPriceHistoryAndStockBalanceAlreadyCreatedByAutoMigrate(t *testing.T) {
@@ -442,7 +442,7 @@ func TestPriceHistoryAndStockBalanceAlreadyCreatedByAutoMigrate(t *testing.T) {
 	e.exec(`INSERT INTO units_of_measure (id, name, abbreviation, sort_order) VALUES (gen_random_uuid(), 'Unit', 'UNIT', 1)`)
 
 	e.up()
-	e.assertVersion(4, false)
+	e.assertVersion(5, false)
 	if !e.hasRelation("product_price_history") || !e.hasRelation("stock_balance") {
 		t.Errorf("the tables created by AutoMigrate disappeared")
 	}
@@ -454,6 +454,10 @@ func reservedCodesEnv(t *testing.T) *env {
 	t.Helper()
 	e := newEnv(t)
 	e.up()
+	if err := migrations.Down(e.dsn); err != nil {
+		t.Fatalf("Down() to version 4: %v", err)
+	}
+	e.assertVersion(4, false)
 	if err := migrations.Down(e.dsn); err != nil {
 		t.Fatalf("Down() to version 3: %v", err)
 	}
@@ -484,7 +488,7 @@ func TestReservedCodesKeepDeletedValuesTaken(t *testing.T) {
 	e.softDelete(deleted.ID)
 
 	e.up()
-	e.assertVersion(4, false)
+	e.assertVersion(5, false)
 	for name, p := range map[string]*model.ProductModel{
 		"same SKU": e.newProduct("Nuevo 1", ptr("RES-1")),
 		"same barcode": func() *model.ProductModel {
@@ -505,8 +509,11 @@ func TestReservedCodesKeepDeletedValuesTaken(t *testing.T) {
 	}
 
 	// Rolling back frees the values of deleted products again.
-	if err := migrations.Down(e.dsn); err != nil {
-		t.Fatalf("Down(): %v", err)
+	for _, version := range []int{4, 3} {
+		if err := migrations.Down(e.dsn); err != nil {
+			t.Fatalf("Down() to version %d: %v", version, err)
+		}
+		e.assertVersion(version, false)
 	}
 	e.product("Reutiliza", "RES-1", "7750000000001")
 }
@@ -537,7 +544,7 @@ func TestReservedCodesRefuseValuesAlreadyShared(t *testing.T) {
 
 	e.exec(`UPDATE products SET barcode = '7750000000002' WHERE id = ?`, live.ID)
 	e.up()
-	e.assertVersion(4, false)
+	e.assertVersion(5, false)
 }
 
 func TestReservedCodesNormalizeStoredValues(t *testing.T) {
@@ -575,13 +582,24 @@ func deref(s *string) string {
 	return *s
 }
 
+func TestInventoryBranchesAndMovementsMigration(t *testing.T) {
+	e := newEnv(t)
+	e.up()
+	e.assertVersion(5, false)
+	for _, table := range []string{"branches", "locations", "stock_movements"} {
+		if !e.hasRelation(table) {
+			t.Fatalf("table %s was not created", table)
+		}
+	}
+}
+
 func TestDownWithoutMigrationsIsANoOp(t *testing.T) {
 	e := newEnv(t)
 	if err := migrations.Down(e.dsn); err != nil {
 		t.Fatalf("Down() on an empty database error = %v", err)
 	}
 	status, err := migrations.Status(e.dsn)
-	if err != nil || len(status) != 4 || status[0].Applied || status[1].Applied || status[2].Applied || status[3].Applied {
+	if err != nil || len(status) != 5 || status[0].Applied || status[1].Applied || status[2].Applied || status[3].Applied || status[4].Applied {
 		t.Fatalf("Status() = %+v, %v", status, err)
 	}
 }

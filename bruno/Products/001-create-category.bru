@@ -39,7 +39,7 @@ tests {
   test("responde 201 con la categoría activa", function() {
     expect(res.status).to.equal(201);
     expect(res.body.data.default_tax).to.equal('IVA general 13%');
-    expect(res.body.data.target_margin).to.equal(25);
+    expect(res.body.data.target_margin).to.equal('25');
     expect(res.body.data.parent_id).to.equal(null);
   });
 }

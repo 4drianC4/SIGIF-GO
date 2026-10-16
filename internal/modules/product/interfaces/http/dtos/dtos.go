@@ -51,9 +51,10 @@ func (r *CreateProductRequest) Normalize() {
 }
 
 type ListProductsQuery struct {
-	Search     string `query:"search" json:"search" validate:"omitempty,max=100"`
-	CategoryID string `query:"category_id" json:"category_id" validate:"omitempty,uuid"`
-	Status     string `query:"status" json:"status" validate:"omitempty,oneof=active inactive"`
+	Search      string `query:"search" json:"search" validate:"omitempty,max=100"`
+	CategoryID  string `query:"category_id" json:"category_id" validate:"omitempty,uuid"`
+	Status      string `query:"status" json:"status" validate:"omitempty,oneof=active inactive"`
+	StockStatus string `query:"stock_status" json:"stock_status" validate:"omitempty,oneof=normal low_stock out_of_stock"`
 }
 
 func (q *ListProductsQuery) CategoryUUID() *uuid.UUID {
@@ -66,6 +67,20 @@ func (q *ListProductsQuery) StatusFilter() *entity.Status {
 	}
 	status := entity.Status(q.Status)
 	return &status
+}
+
+func (q *ListProductsQuery) StockStatusFilter() *entity.StockStatus {
+	if q.StockStatus == "" {
+		return nil
+	}
+	status := entity.StockStatus(q.StockStatus)
+	return &status
+}
+
+// HasFilters reports whether the query narrows the listing, so an empty result
+// can be explained to the user as "no matches" instead of "no products".
+func (q *ListProductsQuery) HasFilters() bool {
+	return strings.TrimSpace(q.Search) != "" || q.CategoryID != "" || q.Status != "" || q.StockStatus != ""
 }
 
 type ValidateDuplicateQuery struct {

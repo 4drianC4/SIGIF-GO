@@ -52,7 +52,7 @@ func TestGetProductIncludesStockTotal(t *testing.T) {
 
 	status, resp := s.do(t, fiber.MethodGet, "/api/v1/products/"+id, token, nil)
 	product := decode(t, resp.Data)
-	if status != 200 || product["stock_total"] != "8.000" || product["id"] != id {
+	if status != 200 || product["stock_total"] != float64(8) || product["id"] != id {
 		t.Fatalf("stock response: %d %s", status, resp.raw)
 	}
 	// "stock" is the quantity kept on the product itself; "stock_total" is the sum
@@ -64,7 +64,7 @@ func TestGetProductIncludesStockTotal(t *testing.T) {
 
 	s.store.Stock.Balances = nil
 	status, resp = s.do(t, fiber.MethodGet, "/api/v1/products/"+id, token, nil)
-	if status != 200 || decode(t, resp.Data)["stock_total"] != "0.000" {
+	if status != 200 || decode(t, resp.Data)["stock_total"] != float64(0) {
 		t.Fatalf("empty stock: %d %s", status, resp.raw)
 	}
 

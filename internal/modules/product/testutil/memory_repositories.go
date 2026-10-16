@@ -236,6 +236,23 @@ func (r memoryProducts) holder(companyID, excludeID uuid.UUID, withDeleted bool,
 	return found
 }
 
+// effectiveStock mirrors the repository query: the sum of the stock_balance rows
+// of the product, falling back to the product row while it has no inventory.
+func (r memoryProducts) effectiveStock(companyID uuid.UUID, p *entity.Product) decimal.Decimal {
+	total := decimal.Zero
+	hasBalance := false
+	for _, b := range r.s.Stock.Balances {
+		if b.CompanyID == companyID && b.ProductID == p.ID {
+			total = total.Add(b.Quantity)
+			hasBalance = true
+		}
+	}
+	if !hasBalance {
+		return p.Stock
+	}
+	return total
+}
+
 func (r memoryProducts) List(_ context.Context, companyID uuid.UUID, filter repository.ProductFilter, offset, limit int) ([]repository.ProductListItem, int64, error) {
 	r.s.mu.Lock()
 	defer r.s.mu.Unlock()
@@ -256,6 +273,10 @@ func (r memoryProducts) List(_ context.Context, companyID uuid.UUID, filter repo
 			continue
 		}
 		copied := *p
+		copied.Stock = r.effectiveStock(companyID, p)
+		if filter.StockStatus != nil && copied.StockStatus() != *filter.StockStatus {
+			continue
+		}
 		items = append(items, repository.ProductListItem{Product: &copied, CategoryName: r.s.Categories[p.CategoryID].Name})
 	}
 	sort.Slice(items, func(i, j int) bool { return items[i].Product.Name < items[j].Product.Name })
@@ -280,8 +301,9 @@ func (r memoryProducts) Summary(_ context.Context, companyID uuid.UUID, noMoveme
 			continue
 		}
 		summary.ActiveProducts++
-		summary.InventoryValue = summary.InventoryValue.Add(p.Stock.Mul(p.Cost))
-		if p.Stock.IsPositive() && p.Stock.LessThanOrEqual(p.MinStock) {
+		stock := r.effectiveStock(companyID, p)
+		summary.InventoryValue = summary.InventoryValue.Add(stock.Mul(p.Cost))
+		if stock.IsPositive() && stock.LessThanOrEqual(p.MinStock) {
 			summary.LowStock++
 		}
 		if p.LastMovementAt.Before(noMovementSince) {

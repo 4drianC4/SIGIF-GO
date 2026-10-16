@@ -8,7 +8,8 @@
 - Requiere contexto autenticado del backend: `userId` y `companyId`, tomados del access token (`Authorization: Bearer <token>`). No se envían por header ni por body.
 - Formato de respuesta exitosa: `{ "success": true, "data": ... }` — en listados paginados se agrega `meta` con `page`, `limit`, `total`, `total_pages`
 - Formato de respuesta de error: `{ "success": false, "error": { "code": "CODIGO", "message": "descripción" } }` — en errores de validación se agrega `details` por campo
-- Montos de dinero: número JSON con 2 decimales (`4.20`), no string
+- Decimales (dinero y cantidades): se serializan como **string** (`"4.20"`, `"496"`), no como número JSON. En las peticiones se aceptan tanto número como string.
+- `margin` sigue siendo un número entero (`30`).
 
 ---
 
@@ -78,11 +79,11 @@ Lista los productos de la empresa, ordenados por nombre.
         "name": "Lácteos"
       },
       "unit_of_measure_id": "bae16597-2960-406b-8dcd-5acab1260164",
-      "cost": 5.40,
-      "price": 7.00,
+      "cost": "5.40",
+      "price": "7.00",
       "margin": 23,
-      "stock": 496,
-      "min_stock": 10,
+      "stock": "496",
+      "min_stock": "10",
       "stock_status": "normal",
       "status": "active",
       "created_at": "2026-10-05T12:00:00Z",
@@ -124,7 +125,7 @@ Devuelve los indicadores de las tarjetas superiores, calculados sobre los produc
   "success": true,
   "data": {
     "active_products": 1284,
-    "inventory_value": 412880.00,
+    "inventory_value": "412880.00",
     "low_stock": 7,
     "no_movement_90_days": 23
   }
@@ -195,11 +196,11 @@ Registra un producto activo en la empresa del usuario.
     "barcode": null,
     "category": { "id": "550e8400-e29b-41d4-a716-446655440001", "name": "Abarrotes" },
     "unit_of_measure_id": "550e8400-e29b-41d4-a716-446655440002",
-    "cost": 4.20,
-    "price": 6.00,
+    "cost": "4.20",
+    "price": "6.00",
     "margin": 30,
-    "stock": 0,
-    "min_stock": 0,
+    "stock": "0",
+    "min_stock": "0",
     "stock_status": "out_of_stock",
     "status": "active",
     "created_at": "2026-10-05T12:00:00Z",
@@ -311,7 +312,7 @@ Lista todas las categorías de la empresa, ordenadas por nombre. No está pagina
       "parent_id": null,
       "products_count": 412,
       "default_tax": "IVA general 13%",
-      "target_margin": 25,
+      "target_margin": "25",
       "status": "active"
     },
     {
@@ -377,7 +378,7 @@ Registra una categoría raíz o una subcategoría.
     "parent_id": null,
     "products_count": 0,
     "default_tax": "IVA general 13%",
-    "target_margin": 25,
+    "target_margin": "25",
     "status": "active"
   }
 }
@@ -444,9 +445,9 @@ Devuelve la lista sembrada por la migración.
 {
   "success": true,
   "data": [
-    { "id": "uuid", "name": "IVA general 13%", "percentage": 13 },
-    { "id": "uuid", "name": "IVA reducido 5%", "percentage": 5 },
-    { "id": "uuid", "name": "Exempt", "percentage": 0 }
+    { "id": "uuid", "name": "IVA general 13%", "percentage": "13" },
+    { "id": "uuid", "name": "IVA reducido 5%", "percentage": "5" },
+    { "id": "uuid", "name": "Exempt", "percentage": "0" }
   ]
 }
 ```
@@ -612,11 +613,11 @@ Elimina un producto con borrado lógico. Endpoint de HU-03-03/04.
   "description": "string (se omite si está vacío)",
   "category": { "id": "uuid", "name": "string" },
   "unit_of_measure_id": "uuid",
-  "cost": 0.00,
-  "price": 0.00,
+  "cost": "0.00",
+  "price": "0.00",
   "margin": 0,
-  "stock": 0,
-  "min_stock": 0,
+  "stock": "0",
+  "min_stock": "0",
   "stock_status": "normal | low_stock | out_of_stock",
   "status": "active | inactive",
   "created_at": "date (RFC3339, UTC)",
@@ -634,7 +635,7 @@ Elimina un producto con borrado lógico. Endpoint de HU-03-03/04.
   "description": "string (se omite si está vacío)",
   "products_count": 0,
   "default_tax": "string | null",
-  "target_margin": "number | null",
+  "target_margin": "string | null (decimal serializado como string)",
   "status": "active | inactive"
 }
 ```

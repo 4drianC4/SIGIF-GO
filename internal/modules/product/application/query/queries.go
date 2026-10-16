@@ -7,12 +7,13 @@ import (
 )
 
 type ListProducts struct {
-	CompanyID  uuid.UUID
-	Search     string
-	CategoryID *uuid.UUID
-	Status     *entity.Status
-	Offset     int
-	Limit      int
+	CompanyID   uuid.UUID
+	Search      string
+	CategoryID  *uuid.UUID
+	Status      *entity.Status
+	StockStatus *entity.StockStatus
+	Offset      int
+	Limit       int
 }
 
 type GetProduct struct {

@@ -213,11 +213,11 @@ func optional(s string) *string {
 // physical stock across branches and locations.
 type ProductDetail struct {
 	Product
-	StockTotal string `json:"stock_total"`
+	StockTotal Quantity `json:"stock_total"`
 }
 
 func FromProductDetail(d repository.ProductDetail) ProductDetail {
-	return ProductDetail{Product: FromProduct(d.ProductListItem), StockTotal: d.StockTotal.StringFixed(3)}
+	return ProductDetail{Product: FromProduct(d.ProductListItem), StockTotal: Quantity(d.StockTotal)}
 }
 
 type PriceHistoryEntry struct {

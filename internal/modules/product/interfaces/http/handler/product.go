@@ -68,18 +68,32 @@ func (h *CatalogHTTPHandler) ListProducts(c *fiber.Ctx) error {
 
 	page, limit := pagination.Parse(c, 20, 100)
 	products, total, err := h.queryHandler.HandleListProducts(c.UserContext(), query.ListProducts{
-		CompanyID:  companyID,
-		Search:     q.Search,
-		CategoryID: q.CategoryUUID(),
-		Status:     q.StatusFilter(),
-		Offset:     (page - 1) * limit,
-		Limit:      limit,
+		CompanyID:   companyID,
+		Search:      q.Search,
+		CategoryID:  q.CategoryUUID(),
+		Status:      q.StatusFilter(),
+		StockStatus: q.StockStatusFilter(),
+		Offset:      (page - 1) * limit,
+		Limit:       limit,
 	})
 	if err != nil {
 		return response.Error(c, fiber.StatusInternalServerError, err)
 	}
 
-	return response.Paginated(c, dto.FromProductList(products), pagination.New(page, limit, total))
+	meta := pagination.New(page, limit, total)
+	if total == 0 {
+		return response.PaginatedWithMessage(c, dto.FromProductList(products), meta, emptyListMessage(&q))
+	}
+	return response.Paginated(c, dto.FromProductList(products), meta)
+}
+
+// emptyListMessage explains an empty listing: either the company has no
+// products yet or the active filters matched none.
+func emptyListMessage(q *dtos.ListProductsQuery) string {
+	if q.HasFilters() {
+		return "No se encontraron productos para los filtros aplicados."
+	}
+	return "No hay productos registrados."
 }
 
 func (h *CatalogHTTPHandler) ProductSummary(c *fiber.Ctx) error {
