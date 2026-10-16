@@ -217,7 +217,7 @@ Registra un producto activo en la empresa del usuario.
 | `UNAUTHORIZED` | 401 | Token ausente, inválido, expirado o sesión cerrada. |
 | `FORBIDDEN` | 403 | Usuario sin `products.create`. |
 | `NOT_FOUND` | 404 | `category not found` (no existe o es de otra empresa) / `unit of measure not found`. |
-| `CONFLICT` | 409 | `product name already exists` / `SKU already exists` / `barcode already exists`. |
+| `CONFLICT` | 409 | Nombre, SKU o código de barras ya usado por otro producto. `details.conflicts` lista cada valor repetido con el producto que lo tiene (ver [HU-06-01](HU-06-01-endpoints.md)). |
 
 Ejemplo de error:
 ```json
@@ -225,7 +225,17 @@ Ejemplo de error:
   "success": false,
   "error": {
     "code": "CONFLICT",
-    "message": "product name already exists"
+    "message": "product name already exists",
+    "details": {
+      "conflicts": [
+        {
+          "field": "name",
+          "code": "NAME_DUPLICATE",
+          "value": "Galletas María 200g",
+          "existing_product": { "id": "…", "name": "Galletas María 200g", "sku": "ABA-412", "barcode": null, "status": "active", "deleted": false }
+        }
+      ]
+    }
   }
 }
 ```
@@ -245,7 +255,7 @@ Indica si un nombre, SKU o código de barras ya existe en la empresa, para avisa
 - `barcode` (opcional): string.
 - `exclude_id` (opcional): uuid — producto que se está editando; se ignora en la comparación para que no se detecte como duplicado de sí mismo.
 
-Al menos uno de `name`, `sku` o `barcode` es obligatorio. Si hay varios repetidos, `field` indica el primero en este orden: `name`, `sku`, `barcode`.
+Al menos uno de `name`, `sku` o `barcode` es obligatorio. `conflicts` lista todos los valores repetidos con el producto que los tiene, en el mismo formato que el 409 (HU-06-01); `field` indica el primero en este orden: `name`, `sku`, `barcode`.
 
 ### Respuesta exitosa
 
@@ -255,12 +265,20 @@ Al menos uno de `name`, `sku` o `barcode` es obligatorio. Si hay varios repetido
   "success": true,
   "data": {
     "exists": true,
-    "field": "name"
+    "field": "name",
+    "conflicts": [
+      {
+        "field": "name",
+        "code": "NAME_DUPLICATE",
+        "value": "Galletas María 200g",
+        "existing_product": { "id": "…", "name": "Galletas María 200g", "sku": "ABA-412", "barcode": null, "status": "active", "deleted": false }
+      }
+    ]
   }
 }
 ```
 
-Sin duplicados: `{ "exists": false, "field": null }`.
+Sin duplicados: `{ "exists": false, "field": null, "conflicts": [] }`.
 
 ### Códigos de error
 
@@ -517,7 +535,7 @@ Reemplaza los datos editables de un producto. Endpoint de HU-03-03/04, adaptado 
 | `UNAUTHORIZED` | 401 | Token ausente, inválido, expirado o sesión cerrada. |
 | `FORBIDDEN` | 403 | Usuario sin `products.update`. |
 | `NOT_FOUND` | 404 | `product not found` / `category not found` / `unit of measure not found`. |
-| `CONFLICT` | 409 | `product name already exists` / `SKU already exists` / `barcode already exists` en otro producto. |
+| `CONFLICT` | 409 | Nombre, SKU o código de barras ya usado por otro producto, con `details.conflicts` (ver [HU-06-01](HU-06-01-endpoints.md)). |
 
 ---
 
@@ -648,8 +666,8 @@ Elimina un producto con borrado lógico. Endpoint de HU-03-03/04.
 - **Nombres en entrada y salida:** al crear se envía `sale_price`, pero en las respuestas el campo se llama `price`, como en el contrato.
 - **Normalización:** el SKU se guarda en mayúsculas (`aba-412` → `ABA-412`); en los nombres se quitan los espacios sobrantes. La respuesta devuelve el valor ya normalizado.
 - **Unicidad por empresa:** nombre de producto, SKU y código de barras se pueden repetir en otra empresa. El nombre de categoría solo es único dentro del mismo nivel: "Aceites" puede existir como raíz y como hija de "Abarrotes".
-- **Borrado lógico:** un producto o categoría borrado libera su nombre, SKU o código de barras.
-- **Peticiones simultáneas:** dos altas iguales a la vez crean una sola; la otra recibe `409`, no `500` (índices únicos parciales en la base de datos).
+- **Borrado lógico:** un producto borrado libera su nombre, pero su SKU y su código de barras siguen ocupados (HU-06-01). Una categoría borrada libera su nombre.
+- **Peticiones simultáneas:** dos altas iguales a la vez crean una sola; la otra recibe el mismo `409` con el producto que ganó, no `500` (índices únicos en la base de datos).
 - **Dinero:** se guarda como `numeric(12,2)` y se devuelve como número con 2 decimales exactos (`4.20`). Cantidades (`stock`, `percentage`, `target_margin`) se devuelven sin ceros de relleno (`496`, `13`, `25`).
 - **Paginación:** si `limit` es menor que 1 o mayor que 100, se usa `20`; si `page` es menor que 1, se usa `1`. Una página fuera de rango devuelve `data: []` con el `meta` correcto.
 - **Relaciones:** el producto trae la categoría expandida (`id` + `name`); la unidad viene solo como `unit_of_measure_id`.
