@@ -77,6 +77,9 @@ cp .env.example .env
 | `SIGIF_DATABASE_NAME` | Base de datos | sigif |
 | `SIGIF_JWT_SECRET` | Secreto JWT | (requerido en producción) |
 | `SIGIF_JWT_ACCESS_TOKEN_EXPIRY` | Expiración del token (min) | 15 |
+| `SIGIF_AUTH_COOKIE_SECURE` | Cookie de sesión solo por HTTPS (`true` en producción) | false |
+| `SIGIF_AUTH_COOKIE_SAME_SITE` | `Lax`, `Strict` o `None` (`None` exige `Secure`) | Lax |
+| `SIGIF_AUTH_COOKIE_DOMAIN` | Dominio de la cookie de sesión | (host del backend) |
 | `SIGIF_SEED_ADMIN_EMAIL` | Email del admin inicial | admin@sigif.com |
 | `SIGIF_SEED_ADMIN_PASSWORD` | Contraseña del admin inicial | admin123 |
 | `SIGIF_SEED_BUSINESS_ADMIN_EMAIL` | Email del `business_admin` de prueba | negocio@sigif.com |
@@ -214,10 +217,12 @@ Respuesta:
   "success": true,
   "data": {
     "user": { "id": "...", "role": "superadmin", "email": "admin@sigif.com", "..." : "..." },
-    "token": { "access_token": "...", "expires_in": 900, "token_type": "Bearer" }
+    "expires_in": 900
   }
 }
 ```
+
+El access token se entrega en la cookie HttpOnly `sigif_access_token` (`Set-Cookie`), no en el JSON. El navegador la envía sola con `withCredentials: true`; los clientes no navegador pueden seguir usando `Authorization: Bearer <token>`. Detalle en [docs/api/HU-01-endpoints.md](docs/api/HU-01-endpoints.md).
 
 ## Testing
 

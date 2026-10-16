@@ -12,11 +12,41 @@ post {
 
 headers {
   Content-Type: application/json
+  Origin: http://localhost:4200
 }
 
 body:json {
   {
-    "email": "admin.empresa@sigif.com",
-    "password": "admin123"
+    "email": "{{companyAdminEmail}}",
+    "password": "{{companyAdminPassword}}"
   }
+}
+
+script:post-response {
+  const authCookie = [].concat(res.getHeader('set-cookie') || [])
+    .find((c) => c.startsWith('sigif_access_token='));
+  bru.setVar('authCookieHeader', authCookie || '');
+  bru.setVar('authCookieToken', authCookie ? authCookie.split(';')[0].substring('sigif_access_token='.length) : '');
+}
+
+tests {
+  test("responde 200 con el usuario y expires_in", function() {
+    expect(res.status).to.equal(200);
+    expect(res.body.data.user.email).to.equal(bru.getEnvVar('companyAdminEmail'));
+    expect(res.body.data.expires_in).to.be.a('number');
+  });
+
+  test("el JSON no expone el access token", function() {
+    expect(res.body.data.token).to.equal(undefined);
+    expect(JSON.stringify(res.body)).to.not.include(bru.getVar('authCookieToken'));
+  });
+
+  test("emite la cookie sigif_access_token HttpOnly", function() {
+    const cookie = bru.getVar('authCookieHeader');
+    expect(cookie).to.not.equal('');
+    expect(cookie).to.match(/HttpOnly/i);
+    expect(cookie).to.match(/Path=\/api\/v1/i);
+    expect(cookie).to.match(/SameSite=Lax/i);
+    expect(cookie).to.match(new RegExp('max-age=' + res.body.data.expires_in, 'i'));
+  });
 }

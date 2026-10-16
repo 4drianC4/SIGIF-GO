@@ -24,6 +24,16 @@ jwt:
   access_token_expiry: 15
   issuer: "sigif-go"
 
+# Cookie HttpOnly con el access token para clientes navegador.
+# En producción (HTTPS) usar secure: true. same_site: Lax | Strict | None
+# (None exige secure: true).
+auth_cookie:
+  name: "sigif_access_token"
+  path: "/api/v1"
+  domain: ""
+  secure: false
+  same_site: "Lax"
+
 cors:
   allow_origins:
     - "http://localhost:3000"

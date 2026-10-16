@@ -17,7 +17,7 @@ func NewAuthCommandHandler(service *service.AuthService) *AuthCommandHandler {
 	return &AuthCommandHandler{service: service}
 }
 
-func (h *AuthCommandHandler) HandleLogin(ctx context.Context, cmd command.Login) (dto.AuthResponse, error) {
+func (h *AuthCommandHandler) HandleLogin(ctx context.Context, cmd command.Login) (dto.LoginResult, error) {
 	result, err := h.service.Login(ctx, service.LoginParams{
 		Email:     cmd.Email,
 		Password:  cmd.Password,
@@ -25,16 +25,13 @@ func (h *AuthCommandHandler) HandleLogin(ctx context.Context, cmd command.Login)
 		Device:    cmd.Device,
 	})
 	if err != nil {
-		return dto.AuthResponse{}, err
+		return dto.LoginResult{}, err
 	}
 
-	return dto.AuthResponse{
-		User: dto.FromUser(result.User, result.Permissions),
-		Token: dto.Token{
-			AccessToken: result.AccessToken,
-			ExpiresIn:   result.ExpiresIn,
-			TokenType:   result.TokenType,
-		},
+	return dto.LoginResult{
+		User:        dto.FromUser(result.User, result.Permissions),
+		AccessToken: result.AccessToken,
+		ExpiresIn:   result.ExpiresIn,
 	}, nil
 }
 
