@@ -14,6 +14,7 @@ import (
 	authModel "github.com/sigif/sigif-go/internal/modules/auth/infrastructure/persistence/model"
 	cashRegisterModel "github.com/sigif/sigif-go/internal/modules/cashregister/infrastructure/persistence/model"
 	cashRegisterSeed "github.com/sigif/sigif-go/internal/modules/cashregister/infrastructure/seed"
+	cashSessionModel "github.com/sigif/sigif-go/internal/modules/cashsession/infrastructure/persistence/model"
 	companyModel "github.com/sigif/sigif-go/internal/modules/company/infrastructure/persistence/model"
 	customerModel "github.com/sigif/sigif-go/internal/modules/customer/infrastructure/persistence/model"
 	userModel "github.com/sigif/sigif-go/internal/modules/user/infrastructure/persistence/model"
@@ -182,6 +183,7 @@ func autoMigrate(db *gorm.DB) error {
 		&customerModel.CustomerModel{},
 		&cashRegisterModel.CashRegisterModel{},
 		&cashRegisterModel.CashRegisterAssignmentModel{},
+		&cashSessionModel.CashSessionModel{},
 	)
 }
 
