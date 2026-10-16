@@ -5,7 +5,7 @@
 - HU: HU-009 — Apertura de sesión de caja y bloqueo de transacciones sin sesión abierta (RF-09, P0, Sprint 1). Depende de RF-01 y de la asignación de caja de RF-10 (HU-10-01, HU-10-02).
 - Rama: `feature/HU-009-cash-session-opening` (parte de `feat/HU-10-cash-register-assignment`).
 - Prefijo base: `/api/v1`
-- Requiere autenticación: `Authorization: Bearer <access_token>`.
+- Requiere autenticación (HU-01): en el navegador, la cookie HttpOnly `sigif_access_token` que deja el login (enviar las peticiones con credenciales); en otros clientes, `Authorization: Bearer <access_token>`. Las peticiones `POST` desde el navegador deben venir de un origen permitido (`cors.allow_origins`); si no, `403` (`origin not allowed`).
 - Empresa y cajero: salen **siempre del token** (`company_id` y `user_id`); nunca se aceptan en el body. Un usuario sin empresa recibe `400 company is required`.
 - La sesión se abre **sobre la caja que el cajero tiene asignada** (HU-10). El frontend no envía la asignación: el backend la obtiene.
 - Esta HU **no libera la caja** en ningún caso. La liberación pertenece al fin de turno y al cierre (RF-17, RF-20).
@@ -240,7 +240,7 @@ El módulo `cashsession` crea su tabla con `AutoMigrate`, igual que `cashregiste
 
 - Unitarias y HTTP: `go test ./internal/modules/cashsession/... ./internal/shared/middleware/...`
 - Integración con Postgres: `SIGIF_TEST_DATABASE_DSN=... go test -p 1 -tags integration ./internal/modules/cashsession/... ./internal/modules/cashregister/...`. El `-p 1` es necesario: si los paquetes corren en paralelo, ambos hacen `AutoMigrate` de las mismas tablas a la vez y Postgres rechaza uno (`pg_type_typname_nsp_index`).
-- Bruno: carpeta `bruno/CashSession` (25 peticiones). Usa `cajero.a@sigif.com`, `cajero.b@sigif.com` y `negocio@sigif.com` del seed.
+- Bruno: carpeta `bruno/CashSession` (25 peticiones). Usa `cajero.a@sigif.com`, `cajero.b@sigif.com` y `negocio@sigif.com` del seed. Los login leen el token de la cookie `sigif_access_token`, y la petición sin token (023) borra esa cookie antes de enviarse, porque Bruno reenvía automáticamente la del último login.
 
 **La carpeta Bruno solo se puede ejecutar una vez por base de datos**: todavía no existe el cierre de caja (RF-17), así que las sesiones abiertas quedan abiertas. Para volver a ejecutarla en desarrollo:
 
