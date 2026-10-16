@@ -1,0 +1,27 @@
+meta {
+  name: Update Product Association
+  type: http
+  seq: 12
+}
+
+put {
+  url: {{baseUrl}}/api/v1/suppliers/{{supplierId}}/products/{{supplierProductId}}
+  body: json
+  auth: bearer
+}
+
+headers {
+  Content-Type: application/json
+}
+
+auth:bearer {
+  token: {{accessToken}}
+}
+
+body:json {
+  {
+    "supplier_code": "DA-ACE-900",
+    "lead_time_days": 3,
+    "current_cost": 13.1
+  }
+}

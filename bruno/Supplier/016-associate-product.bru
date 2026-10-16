@@ -1,0 +1,28 @@
+meta {
+  name: Associate Product
+  type: http
+  seq: 11
+}
+
+post {
+  url: {{baseUrl}}/api/v1/suppliers/{{supplierId}}/products
+  body: json
+  auth: bearer
+}
+
+headers {
+  Content-Type: application/json
+}
+
+auth:bearer {
+  token: {{accessToken}}
+}
+
+body:json {
+  {
+    "product_id": "{{supplierProductId}}",
+    "lead_time_days": 3,
+    "current_cost": 13.1
+  }
+}
+

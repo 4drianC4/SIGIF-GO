@@ -1,0 +1,16 @@
+meta {
+  name: Unlink Product
+  type: http
+  seq: 13
+}
+
+delete {
+  url: {{baseUrl}}/api/v1/suppliers/{{supplierId}}/products/{{supplierProductId}}
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{accessToken}}
+}
+
