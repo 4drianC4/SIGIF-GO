@@ -13,6 +13,7 @@ import (
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/google/uuid"
+	"github.com/shopspring/decimal"
 
 	appHandler "github.com/sigif/sigif-go/internal/modules/customer/application/handler"
 	"github.com/sigif/sigif-go/internal/modules/customer/domain/entity"
@@ -236,9 +237,15 @@ func TestListCustomersEndpointDefaultsToActive(t *testing.T) {
 	}
 }
 
-func TestListCustomersEndpointReturnsOnlyIdentificationFields(t *testing.T) {
+func TestListCustomersEndpointReturnsSummaryFields(t *testing.T) {
 	s := newTestServer(t)
-	s.seed(t, companyA, "Ferreteria Central", "1020304050", entity.CustomerStatusActive)
+	customer := s.seed(t, companyA, "Ferreteria Central", "1020304050", entity.CustomerStatusActive)
+	customer.CreditLimit = decimal.NewFromInt(1000)
+	customer.CreditBalance = decimal.NewFromFloat(250.5)
+	customer.PointsAccrued = 35
+	if err := s.customers.Update(context.Background(), customer); err != nil {
+		t.Fatalf("update financial summary: %v", err)
+	}
 
 	_, resp, _ := s.list(t, "", s.reader(t, companyA))
 
@@ -247,12 +254,18 @@ func TestListCustomersEndpointReturnsOnlyIdentificationFields(t *testing.T) {
 	if len(raw) != 1 {
 		t.Fatalf("expected 1 item, got %d", len(raw))
 	}
-	for _, field := range []string{"id", "legal_name", "document_type", "document_number", "phone", "email", "status"} {
+	for _, field := range []string{
+		"id", "legal_name", "document_type", "document_number", "phone", "email",
+		"credit_limit", "credit_balance", "points_accrued", "status",
+	} {
 		if _, ok := raw[0][field]; !ok {
 			t.Errorf("missing field %q in %v", field, raw[0])
 		}
 	}
-	for _, field := range []string{"credit_limit", "credit_balance", "points_accrued", "address"} {
+	if raw[0]["credit_limit"] != "1000" || raw[0]["credit_balance"] != "250.5" || raw[0]["points_accrued"] != float64(35) {
+		t.Errorf("unexpected financial summary in %v", raw[0])
+	}
+	for _, field := range []string{"address", "created_at", "updated_at"} {
 		if _, ok := raw[0][field]; ok {
 			t.Errorf("listing must not expose %q", field)
 		}
