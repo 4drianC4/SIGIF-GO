@@ -73,6 +73,12 @@ type DuplicateCheck struct {
 	Conflicts []service.DuplicateConflict `json:"conflicts"`
 }
 
+type IdentifierAvailability struct {
+	Available       bool                        `json:"available"`
+	ExistingProduct *service.ExistingProduct    `json:"existing_product"`
+	Conflicts       []service.DuplicateConflict `json:"conflicts"`
+}
+
 type UnitOfMeasure struct {
 	ID           string `json:"id"`
 	Name         string `json:"name"`
@@ -165,6 +171,19 @@ func FromDuplicateResult(r *service.DuplicateResult) DuplicateCheck {
 		conflicts = []service.DuplicateConflict{}
 	}
 	return DuplicateCheck{Exists: r.Exists, Field: optional(r.Field), Conflicts: conflicts}
+}
+
+func FromIdentifierAvailability(r *service.DuplicateResult) IdentifierAvailability {
+	conflicts := r.Conflicts
+	if conflicts == nil {
+		conflicts = []service.DuplicateConflict{}
+	}
+	result := IdentifierAvailability{Available: !r.Exists, Conflicts: conflicts}
+	if r.Exists {
+		existing := conflicts[0].ExistingProduct
+		result.ExistingProduct = &existing
+	}
+	return result
 }
 
 func FromUnits(units []*entity.UnitOfMeasure) []UnitOfMeasure {

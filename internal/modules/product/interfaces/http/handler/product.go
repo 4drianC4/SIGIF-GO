@@ -123,3 +123,37 @@ func (h *CatalogHTTPHandler) ValidateDuplicate(c *fiber.Ctx) error {
 
 	return response.Success(c, dto.FromDuplicateResult(result))
 }
+
+func (h *CatalogHTTPHandler) VerifyIdentifier(c *fiber.Ctx) error {
+	var q dtos.VerifyIdentifierQuery
+	if err := c.QueryParser(&q); err != nil {
+		return response.Error(c, fiber.StatusBadRequest, sharedErrors.ErrBadRequest)
+	}
+	if q.Barcode == "" {
+		q.Barcode = c.Query("codigo_barras")
+	}
+	q.SKU = strings.TrimSpace(q.SKU)
+	q.Barcode = strings.TrimSpace(q.Barcode)
+	if err := h.validator.Validate(&q); err != nil {
+		return response.Error(c, fiber.StatusBadRequest, err)
+	}
+	if q.SKU == "" && q.Barcode == "" {
+		return response.Error(c, fiber.StatusBadRequest, service.ErrDuplicateCheckFields)
+	}
+
+	companyID, ok := middleware.CompanyIDFromContext(c.UserContext())
+	if !ok {
+		return response.Error(c, fiber.StatusBadRequest, service.ErrCompanyRequired)
+	}
+
+	result, err := h.queryHandler.HandleValidateDuplicate(c.UserContext(), query.ValidateDuplicate{
+		CompanyID: companyID,
+		SKU:       q.SKU,
+		Barcode:   q.Barcode,
+	})
+	if err != nil {
+		return response.Error(c, fiber.StatusInternalServerError, err)
+	}
+
+	return response.Success(c, dto.FromIdentifierAvailability(result))
+}

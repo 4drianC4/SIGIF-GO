@@ -91,7 +91,7 @@ func newTestServer(t *testing.T) *testServer {
 
 	app := fiber.New()
 	app.Use(middleware.AuthRequired(jwtManager, activeSessions{}, authcookie.Default()))
-	router.RegisterCatalogRoutes(app.Group("/api/v1"), h, perms)
+	router.RegisterCatalogRoutes(app.Group("/api/v1"), h, perms, config.IdentifierRateLimits{})
 
 	return &testServer{app: app, jwtManager: jwtManager, store: store, perms: perms}
 }

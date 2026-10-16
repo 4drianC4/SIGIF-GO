@@ -75,6 +75,11 @@ type ValidateDuplicateQuery struct {
 	ExcludeID string `query:"exclude_id" json:"exclude_id" validate:"omitempty,uuid"`
 }
 
+type VerifyIdentifierQuery struct {
+	SKU     string `query:"sku" json:"sku" validate:"omitempty,max=50"`
+	Barcode string `query:"barcode" json:"barcode" validate:"omitempty,numeric,min=8,max=14"`
+}
+
 func (q *ValidateDuplicateQuery) ExcludeUUID() uuid.UUID {
 	if id := parseOptionalUUID(trimOptional(&q.ExcludeID)); id != nil {
 		return *id
