@@ -10,20 +10,16 @@ import (
 	"github.com/sigif/sigif-go/internal/modules/product/domain/service"
 )
 
-// Money and Quantity serialize as JSON strings, not numbers. This keeps decimal
-// precision and matches the rest of the API (shopspring's default and the
-// customer module) and the frontend model, which declares these fields as
-// string.
 type Money decimal.Decimal
 
 func (m Money) MarshalJSON() ([]byte, error) {
-	return []byte(`"` + decimal.Decimal(m).StringFixed(2) + `"`), nil
+	return []byte(decimal.Decimal(m).StringFixed(2)), nil
 }
 
 type Quantity decimal.Decimal
 
 func (q Quantity) MarshalJSON() ([]byte, error) {
-	return []byte(`"` + decimal.Decimal(q).String() + `"`), nil
+	return []byte(decimal.Decimal(q).String()), nil
 }
 
 type CategoryRef struct {
@@ -217,11 +213,11 @@ func optional(s string) *string {
 // physical stock across branches and locations.
 type ProductDetail struct {
 	Product
-	StockTotal string `json:"stock_total"`
+	StockTotal Quantity `json:"stock_total"`
 }
 
 func FromProductDetail(d repository.ProductDetail) ProductDetail {
-	return ProductDetail{Product: FromProduct(d.ProductListItem), StockTotal: d.StockTotal.StringFixed(3)}
+	return ProductDetail{Product: FromProduct(d.ProductListItem), StockTotal: Quantity(d.StockTotal)}
 }
 
 type PriceHistoryEntry struct {

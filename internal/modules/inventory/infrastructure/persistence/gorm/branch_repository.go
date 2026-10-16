@@ -79,3 +79,11 @@ func (r *BranchLocationGormRepository) EnsureDefault(ctx context.Context, compan
 	}
 	return branch.ID, location.ID, nil
 }
+
+func (r *BranchLocationGormRepository) ExistsLocation(ctx context.Context, companyID uuid.UUID, branchID, locationID int64) (bool, error) {
+	var count int64
+	err := r.db.GetDB(ctx).Model(&model.LocationModel{}).
+		Where("id = ? AND branch_id = ? AND company_id = ?", locationID, branchID, companyID).
+		Count(&count).Error
+	return count == 1, err
+}

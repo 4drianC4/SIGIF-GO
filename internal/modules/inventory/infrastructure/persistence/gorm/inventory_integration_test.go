@@ -22,10 +22,13 @@ import (
 	"github.com/sigif/sigif-go/internal/shared/database/migrations"
 )
 
-type stubProducts struct{ found bool }
+type stubProducts struct {
+	found bool
+	stock decimal.Decimal
+}
 
-func (s stubProducts) Exists(context.Context, uuid.UUID, uuid.UUID) (bool, error) {
-	return s.found, nil
+func (s stubProducts) Stock(context.Context, uuid.UUID, uuid.UUID) (decimal.Decimal, bool, error) {
+	return s.stock, s.found, nil
 }
 
 func openInventory(t *testing.T) *sharedDatabase.Database {

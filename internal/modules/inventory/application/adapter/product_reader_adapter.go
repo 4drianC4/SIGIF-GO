@@ -5,6 +5,7 @@ import (
 	"errors"
 
 	"github.com/google/uuid"
+	"github.com/shopspring/decimal"
 
 	"github.com/sigif/sigif-go/internal/modules/inventory/domain/repository"
 	productService "github.com/sigif/sigif-go/internal/modules/product/domain/service"
@@ -20,15 +21,15 @@ func NewProductReaderAdapter(products *productService.CatalogService) repository
 	return &productReaderAdapter{products: products}
 }
 
-func (a *productReaderAdapter) Exists(ctx context.Context, companyID, productID uuid.UUID) (bool, error) {
-	_, err := a.products.GetProduct(ctx, productService.GetProductParams{CompanyID: companyID, ProductID: productID})
+func (a *productReaderAdapter) Stock(ctx context.Context, companyID, productID uuid.UUID) (decimal.Decimal, bool, error) {
+	product, err := a.products.GetProduct(ctx, productService.GetProductParams{CompanyID: companyID, ProductID: productID})
 	if err == nil {
-		return true, nil
+		return product.Product.Stock, true, nil
 	}
 	if errors.Is(err, productService.ErrProductNotFound) {
-		return false, nil
+		return decimal.Zero, false, nil
 	}
-	return false, err
+	return decimal.Zero, false, err
 }
 
 var _ repository.ProductReader = (*productReaderAdapter)(nil)

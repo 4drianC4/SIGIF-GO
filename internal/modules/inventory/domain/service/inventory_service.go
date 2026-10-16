@@ -63,7 +63,7 @@ func (s *InventoryService) RegisterMovement(ctx context.Context, params Register
 	if params.ProductID == uuid.Nil {
 		return nil, ErrProductRequired
 	}
-	exists, err := s.products.Exists(ctx, params.CompanyID, params.ProductID)
+	initialStock, exists, err := s.products.Stock(ctx, params.CompanyID, params.ProductID)
 	if err != nil {
 		return nil, err
 	}
@@ -71,19 +71,15 @@ func (s *InventoryService) RegisterMovement(ctx context.Context, params Register
 		return nil, ErrProductNotFound
 	}
 
-	branchID, locationID := params.BranchID, params.LocationID
-	if branchID <= 0 || locationID <= 0 {
-		branchID, locationID, err = s.branches.EnsureDefault(ctx, params.CompanyID)
-		if err != nil {
-			return nil, err
-		}
+	if (params.BranchID <= 0) != (params.LocationID <= 0) {
+		return nil, ErrBranchLocationRequired
 	}
 
 	movement, err := entity.NewMovement(entity.NewMovementParams{
 		CompanyID:  params.CompanyID,
 		ProductID:  params.ProductID,
-		BranchID:   branchID,
-		LocationID: locationID,
+		BranchID:   params.BranchID,
+		LocationID: params.LocationID,
 		Type:       params.Type,
 		Quantity:   params.Quantity,
 		Reason:     params.Reason,
@@ -96,7 +92,23 @@ func (s *InventoryService) RegisterMovement(ctx context.Context, params Register
 
 	var balance decimal.Decimal
 	err = s.balances.WithinTransaction(ctx, func(ctx context.Context) error {
-		current, err := s.balances.ApplyDelta(ctx, params.CompanyID, params.ProductID, branchID, locationID, movement.Quantity)
+		branchID, locationID := params.BranchID, params.LocationID
+		if branchID <= 0 {
+			branchID, locationID, err = s.branches.EnsureDefault(ctx, params.CompanyID)
+			if err != nil {
+				return err
+			}
+		} else {
+			valid, err := s.branches.ExistsLocation(ctx, params.CompanyID, branchID, locationID)
+			if err != nil {
+				return err
+			}
+			if !valid {
+				return ErrBranchLocationNotFound
+			}
+		}
+		movement.BranchID, movement.LocationID = branchID, locationID
+		current, err := s.balances.ApplyDelta(ctx, params.CompanyID, params.ProductID, branchID, locationID, initialStock, movement.Quantity)
 		if err != nil {
 			return err
 		}
@@ -130,6 +142,13 @@ func (s *InventoryService) ProductStock(ctx context.Context, companyID, productI
 	if productID == uuid.Nil {
 		return nil, ErrProductRequired
 	}
+	_, found, err := s.products.Stock(ctx, companyID, productID)
+	if err != nil {
+		return nil, err
+	}
+	if !found {
+		return nil, ErrProductNotFound
+	}
 	return s.balances.TotalsByBranch(ctx, companyID, productID)
 }
 
@@ -139,6 +158,13 @@ func (s *InventoryService) ListMovements(ctx context.Context, companyID, product
 	}
 	if productID == uuid.Nil {
 		return nil, 0, ErrProductRequired
+	}
+	_, found, err := s.products.Stock(ctx, companyID, productID)
+	if err != nil {
+		return nil, 0, err
+	}
+	if !found {
+		return nil, 0, ErrProductNotFound
 	}
 	return s.movements.ListByProduct(ctx, companyID, productID, offset, limit)
 }

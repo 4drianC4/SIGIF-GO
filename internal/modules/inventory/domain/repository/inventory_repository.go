@@ -23,6 +23,7 @@ type BranchLocationRepository interface {
 	// EnsureDefault returns the ids of a default branch and location of the
 	// company, creating them on first use.
 	EnsureDefault(ctx context.Context, companyID uuid.UUID) (branchID, locationID int64, err error)
+	ExistsLocation(ctx context.Context, companyID uuid.UUID, branchID, locationID int64) (bool, error)
 }
 
 // StockBalanceRepository applies signed deltas to the stock_balance cache.
@@ -30,7 +31,7 @@ type StockBalanceRepository interface {
 	// ApplyDelta adds delta to the balance of the product in the branch/location
 	// and returns the resulting quantity. It fails if the result would be
 	// negative.
-	ApplyDelta(ctx context.Context, companyID, productID uuid.UUID, branchID, locationID int64, delta decimal.Decimal) (decimal.Decimal, error)
+	ApplyDelta(ctx context.Context, companyID, productID uuid.UUID, branchID, locationID int64, initialStock, delta decimal.Decimal) (decimal.Decimal, error)
 	// TotalsByBranch returns the balances of a product across its branches.
 	TotalsByBranch(ctx context.Context, companyID, productID uuid.UUID) ([]StockBalanceItem, error)
 	// TouchLastMovement records the movement time on the product row.
@@ -47,5 +48,5 @@ type MovementRepository interface {
 // ProductReader checks that a product belongs to the company. It is implemented
 // by an adapter over the product module.
 type ProductReader interface {
-	Exists(ctx context.Context, companyID, productID uuid.UUID) (bool, error)
+	Stock(ctx context.Context, companyID, productID uuid.UUID) (decimal.Decimal, bool, error)
 }

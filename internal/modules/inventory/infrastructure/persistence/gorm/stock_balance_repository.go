@@ -2,18 +2,15 @@ package gorm
 
 import (
 	"context"
-	"errors"
 	"time"
 
 	"github.com/google/uuid"
 	"github.com/shopspring/decimal"
-	"gorm.io/gorm"
-	"gorm.io/gorm/clause"
-
 	"github.com/sigif/sigif-go/internal/modules/inventory/domain/repository"
 	"github.com/sigif/sigif-go/internal/modules/inventory/domain/service"
 	"github.com/sigif/sigif-go/internal/modules/inventory/infrastructure/persistence/model"
 	sharedDatabase "github.com/sigif/sigif-go/internal/shared/database"
+	"gorm.io/gorm"
 )
 
 type StockBalanceGormRepository struct {
@@ -30,37 +27,45 @@ func (r *StockBalanceGormRepository) WithinTransaction(ctx context.Context, fn f
 	})
 }
 
-func (r *StockBalanceGormRepository) ApplyDelta(ctx context.Context, companyID, productID uuid.UUID, branchID, locationID int64, delta decimal.Decimal) (decimal.Decimal, error) {
+func (r *StockBalanceGormRepository) ApplyDelta(ctx context.Context, companyID, productID uuid.UUID, branchID, locationID int64, initialStock, delta decimal.Decimal) (decimal.Decimal, error) {
 	db := r.db.GetDB(ctx)
-	var balance model.StockBalanceModel
-	err := db.Clauses(clause.Locking{Strength: "UPDATE"}).
-		Where("company_id = ? AND product_id = ? AND branch_id = ? AND location_id = ?", companyID, productID, branchID, locationID).
-		First(&balance).Error
-	if errors.Is(err, gorm.ErrRecordNotFound) {
-		if delta.IsNegative() {
-			return decimal.Zero, service.ErrInsufficientStock
-		}
-		balance = model.StockBalanceModel{
-			CompanyID: companyID, ProductID: productID, BranchID: branchID, LocationID: locationID,
-			Quantity: delta,
-		}
-		if err := db.Create(&balance).Error; err != nil {
-			return decimal.Zero, err
-		}
-		return balance.Quantity, nil
+	lock := db.Exec("SELECT 1 FROM products WHERE id = ? FOR UPDATE", productID)
+	if lock.Error != nil {
+		return decimal.Zero, lock.Error
 	}
-	if err != nil {
-		return decimal.Zero, err
+	if lock.RowsAffected == 0 {
+		return decimal.Zero, service.ErrProductNotFound
 	}
 
-	next := balance.Quantity.Add(delta)
-	if next.IsNegative() {
-		return decimal.Zero, service.ErrInsufficientStock
-	}
-	if err := db.Model(&balance).Update("quantity", next).Error; err != nil {
+	var balances int64
+	if err := db.Model(&model.StockBalanceModel{}).
+		Where("company_id = ? AND product_id = ?", companyID, productID).
+		Count(&balances).Error; err != nil {
 		return decimal.Zero, err
 	}
-	return next, nil
+	seed := decimal.Zero
+	if balances == 0 {
+		seed = initialStock
+	}
+	if seed.Add(delta).IsNegative() {
+		return decimal.Zero, service.ErrInsufficientStock
+	}
+
+	var result struct{ Quantity decimal.Decimal }
+	query := db.Raw(`INSERT INTO stock_balance (company_id, product_id, branch_id, location_id, quantity, reserved_quantity, updated_at)
+		VALUES (?, ?, ?, ?, ?, 0, CURRENT_TIMESTAMP)
+		ON CONFLICT (company_id, product_id, branch_id, location_id)
+		DO UPDATE SET quantity = stock_balance.quantity + EXCLUDED.quantity, updated_at = CURRENT_TIMESTAMP
+		WHERE stock_balance.quantity + EXCLUDED.quantity >= 0
+		RETURNING quantity`, companyID, productID, branchID, locationID, seed.Add(delta)).
+		Scan(&result)
+	if query.Error != nil {
+		return decimal.Zero, query.Error
+	}
+	if query.RowsAffected == 0 {
+		return decimal.Zero, service.ErrInsufficientStock
+	}
+	return result.Quantity, nil
 }
 
 func (r *StockBalanceGormRepository) TotalsByBranch(ctx context.Context, companyID, productID uuid.UUID) ([]repository.StockBalanceItem, error) {

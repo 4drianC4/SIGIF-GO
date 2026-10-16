@@ -206,7 +206,7 @@ func TestCreateProductFollowsContract(t *testing.T) {
 	if status != fiber.StatusCreated || !resp.Success {
 		t.Fatalf("status = %d, body = %s", status, resp.raw)
 	}
-	for _, fragment := range []string{`"cost":"4.20"`, `"price":"6.00"`, `"margin":30`, `"stock":"0"`, `"stock_status":"out_of_stock"`, `"status":"active"`, `"sku":"ABA-412"`} {
+	for _, fragment := range []string{`"cost":4.20`, `"price":6.00`, `"margin":30`, `"stock":0`, `"stock_status":"out_of_stock"`, `"status":"active"`, `"sku":"ABA-412"`} {
 		if !strings.Contains(resp.raw, fragment) {
 			t.Errorf("response missing %s: %s", fragment, resp.raw)
 		}
@@ -227,7 +227,7 @@ func TestCreateProductWithoutOptionalFields(t *testing.T) {
 
 	status, resp := s.do(t, fiber.MethodPost, "/api/v1/products", token, body)
 
-	if status != fiber.StatusCreated || !strings.Contains(resp.raw, `"sku":null`) || !strings.Contains(resp.raw, `"stock":"0"`) {
+	if status != fiber.StatusCreated || !strings.Contains(resp.raw, `"sku":null`) || !strings.Contains(resp.raw, `"stock":0`) {
 		t.Fatalf("got %d %s", status, resp.raw)
 	}
 }
@@ -407,7 +407,7 @@ func TestProductSummaryEndpoint(t *testing.T) {
 	if status != 200 {
 		t.Fatalf("summary: %d %s", status, resp.raw)
 	}
-	want := `{"active_products":1,"inventory_value":"16.20","low_stock":1,"no_movement_90_days":0}`
+	want := `{"active_products":1,"inventory_value":16.20,"low_stock":1,"no_movement_90_days":0}`
 	if string(resp.Data) != want {
 		t.Errorf("summary = %s, want %s", resp.Data, want)
 	}
@@ -479,7 +479,7 @@ func TestCategoriesEndpoints(t *testing.T) {
 		t.Fatalf("create parent: %d %s", status, resp.raw)
 	}
 	parent := decode(t, resp.Data)
-	if parent["default_tax"] != testutil.IVAGeneral || parent["target_margin"] != "25" || parent["parent_id"] != nil {
+	if parent["default_tax"] != testutil.IVAGeneral || parent["target_margin"] != float64(25) || parent["parent_id"] != nil {
 		t.Errorf("parent = %v", parent)
 	}
 	parentID := parent["id"].(string)
@@ -531,7 +531,7 @@ func TestReferenceEndpoints(t *testing.T) {
 		t.Errorf("units: %d %s", status, resp.raw)
 	}
 	status, resp = s.do(t, fiber.MethodGet, "/api/v1/taxes", token, nil)
-	if status != 200 || !strings.Contains(string(resp.Data), `"name":"IVA general 13%","percentage":"13"`) {
+	if status != 200 || !strings.Contains(string(resp.Data), `"name":"IVA general 13%","percentage":13`) {
 		t.Errorf("taxes: %d %s", status, resp.raw)
 	}
 }
@@ -627,7 +627,7 @@ func TestGetProductEndpoint(t *testing.T) {
 	if product["id"] != productID || product["sku"] != "ABA-412" || product["category"].(map[string]any)["name"] != "Abarrotes" {
 		t.Errorf("product = %s", resp.raw)
 	}
-	for _, fragment := range []string{`"cost":"4.20"`, `"price":"6.00"`, `"margin":30`, `"stock_status":"out_of_stock"`} {
+	for _, fragment := range []string{`"cost":4.20`, `"price":6.00`, `"margin":30`, `"stock_status":"out_of_stock"`} {
 		if !strings.Contains(resp.raw, fragment) {
 			t.Errorf("response missing %s: %s", fragment, resp.raw)
 		}
@@ -661,7 +661,7 @@ func TestUpdateProductEndpoint(t *testing.T) {
 			t.Errorf("%s = %v, want %v", key, product[key], value)
 		}
 	}
-	for _, fragment := range []string{`"cost":"2.50"`, `"price":"4.00"`, `"margin":38`, `"stock":"10"`, `"min_stock":"3"`, `"stock_status":"normal"`} {
+	for _, fragment := range []string{`"cost":2.50`, `"price":4.00`, `"margin":38`, `"stock":10`, `"min_stock":3`, `"stock_status":"normal"`} {
 		if !strings.Contains(resp.raw, fragment) {
 			t.Errorf("response missing %s: %s", fragment, resp.raw)
 		}
@@ -673,7 +673,7 @@ func TestUpdateProductEndpoint(t *testing.T) {
 	same := updateBody(categoryID)
 	same["name"], same["min_stock"] = "Pepsi 500ml editada", 12
 	status, resp = s.do(t, fiber.MethodPut, "/api/v1/products/"+productID, token, same)
-	if status != fiber.StatusOK || !strings.Contains(resp.raw, `"min_stock":"12"`) || !strings.Contains(resp.raw, `"stock_status":"low_stock"`) {
+	if status != fiber.StatusOK || !strings.Contains(resp.raw, `"min_stock":12`) || !strings.Contains(resp.raw, `"stock_status":"low_stock"`) {
 		t.Fatalf("update keeping the same SKU: %d %s", status, resp.raw)
 	}
 
