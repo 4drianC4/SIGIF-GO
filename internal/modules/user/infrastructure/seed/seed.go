@@ -60,6 +60,9 @@ func Seed(ctx context.Context, db *gorm.DB, cfg *config.Config) error {
 			permIDs[entity.PermCashRegistersList],
 			permIDs[entity.PermCashRegistersAssign],
 			permIDs[entity.PermCashRegistersRelease],
+			// HU-009: they open their cash session and check it.
+			permIDs[entity.PermCashSessionsOpen],
+			permIDs[entity.PermCashSessionsRead],
 		}); err != nil {
 			return err
 		}

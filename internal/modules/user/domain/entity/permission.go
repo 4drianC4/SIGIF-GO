@@ -38,6 +38,7 @@ var SupportedOperations = []string{
 	"assign",
 	"release",
 	"release_any",
+	"open",
 }
 
 // IsSupportedOperation reports whether operation belongs to the catalog.
@@ -122,6 +123,12 @@ const (
 	PermCashRegistersAssign     = "cash_registers.assign"
 	PermCashRegistersRelease    = "cash_registers.release"
 	PermCashRegistersReleaseAny = "cash_registers.release_any"
+)
+
+// Cash session permissions (RF-09).
+const (
+	PermCashSessionsOpen = "cash_sessions.open"
+	PermCashSessionsRead = "cash_sessions.read"
 )
 
 // IsSystemPermission reports whether the pair module.operation belongs to the
@@ -215,6 +222,13 @@ func AllPermissions() []Permission {
 				{"assign", "Tomar una caja disponible y ver la caja asignada"},
 				{"release", "Liberar la caja propia al finalizar el turno"},
 				{"release_any", "Liberar la caja de cualquier cajero"},
+			},
+		},
+		{
+			module: "cash_sessions",
+			ops: []struct{ op, desc string }{
+				{"open", "Abrir la sesión de caja con el monto inicial"},
+				{"read", "Consultar la sesión de caja abierta propia"},
 			},
 		},
 	}
