@@ -1,0 +1,25 @@
+meta {
+  name: Setup - Current Assignment Cashier A
+  type: http
+  seq: 4
+}
+
+get {
+  url: {{baseUrl}}/api/v1/cash-register-assignments/current
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{accessTokenA}}
+}
+
+script:post-response {
+  bru.setVar('previousAssignmentA', res.status === 200 ? res.body.data.id : '00000000-0000-4000-8000-000000000000');
+}
+
+tests {
+  test("responde 200 con la asignación activa o 404 si no tiene", function() {
+    expect([200, 404]).to.include(res.status);
+  });
+}

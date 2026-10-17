@@ -1,0 +1,26 @@
+meta {
+  name: 02 List Available Cash Registers
+  type: http
+  seq: 10
+}
+
+get {
+  url: {{baseUrl}}/api/v1/cash-registers/?availability=available
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{accessTokenA}}
+}
+
+tests {
+  test("solo devuelve cajas disponibles, sin cajero", function() {
+    expect(res.status).to.equal(200);
+    res.body.data.forEach(function(r) {
+      expect(r.availability).to.equal('available');
+      expect(r).to.not.have.property('assigned_to');
+    });
+    expect(res.body.data.map(function(r) { return r.code; })).to.include('CAJA-01');
+  });
+}

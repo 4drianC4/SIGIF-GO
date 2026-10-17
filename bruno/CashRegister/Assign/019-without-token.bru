@@ -1,0 +1,34 @@
+meta {
+  name: 11 Without Token (401)
+  type: http
+  seq: 19
+}
+
+post {
+  url: {{baseUrl}}/api/v1/cash-register-assignments/
+  body: json
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "cash_register_id": "{{register2Id}}"
+  }
+}
+
+script:pre-request {
+  // Bruno reenvía la cookie HttpOnly del último login; se borra para que
+  // la petición viaje de verdad sin credenciales.
+  await bru.cookies.delete('sigif_access_token');
+}
+
+tests {
+  test("responde 401 UNAUTHORIZED sin token", function() {
+    expect(res.status).to.equal(401);
+    expect(res.body.error.code).to.equal('UNAUTHORIZED');
+  });
+}

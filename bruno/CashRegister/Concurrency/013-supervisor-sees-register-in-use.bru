@@ -1,0 +1,24 @@
+meta {
+  name: 05 Supervisor Sees Register In Use
+  type: http
+  seq: 13
+}
+
+get {
+  url: {{baseUrl}}/api/v1/cash-registers/?availability=in_use
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{accessTokenSupervisor}}
+}
+
+tests {
+  test("business_admin identifica las cajas en uso y su cajero", function() {
+    expect(res.status).to.equal(200);
+    const item = res.body.data.find(function(r) { return r.code === 'CAJA-01'; });
+    expect(item.availability).to.equal('in_use');
+    expect(item.assigned_to.name).to.equal('Cajero A');
+  });
+}

@@ -1,0 +1,23 @@
+meta {
+  name: 13 Release Invalid Id (400)
+  type: http
+  seq: 21
+}
+
+post {
+  url: {{baseUrl}}/api/v1/cash-register-assignments/no-es-un-uuid/release
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{accessTokenA}}
+}
+
+tests {
+  test("responde 400 BAD_REQUEST", function() {
+    expect(res.status).to.equal(400);
+    expect(res.body.error.code).to.equal('BAD_REQUEST');
+    expect(res.body.error.message).to.equal('invalid assignment id');
+  });
+}

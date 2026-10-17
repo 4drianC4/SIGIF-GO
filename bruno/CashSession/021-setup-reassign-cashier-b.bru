@@ -1,0 +1,36 @@
+meta {
+  name: Setup - Reassign CAJA-02 To Cashier B
+  type: http
+  seq: 21
+}
+
+post {
+  url: {{baseUrl}}/api/v1/cash-register-assignments/
+  body: json
+  auth: bearer
+}
+
+headers {
+  Content-Type: application/json
+}
+
+auth:bearer {
+  token: {{accessTokenB}}
+}
+
+body:json {
+  {
+    "cash_register_id": "{{register2Id}}"
+  }
+}
+
+script:post-response {
+  bru.setVar('assignmentBId', res.body && res.body.data ? res.body.data.id : '');
+}
+
+tests {
+  test("responde 201 con CAJA-02 asignada", function() {
+    expect(res.status).to.equal(201);
+    expect(res.body.data.cash_register.code).to.equal('CAJA-02');
+  });
+}

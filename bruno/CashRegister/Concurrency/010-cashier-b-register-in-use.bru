@@ -1,0 +1,33 @@
+meta {
+  name: 02 Cashier B Takes Occupied Register (409)
+  type: http
+  seq: 10
+}
+
+post {
+  url: {{baseUrl}}/api/v1/cash-register-assignments/
+  body: json
+  auth: bearer
+}
+
+headers {
+  Content-Type: application/json
+}
+
+auth:bearer {
+  token: {{accessTokenB}}
+}
+
+body:json {
+  {
+    "cash_register_id": "{{register1Id}}"
+  }
+}
+
+tests {
+  test("responde 409 CASH_REGISTER_IN_USE e informa que ya está asignada", function() {
+    expect(res.status).to.equal(409);
+    expect(res.body.error.code).to.equal('CASH_REGISTER_IN_USE');
+    expect(res.body.error.message).to.equal('cash register is already assigned to another cashier');
+  });
+}

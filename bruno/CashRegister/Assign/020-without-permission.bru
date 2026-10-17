@@ -1,0 +1,32 @@
+meta {
+  name: 12 Without Permission (403)
+  type: http
+  seq: 20
+}
+
+post {
+  url: {{baseUrl}}/api/v1/cash-register-assignments/
+  body: json
+  auth: bearer
+}
+
+headers {
+  Content-Type: application/json
+}
+
+auth:bearer {
+  token: {{accessTokenSupervisor}}
+}
+
+body:json {
+  {
+    "cash_register_id": "{{register2Id}}"
+  }
+}
+
+tests {
+  test("business_admin no puede tomar una caja: 403 FORBIDDEN", function() {
+    expect(res.status).to.equal(403);
+    expect(res.body.error.code).to.equal('FORBIDDEN');
+  });
+}
