@@ -42,6 +42,17 @@ type UpdateProduct struct {
 	Cost            decimal.Decimal
 	SalePrice       decimal.Decimal
 	MinStock        *decimal.Decimal
+	UserID          uuid.UUID
+	Reason          string
+}
+
+type UpdateProductPrice struct {
+	CompanyID uuid.UUID
+	ProductID uuid.UUID
+	UserID    uuid.UUID
+	Cost      *decimal.Decimal
+	SalePrice *decimal.Decimal
+	Reason    string
 }
 
 type SetProductStatus struct {

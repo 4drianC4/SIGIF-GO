@@ -74,9 +74,17 @@ type CORSConfig struct {
 }
 
 type RateLimitConfig struct {
-	Enabled       bool `mapstructure:"enabled"`
-	MaxRequests   int  `mapstructure:"max_requests"`
-	WindowSeconds int  `mapstructure:"window_seconds"`
+	Enabled         bool                 `mapstructure:"enabled"`
+	MaxRequests     int                  `mapstructure:"max_requests"`
+	WindowSeconds   int                  `mapstructure:"window_seconds"`
+	IdentifierCheck IdentifierRateLimits `mapstructure:"identifier_check"`
+}
+
+// IdentifierRateLimits configures the per-user limit shared by the product
+// identifier lookups (validate-duplicate and verificar-identificador).
+type IdentifierRateLimits struct {
+	MaxRequests   int `mapstructure:"max_requests"`
+	WindowSeconds int `mapstructure:"window_seconds"`
 }
 
 type PaginationConfig struct {
@@ -142,6 +150,11 @@ func NewConfig() (*Config, error) {
 	_ = viper.BindEnv("auth_cookie.domain", "SIGIF_AUTH_COOKIE_DOMAIN")
 	_ = viper.BindEnv("auth_cookie.secure", "SIGIF_AUTH_COOKIE_SECURE")
 	_ = viper.BindEnv("auth_cookie.same_site", "SIGIF_AUTH_COOKIE_SAME_SITE")
+	_ = viper.BindEnv("rate_limit.enabled", "SIGIF_RATE_LIMIT_ENABLED")
+	_ = viper.BindEnv("rate_limit.max_requests", "SIGIF_RATE_LIMIT_MAX_REQUESTS")
+	_ = viper.BindEnv("rate_limit.window_seconds", "SIGIF_RATE_LIMIT_WINDOW_SECONDS")
+	_ = viper.BindEnv("rate_limit.identifier_check.max_requests", "SIGIF_RATE_LIMIT_IDENTIFIER_CHECK_MAX_REQUESTS")
+	_ = viper.BindEnv("rate_limit.identifier_check.window_seconds", "SIGIF_RATE_LIMIT_IDENTIFIER_CHECK_WINDOW_SECONDS")
 	_ = viper.BindEnv("seed.admin_email", "SIGIF_SEED_ADMIN_EMAIL")
 	_ = viper.BindEnv("seed.admin_password", "SIGIF_SEED_ADMIN_PASSWORD")
 	_ = viper.BindEnv("seed.admin_first_name", "SIGIF_SEED_ADMIN_FIRST_NAME")

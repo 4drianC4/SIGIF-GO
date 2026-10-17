@@ -1,0 +1,40 @@
+meta {
+  name: Duplicate SKU And Barcode (409)
+  type: http
+  seq: 28
+}
+
+post {
+  url: {{baseUrl}}/api/v1/products
+  body: json
+  auth: bearer
+}
+
+headers {
+  Content-Type: application/json
+}
+
+auth:bearer {
+  token: {{accessToken}}
+}
+
+body:json {
+  {
+    "name": "Otro 3 {{holderName}}",
+    "sku": "{{holderSku}}",
+    "barcode": "{{holderBarcode}}",
+    "category_id": "{{categoryId}}",
+    "unit_of_measure_id": "{{unitId}}",
+    "cost": 1,
+    "sale_price": 2
+  }
+}
+
+tests {
+  test("muestra los dos errores a la vez", function() {
+    expect(res.status).to.equal(409);
+    expect(res.body.error.message).to.equal('product has duplicated values');
+    const fields = res.body.error.details.conflicts.map(function(c) { return c.field; });
+    expect(fields).to.deep.equal(['sku', 'barcode']);
+  });
+}

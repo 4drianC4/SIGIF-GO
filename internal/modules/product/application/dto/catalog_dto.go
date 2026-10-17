@@ -64,9 +64,19 @@ type ProductSummary struct {
 	NoMovement90Days int64 `json:"no_movement_90_days"`
 }
 
+// DuplicateCheck is the response of GET /products/validate-duplicate. Field
+// is the first duplicated field; Conflicts lists every one with the product
+// that holds it, in the same shape as the details of a 409 (HU-06-01).
 type DuplicateCheck struct {
-	Exists bool    `json:"exists"`
-	Field  *string `json:"field"`
+	Exists    bool                        `json:"exists"`
+	Field     *string                     `json:"field"`
+	Conflicts []service.DuplicateConflict `json:"conflicts"`
+}
+
+type IdentifierAvailability struct {
+	Available       bool                        `json:"available"`
+	ExistingProduct *service.ExistingProduct    `json:"existing_product"`
+	Conflicts       []service.DuplicateConflict `json:"conflicts"`
 }
 
 type UnitOfMeasure struct {
@@ -156,7 +166,24 @@ func FromSummary(s repository.ProductSummary) ProductSummary {
 }
 
 func FromDuplicateResult(r *service.DuplicateResult) DuplicateCheck {
-	return DuplicateCheck{Exists: r.Exists, Field: optional(r.Field)}
+	conflicts := r.Conflicts
+	if conflicts == nil {
+		conflicts = []service.DuplicateConflict{}
+	}
+	return DuplicateCheck{Exists: r.Exists, Field: optional(r.Field), Conflicts: conflicts}
+}
+
+func FromIdentifierAvailability(r *service.DuplicateResult) IdentifierAvailability {
+	conflicts := r.Conflicts
+	if conflicts == nil {
+		conflicts = []service.DuplicateConflict{}
+	}
+	result := IdentifierAvailability{Available: !r.Exists, Conflicts: conflicts}
+	if r.Exists {
+		existing := conflicts[0].ExistingProduct
+		result.ExistingProduct = &existing
+	}
+	return result
 }
 
 func FromUnits(units []*entity.UnitOfMeasure) []UnitOfMeasure {
@@ -180,4 +207,47 @@ func optional(s string) *string {
 		return nil
 	}
 	return &s
+}
+
+// ProductDetail is the response of GET /products/:id: the product plus its total
+// physical stock across branches and locations.
+type ProductDetail struct {
+	Product
+	StockTotal Quantity `json:"stock_total"`
+}
+
+func FromProductDetail(d repository.ProductDetail) ProductDetail {
+	return ProductDetail{Product: FromProduct(d.ProductListItem), StockTotal: Quantity(d.StockTotal)}
+}
+
+type PriceHistoryEntry struct {
+	ID            string `json:"id"`
+	UserFullName  string `json:"user_full_name"`
+	UserRole      string `json:"user_role"`
+	PreviousCost  string `json:"previous_cost"`
+	NewCost       string `json:"new_cost"`
+	PreviousPrice string `json:"previous_price"`
+	NewPrice      string `json:"new_price"`
+	MarginPct     string `json:"margin_pct"`
+	Reason        string `json:"reason,omitempty"`
+	CreatedAt     string `json:"created_at"`
+}
+
+func FromPriceHistory(entries []*entity.PriceHistoryEntry) []PriceHistoryEntry {
+	result := make([]PriceHistoryEntry, 0, len(entries))
+	for _, e := range entries {
+		result = append(result, PriceHistoryEntry{
+			ID:            e.ID.String(),
+			UserFullName:  e.UserFullName,
+			UserRole:      e.UserRole,
+			PreviousCost:  e.PreviousCost.StringFixed(2),
+			NewCost:       e.NewCost.StringFixed(2),
+			PreviousPrice: e.PreviousPrice.StringFixed(2),
+			NewPrice:      e.NewPrice.StringFixed(2),
+			MarginPct:     e.MarginPct.String() + "%",
+			Reason:        e.Reason,
+			CreatedAt:     e.CreatedAt.UTC().Format(time.RFC3339),
+		})
+	}
+	return result
 }

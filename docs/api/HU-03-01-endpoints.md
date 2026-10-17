@@ -8,7 +8,8 @@
 - Requiere contexto autenticado del backend: `userId` y `companyId`, tomados del access token (`Authorization: Bearer <token>`). No se envían por header ni por body.
 - Formato de respuesta exitosa: `{ "success": true, "data": ... }` — en listados paginados se agrega `meta` con `page`, `limit`, `total`, `total_pages`
 - Formato de respuesta de error: `{ "success": false, "error": { "code": "CODIGO", "message": "descripción" } }` — en errores de validación se agrega `details` por campo
-- Montos de dinero: número JSON con 2 decimales (`4.20`), no string
+- Decimales (dinero y cantidades): se serializan como **string** (`"4.20"`, `"496"`), no como número JSON. En las peticiones se aceptan tanto número como string.
+- `margin` sigue siendo un número entero (`30`).
 
 ---
 
@@ -78,11 +79,11 @@ Lista los productos de la empresa, ordenados por nombre.
         "name": "Lácteos"
       },
       "unit_of_measure_id": "bae16597-2960-406b-8dcd-5acab1260164",
-      "cost": 5.40,
-      "price": 7.00,
+      "cost": "5.40",
+      "price": "7.00",
       "margin": 23,
-      "stock": 496,
-      "min_stock": 10,
+      "stock": "496",
+      "min_stock": "10",
       "stock_status": "normal",
       "status": "active",
       "created_at": "2026-10-05T12:00:00Z",
@@ -124,7 +125,7 @@ Devuelve los indicadores de las tarjetas superiores, calculados sobre los produc
   "success": true,
   "data": {
     "active_products": 1284,
-    "inventory_value": 412880.00,
+    "inventory_value": "412880.00",
     "low_stock": 7,
     "no_movement_90_days": 23
   }
@@ -195,11 +196,11 @@ Registra un producto activo en la empresa del usuario.
     "barcode": null,
     "category": { "id": "550e8400-e29b-41d4-a716-446655440001", "name": "Abarrotes" },
     "unit_of_measure_id": "550e8400-e29b-41d4-a716-446655440002",
-    "cost": 4.20,
-    "price": 6.00,
+    "cost": "4.20",
+    "price": "6.00",
     "margin": 30,
-    "stock": 0,
-    "min_stock": 0,
+    "stock": "0",
+    "min_stock": "0",
     "stock_status": "out_of_stock",
     "status": "active",
     "created_at": "2026-10-05T12:00:00Z",
@@ -217,7 +218,7 @@ Registra un producto activo en la empresa del usuario.
 | `UNAUTHORIZED` | 401 | Token ausente, inválido, expirado o sesión cerrada. |
 | `FORBIDDEN` | 403 | Usuario sin `products.create`. |
 | `NOT_FOUND` | 404 | `category not found` (no existe o es de otra empresa) / `unit of measure not found`. |
-| `CONFLICT` | 409 | `product name already exists` / `SKU already exists` / `barcode already exists`. |
+| `CONFLICT` | 409 | Nombre, SKU o código de barras ya usado por otro producto. `details.conflicts` lista cada valor repetido con el producto que lo tiene (ver [HU-06-01](HU-06-01-endpoints.md)). |
 
 Ejemplo de error:
 ```json
@@ -225,7 +226,17 @@ Ejemplo de error:
   "success": false,
   "error": {
     "code": "CONFLICT",
-    "message": "product name already exists"
+    "message": "product name already exists",
+    "details": {
+      "conflicts": [
+        {
+          "field": "name",
+          "code": "NAME_DUPLICATE",
+          "value": "Galletas María 200g",
+          "existing_product": { "id": "…", "name": "Galletas María 200g", "sku": "ABA-412", "barcode": null, "status": "active", "deleted": false }
+        }
+      ]
+    }
   }
 }
 ```
@@ -245,7 +256,7 @@ Indica si un nombre, SKU o código de barras ya existe en la empresa, para avisa
 - `barcode` (opcional): string.
 - `exclude_id` (opcional): uuid — producto que se está editando; se ignora en la comparación para que no se detecte como duplicado de sí mismo.
 
-Al menos uno de `name`, `sku` o `barcode` es obligatorio. Si hay varios repetidos, `field` indica el primero en este orden: `name`, `sku`, `barcode`.
+Al menos uno de `name`, `sku` o `barcode` es obligatorio. `conflicts` lista todos los valores repetidos con el producto que los tiene, en el mismo formato que el 409 (HU-06-01); `field` indica el primero en este orden: `name`, `sku`, `barcode`.
 
 ### Respuesta exitosa
 
@@ -255,12 +266,20 @@ Al menos uno de `name`, `sku` o `barcode` es obligatorio. Si hay varios repetido
   "success": true,
   "data": {
     "exists": true,
-    "field": "name"
+    "field": "name",
+    "conflicts": [
+      {
+        "field": "name",
+        "code": "NAME_DUPLICATE",
+        "value": "Galletas María 200g",
+        "existing_product": { "id": "…", "name": "Galletas María 200g", "sku": "ABA-412", "barcode": null, "status": "active", "deleted": false }
+      }
+    ]
   }
 }
 ```
 
-Sin duplicados: `{ "exists": false, "field": null }`.
+Sin duplicados: `{ "exists": false, "field": null, "conflicts": [] }`.
 
 ### Códigos de error
 
@@ -293,7 +312,7 @@ Lista todas las categorías de la empresa, ordenadas por nombre. No está pagina
       "parent_id": null,
       "products_count": 412,
       "default_tax": "IVA general 13%",
-      "target_margin": 25,
+      "target_margin": "25",
       "status": "active"
     },
     {
@@ -359,7 +378,7 @@ Registra una categoría raíz o una subcategoría.
     "parent_id": null,
     "products_count": 0,
     "default_tax": "IVA general 13%",
-    "target_margin": 25,
+    "target_margin": "25",
     "status": "active"
   }
 }
@@ -426,9 +445,9 @@ Devuelve la lista sembrada por la migración.
 {
   "success": true,
   "data": [
-    { "id": "uuid", "name": "IVA general 13%", "percentage": 13 },
-    { "id": "uuid", "name": "IVA reducido 5%", "percentage": 5 },
-    { "id": "uuid", "name": "Exempt", "percentage": 0 }
+    { "id": "uuid", "name": "IVA general 13%", "percentage": "13" },
+    { "id": "uuid", "name": "IVA reducido 5%", "percentage": "5" },
+    { "id": "uuid", "name": "Exempt", "percentage": "0" }
   ]
 }
 ```
@@ -517,7 +536,7 @@ Reemplaza los datos editables de un producto. Endpoint de HU-03-03/04, adaptado 
 | `UNAUTHORIZED` | 401 | Token ausente, inválido, expirado o sesión cerrada. |
 | `FORBIDDEN` | 403 | Usuario sin `products.update`. |
 | `NOT_FOUND` | 404 | `product not found` / `category not found` / `unit of measure not found`. |
-| `CONFLICT` | 409 | `product name already exists` / `SKU already exists` / `barcode already exists` en otro producto. |
+| `CONFLICT` | 409 | Nombre, SKU o código de barras ya usado por otro producto, con `details.conflicts` (ver [HU-06-01](HU-06-01-endpoints.md)). |
 
 ---
 
@@ -594,11 +613,11 @@ Elimina un producto con borrado lógico. Endpoint de HU-03-03/04.
   "description": "string (se omite si está vacío)",
   "category": { "id": "uuid", "name": "string" },
   "unit_of_measure_id": "uuid",
-  "cost": 0.00,
-  "price": 0.00,
+  "cost": "0.00",
+  "price": "0.00",
   "margin": 0,
-  "stock": 0,
-  "min_stock": 0,
+  "stock": "0",
+  "min_stock": "0",
   "stock_status": "normal | low_stock | out_of_stock",
   "status": "active | inactive",
   "created_at": "date (RFC3339, UTC)",
@@ -616,7 +635,7 @@ Elimina un producto con borrado lógico. Endpoint de HU-03-03/04.
   "description": "string (se omite si está vacío)",
   "products_count": 0,
   "default_tax": "string | null",
-  "target_margin": "number | null",
+  "target_margin": "string | null (decimal serializado como string)",
   "status": "active | inactive"
 }
 ```
@@ -648,8 +667,8 @@ Elimina un producto con borrado lógico. Endpoint de HU-03-03/04.
 - **Nombres en entrada y salida:** al crear se envía `sale_price`, pero en las respuestas el campo se llama `price`, como en el contrato.
 - **Normalización:** el SKU se guarda en mayúsculas (`aba-412` → `ABA-412`); en los nombres se quitan los espacios sobrantes. La respuesta devuelve el valor ya normalizado.
 - **Unicidad por empresa:** nombre de producto, SKU y código de barras se pueden repetir en otra empresa. El nombre de categoría solo es único dentro del mismo nivel: "Aceites" puede existir como raíz y como hija de "Abarrotes".
-- **Borrado lógico:** un producto o categoría borrado libera su nombre, SKU o código de barras.
-- **Peticiones simultáneas:** dos altas iguales a la vez crean una sola; la otra recibe `409`, no `500` (índices únicos parciales en la base de datos).
+- **Borrado lógico:** un producto borrado libera su nombre, pero su SKU y su código de barras siguen ocupados (HU-06-01). Una categoría borrada libera su nombre.
+- **Peticiones simultáneas:** dos altas iguales a la vez crean una sola; la otra recibe el mismo `409` con el producto que ganó, no `500` (índices únicos en la base de datos).
 - **Dinero:** se guarda como `numeric(12,2)` y se devuelve como número con 2 decimales exactos (`4.20`). Cantidades (`stock`, `percentage`, `target_margin`) se devuelven sin ceros de relleno (`496`, `13`, `25`).
 - **Paginación:** si `limit` es menor que 1 o mayor que 100, se usa `20`; si `page` es menor que 1, se usa `1`. Una página fuera de rango devuelve `data: []` con el `meta` correcto.
 - **Relaciones:** el producto trae la categoría expandida (`id` + `name`); la unidad viene solo como `unit_of_measure_id`.

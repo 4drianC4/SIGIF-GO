@@ -67,7 +67,7 @@ migrate-create:
 
 # Docker commands
 docker-up:
-	docker compose -f deployments/docker/docker-compose.yml up -d
+	docker compose -f deployments/docker/docker-compose.yml up -d --build
 
 docker-down:
 	docker compose -f deployments/docker/docker-compose.yml down

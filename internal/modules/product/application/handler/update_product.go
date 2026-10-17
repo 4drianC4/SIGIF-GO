@@ -21,6 +21,8 @@ func (h *CatalogCommandHandler) HandleUpdateProduct(ctx context.Context, cmd com
 		Cost:            cmd.Cost,
 		SalePrice:       cmd.SalePrice,
 		MinStock:        cmd.MinStock,
+		UserID:          cmd.UserID,
+		Reason:          cmd.Reason,
 	})
 }
 

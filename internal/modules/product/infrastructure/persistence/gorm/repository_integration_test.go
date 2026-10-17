@@ -202,8 +202,10 @@ func TestCatalogRepositories(t *testing.T) {
 		Update("deleted_at", time.Now()).Error; err != nil {
 		t.Fatalf("soft delete: %v", err)
 	}
-	if err := r.products.Create(ctx, newProduct("Galletas María", "ABA-412", "7750000000001", "4.20", "1", "0")); err != nil {
-		t.Errorf("deleted product must free name, sku and barcode: %v", err)
+	// A deleted product frees its name; its SKU and barcode stay reserved
+	// (see uniqueness_integration_test.go).
+	if err := r.products.Create(ctx, newProduct("Galletas María", "", "", "4.20", "1", "0")); err != nil {
+		t.Errorf("deleted product must free its name: %v", err)
 	}
 }
 
@@ -247,33 +249,41 @@ func TestProductLifecycleRepository(t *testing.T) {
 		t.Errorf("GetByID must be scoped by company")
 	}
 
-	exists := []struct {
+	finders := []struct {
 		name    string
-		check   func(uuid.UUID) (bool, error)
+		find    func(uuid.UUID) (*entity.Product, error)
 		exclude uuid.UUID
-		want    bool
+		want    *entity.Product
 	}{
-		{"name, no exclusion", func(id uuid.UUID) (bool, error) {
-			return r.products.ExistsByName(ctx, companyID, "wiskas GATO adulto", id)
-		}, uuid.Nil, true},
-		{"name, excluding itself", func(id uuid.UUID) (bool, error) {
-			return r.products.ExistsByName(ctx, companyID, "wiskas GATO adulto", id)
-		}, first.ID, false},
-		{"name, excluding another", func(id uuid.UUID) (bool, error) {
-			return r.products.ExistsByName(ctx, companyID, "wiskas GATO adulto", id)
-		}, second.ID, true},
-		{"sku, excluding itself", func(id uuid.UUID) (bool, error) { return r.products.ExistsBySKU(ctx, companyID, "WIA-879", id) }, first.ID, false},
-		{"sku, excluding another", func(id uuid.UUID) (bool, error) { return r.products.ExistsBySKU(ctx, companyID, "WIA-879", id) }, second.ID, true},
-		{"barcode, excluding itself", func(id uuid.UUID) (bool, error) {
-			return r.products.ExistsByBarcode(ctx, companyID, "7750000000011", id)
-		}, first.ID, false},
-		{"barcode, excluding another", func(id uuid.UUID) (bool, error) {
-			return r.products.ExistsByBarcode(ctx, companyID, "7750000000011", id)
-		}, second.ID, true},
+		{"name, no exclusion", func(id uuid.UUID) (*entity.Product, error) {
+			return r.products.FindByName(ctx, companyID, "wiskas GATO adulto", id)
+		}, uuid.Nil, first},
+		{"name, excluding itself", func(id uuid.UUID) (*entity.Product, error) {
+			return r.products.FindByName(ctx, companyID, "wiskas GATO adulto", id)
+		}, first.ID, nil},
+		{"name, excluding another", func(id uuid.UUID) (*entity.Product, error) {
+			return r.products.FindByName(ctx, companyID, "wiskas GATO adulto", id)
+		}, second.ID, first},
+		{"sku, excluding itself", func(id uuid.UUID) (*entity.Product, error) {
+			return r.products.FindBySKU(ctx, companyID, "WIA-879", id)
+		}, first.ID, nil},
+		{"sku, excluding another", func(id uuid.UUID) (*entity.Product, error) {
+			return r.products.FindBySKU(ctx, companyID, "WIA-879", id)
+		}, second.ID, first},
+		{"barcode, excluding itself", func(id uuid.UUID) (*entity.Product, error) {
+			return r.products.FindByBarcode(ctx, companyID, "7750000000011", id)
+		}, first.ID, nil},
+		{"barcode, excluding another", func(id uuid.UUID) (*entity.Product, error) {
+			return r.products.FindByBarcode(ctx, companyID, "7750000000011", id)
+		}, second.ID, first},
+		{"sku of another company", func(id uuid.UUID) (*entity.Product, error) {
+			return r.products.FindBySKU(ctx, otherCompany, "WIA-879", id)
+		}, uuid.Nil, nil},
 	}
-	for _, tt := range exists {
-		if ok, err := tt.check(tt.exclude); err != nil || ok != tt.want {
-			t.Errorf("%s: got %v, %v; want %v", tt.name, ok, err, tt.want)
+	for _, tt := range finders {
+		found, err := tt.find(tt.exclude)
+		if err != nil || (found == nil) != (tt.want == nil) || (found != nil && found.ID != tt.want.ID) {
+			t.Errorf("%s: got %+v, %v; want %v", tt.name, found, err, tt.want)
 		}
 	}
 
@@ -337,4 +347,106 @@ func TestProductLifecycleRepository(t *testing.T) {
 		t.Errorf("deleted product must not be listed: total=%d", total)
 	}
 	create("Wiskas Gato adulto 1kg", "WIA-879", "7750000000011")
+}
+
+func TestProductStockStatusFilter(t *testing.T) {
+	r := openDatabase(t)
+	ctx := context.Background()
+	clk := clock.NewMockClock(time.Now().UTC())
+	companyID := uuid.New()
+
+	units, _ := r.units.List(ctx)
+	unitID := units[0].ID
+	category, err := entity.NewCategory(clk, entity.NewCategoryParams{CompanyID: companyID, Name: "Stock"})
+	if err != nil {
+		t.Fatalf("NewCategory: %v", err)
+	}
+	if err := r.categories.Create(ctx, category); err != nil {
+		t.Fatalf("create category: %v", err)
+	}
+
+	newProduct := func(name, stock, minStock string) *entity.Product {
+		p, err := entity.NewProduct(clk, entity.NewProductParams{
+			CompanyID: companyID, CategoryID: category.ID, UnitOfMeasureID: unitID,
+			Name: name, Cost: decimal.RequireFromString("1.00"), SalePrice: decimal.RequireFromString("2.00"),
+			InitialStock: decimal.RequireFromString(stock), MinStock: decimal.RequireFromString(minStock),
+		})
+		if err != nil {
+			t.Fatalf("NewProduct: %v", err)
+		}
+		if err := r.products.Create(ctx, p); err != nil {
+			t.Fatalf("create product %s: %v", name, err)
+		}
+		return p
+	}
+	balance := func(p *entity.Product, quantity string) {
+		if err := r.db.DB.Create(&model.StockBalanceModel{
+			CompanyID: companyID, ProductID: p.ID, BranchID: 1, LocationID: 1,
+			Quantity: decimal.RequireFromString(quantity),
+		}).Error; err != nil {
+			t.Fatalf("create balance: %v", err)
+		}
+	}
+
+	// products.stock is deliberately wrong on the inventory-backed products to
+	// prove the stock_balance cache wins when the product has inventory rows.
+	normal := newProduct("Normal", "999", "2")
+	balance(normal, "10")
+	low := newProduct("Low", "999", "2")
+	balance(low, "2") // boundary: stock == min_stock must be low_stock
+	out := newProduct("Out", "999", "5")
+	balance(out, "0")
+	fallback := newProduct("Fallback", "7", "3") // no balance row -> products.stock
+
+	list := func(status entity.StockStatus) []string {
+		items, total, err := r.products.List(ctx, companyID, repository.ProductFilter{StockStatus: &status}, 0, 20)
+		if err != nil {
+			t.Fatalf("list %s: %v", status, err)
+		}
+		if int64(len(items)) != total {
+			t.Fatalf("list %s: total=%d len=%d", status, total, len(items))
+		}
+		names := make([]string, len(items))
+		for i, item := range items {
+			names[i] = item.Product.Name
+		}
+		return names
+	}
+
+	if got := list(entity.StockStatusNormal); len(got) != 2 || got[0] != "Fallback" || got[1] != "Normal" {
+		t.Errorf("normal = %v, want [Fallback Normal]", got)
+	}
+	if got := list(entity.StockStatusLowStock); len(got) != 1 || got[0] != "Low" {
+		t.Errorf("low_stock = %v, want [Low]", got)
+	}
+	if got := list(entity.StockStatusOutOfStock); len(got) != 1 || got[0] != "Out" {
+		t.Errorf("out_of_stock = %v, want [Out]", got)
+	}
+
+	items, _, err := r.products.List(ctx, companyID, repository.ProductFilter{}, 0, 20)
+	if err != nil {
+		t.Fatalf("list all: %v", err)
+	}
+	stockByName := map[string]decimal.Decimal{}
+	for _, item := range items {
+		stockByName[item.Product.Name] = item.Product.Stock
+	}
+	if !stockByName["Normal"].Equal(decimal.RequireFromString("10")) {
+		t.Errorf("Normal stock = %s, want 10 (balance overrides products.stock)", stockByName["Normal"])
+	}
+	if !stockByName["Fallback"].Equal(decimal.RequireFromString("7")) {
+		t.Errorf("Fallback stock = %s, want 7 (products.stock fallback)", stockByName["Fallback"])
+	}
+	if fallback.ID == uuid.Nil {
+		t.Errorf("fallback product not created")
+	}
+
+	summary, err := r.products.Summary(ctx, companyID, time.Now().UTC().Add(time.Hour))
+	if err != nil {
+		t.Fatalf("summary: %v", err)
+	}
+	// Effective inventory: 10 + 2 + 0 + 7 = 19 (cost 1.00 each).
+	if !summary.InventoryValue.Equal(decimal.RequireFromString("19")) || summary.LowStock != 1 {
+		t.Errorf("summary = %+v, want inventory=19 low_stock=1", summary)
+	}
 }

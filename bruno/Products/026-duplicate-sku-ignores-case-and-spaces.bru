@@ -1,0 +1,50 @@
+meta {
+  name: Duplicate SKU Ignoring Case And Spaces (409)
+  type: http
+  seq: 26
+}
+
+post {
+  url: {{baseUrl}}/api/v1/products
+  body: json
+  auth: bearer
+}
+
+headers {
+  Content-Type: application/json
+}
+
+auth:bearer {
+  token: {{accessToken}}
+}
+
+body:json {
+  {
+    "name": "Otro {{holderName}}",
+    "sku": "  {{holderSkuLower}}  ",
+    "category_id": "{{categoryId}}",
+    "unit_of_measure_id": "{{unitId}}",
+    "cost": 1,
+    "sale_price": 2
+  }
+}
+
+script:pre-request {
+  bru.setVar('holderSkuLower', String(bru.getVar('holderSku')).toLowerCase());
+}
+
+tests {
+  test("rechaza el SKU repetido e informa con qué producto choca", function() {
+    expect(res.status).to.equal(409);
+    expect(res.body.error.code).to.equal('CONFLICT');
+    expect(res.body.error.message).to.equal('SKU already exists');
+    expect(res.body.error.details.conflicts).to.have.lengthOf(1);
+    expect(res.body.error.details.conflicts[0].field).to.equal('sku');
+    expect(res.body.error.details.conflicts[0].code).to.equal('SKU_DUPLICATE');
+    expect(res.body.error.details.conflicts[0].value).to.equal(bru.getVar('holderSku'));
+    const c = res.body.error.details.conflicts;
+    expect(c[0].existing_product.id).to.equal(bru.getVar('holderId'));
+    expect(c[0].existing_product.name).to.equal(bru.getVar('holderName'));
+    expect(c[0].existing_product.deleted).to.equal(false);
+  });
+}
