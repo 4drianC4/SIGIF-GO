@@ -1,0 +1,21 @@
+meta {
+  name: Deactivate User
+  type: http
+  seq: 10
+}
+
+post {
+  url: {{baseUrl}}/api/v1/users/{{historyUserId}}/deactivate
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{accessToken}}
+}
+
+tests {
+  test("deactivates the user", function() {
+    expect(res.status < 300).to.equal(true);
+  });
+}

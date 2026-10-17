@@ -21,7 +21,10 @@ var Module = fx.Options(
 		fx.Annotate(gorm.NewUserGormRepository, fx.As(new(repository.UserRepository))),
 		fx.Annotate(gorm.NewRoleGormRepository, fx.As(new(repository.RoleRepository))),
 		fx.Annotate(gorm.NewPermissionGormRepository, fx.As(new(repository.PermissionRepository))),
+		gorm.NewUserHistoryGormRepository,
+		gorm.NewTransactor,
 		service.NewUserService,
+		service.NewHistoryService,
 		// Expose the same UserService as the RBAC PermissionChecker used by the
 		// shared middleware.
 		func(s *service.UserService) middleware.PermissionChecker { return s },

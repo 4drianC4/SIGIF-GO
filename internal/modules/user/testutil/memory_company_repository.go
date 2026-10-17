@@ -19,8 +19,12 @@ type MemoryCompanyRepository struct {
 	ids map[uuid.UUID]bool
 }
 
-func NewMemoryCompanyRepository() *MemoryCompanyRepository {
-	return &MemoryCompanyRepository{ids: map[uuid.UUID]bool{}}
+func NewMemoryCompanyRepository(ids ...uuid.UUID) *MemoryCompanyRepository {
+	r := &MemoryCompanyRepository{ids: map[uuid.UUID]bool{}}
+	for _, id := range ids {
+		r.ids[id] = true
+	}
+	return r
 }
 
 func (r *MemoryCompanyRepository) ExistsByID(_ context.Context, id uuid.UUID) (bool, error) {
