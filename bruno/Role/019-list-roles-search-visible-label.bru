@@ -1,0 +1,28 @@
+meta {
+  name: List Roles - Visible Labels Search
+  type: http
+  seq: 19
+}
+
+get {
+  url: {{baseUrl}}/api/v1/roles/?q=empleado
+  body: none
+  auth: bearer
+}
+
+params:query {
+  q: empleado
+}
+
+auth:bearer {
+  token: {{accessToken}}
+}
+
+tests {
+  test("permite buscar por etiqueta visible en español", function() {
+    expect(res.status).to.equal(200);
+    expect(res.body.success).to.equal(true);
+    const names = res.body.data.map(r => r.name);
+    expect(names).to.include('employee');
+  });
+}

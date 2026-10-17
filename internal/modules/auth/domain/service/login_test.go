@@ -39,6 +39,10 @@ func (r *loginUsers) RecordAccess(context.Context, uuid.UUID) error {
 	return nil
 }
 
+func (r *loginUsers) PermissionsByRole(context.Context, uuid.UUID) ([]string, error) {
+	return nil, nil
+}
+
 type loginSessions struct {
 	created []*entity.UserSession
 }

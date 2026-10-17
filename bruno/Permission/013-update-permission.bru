@@ -1,0 +1,34 @@
+meta {
+  name: Update Permission
+  type: http
+  seq: 13
+}
+
+patch {
+  url: {{baseUrl}}/api/v1/permissions/{{editablePermissionId}}
+  body: json
+  auth: bearer
+}
+
+headers {
+  Content-Type: application/json
+}
+
+auth:bearer {
+  token: {{accessToken}}
+}
+
+body:json {
+  {
+    "description": "Exportar productos actualizado"
+  }
+}
+
+tests {
+  test("actualiza la descripción y responde 200", function() {
+    expect(res.status).to.equal(200);
+    expect(res.body.success).to.equal(true);
+    expect(res.body.data.description).to.equal('Exportar productos actualizado');
+    expect(res.body.data.is_system).to.equal(false);
+  });
+}

@@ -1,0 +1,40 @@
+meta {
+  name: Deactivate Role
+  type: http
+  seq: 4
+}
+
+patch {
+  url: {{baseUrl}}/api/v1/roles/{{employeeId}}/status
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{accessToken}}
+}
+
+headers {
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "status": "inactive"
+  }
+}
+
+tests {
+  test("responde 200 con el rol desactivado", function() {
+    expect(res.status).to.equal(200);
+    expect(res.body.success).to.equal(true);
+    expect(res.body.data.id).to.equal(bru.getVar('employeeId'));
+    expect(res.body.data.status).to.equal('inactive');
+  });
+
+  test("la configuración y los permisos del rol se conservan", function() {
+    expect(res.body.data.name).to.equal('employee');
+    expect(res.body.data.type).to.equal('system');
+    expect(res.body.data.permissions_count).to.be.a('number');
+  });
+}

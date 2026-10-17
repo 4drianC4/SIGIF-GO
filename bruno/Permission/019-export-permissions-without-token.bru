@@ -1,0 +1,18 @@
+meta {
+  name: Export Permissions - Without Token (401)
+  type: http
+  seq: 19
+}
+
+get {
+  url: {{baseUrl}}/api/v1/permissions/export
+  body: none
+  auth: none
+}
+
+tests {
+  test("rechaza con 401 la exportación sin token", function() {
+    expect(res.status).to.equal(401);
+    expect(res.body.error.code).to.equal('UNAUTHORIZED');
+  });
+}

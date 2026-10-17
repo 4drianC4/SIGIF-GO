@@ -17,8 +17,11 @@ var Module = fx.Options(
 	fx.Provide(
 		fx.Annotate(gorm.NewProductGormRepository, fx.As(new(repository.ProductRepository))),
 		fx.Annotate(gorm.NewCategoryGormRepository, fx.As(new(repository.CategoryRepository))),
+		fx.Annotate(gorm.NewUnitOfMeasureGormRepository, fx.As(new(repository.UnitOfMeasureRepository))),
+		fx.Annotate(gorm.NewTaxGormRepository, fx.As(new(repository.TaxRepository))),
 		service.NewCatalogService,
 		handler.NewCatalogCommandHandler,
+		handler.NewCatalogQueryHandler,
 	),
 
 	fx.Provide(httpHandler.NewCatalogHTTPHandler),

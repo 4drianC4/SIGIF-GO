@@ -5,44 +5,48 @@ import (
 )
 
 type User struct {
-	ID        string                `json:"id"`
-	CompanyID *string               `json:"company_id,omitempty"`
-	RoleID    string                `json:"role_id"`
-	Role      string                `json:"role"`
-	FirstName string                `json:"first_name"`
-	LastName  string                `json:"last_name"`
-	Username  string                `json:"username"`
-	Email     string                `json:"email"`
-	Status    userEntity.UserStatus `json:"status"`
+	ID          string                `json:"id"`
+	CompanyID   *string               `json:"company_id,omitempty"`
+	RoleID      string                `json:"role_id"`
+	Role        string                `json:"role"`
+	Permissions []string              `json:"permissions"`
+	FirstName   string                `json:"first_name"`
+	LastName    string                `json:"last_name"`
+	Username    string                `json:"username"`
+	Email       string                `json:"email"`
+	Status      userEntity.UserStatus `json:"status"`
 }
 
-type Token struct {
-	AccessToken string `json:"access_token"`
-	ExpiresIn   int    `json:"expires_in"`
-	TokenType   string `json:"token_type"`
+// LoginResult is what the login use case hands to the transport layer. The
+// access token is never serialized: the HTTP layer moves it into the HttpOnly
+// auth cookie so it is not readable from JavaScript.
+type LoginResult struct {
+	User        User
+	AccessToken string `json:"-"`
+	ExpiresIn   int
 }
 
-type AuthResponse struct {
-	User  User  `json:"user"`
-	Token Token `json:"token"`
-}
-
-func FromUser(u *userEntity.AppUser) User {
+func FromUser(u *userEntity.AppUser, permissions []string) User {
 	var companyID *string
 	if u.CompanyID != nil {
 		s := u.CompanyID.String()
 		companyID = &s
 	}
 
+	if permissions == nil {
+		permissions = []string{}
+	}
+
 	return User{
-		ID:        u.ID.String(),
-		CompanyID: companyID,
-		RoleID:    u.RoleID.String(),
-		Role:      u.RoleName,
-		FirstName: u.FirstName,
-		LastName:  u.LastName,
-		Username:  u.Username,
-		Email:     u.Email,
-		Status:    u.Status,
+		ID:          u.ID.String(),
+		CompanyID:   companyID,
+		RoleID:      u.RoleID.String(),
+		Role:        u.RoleName,
+		Permissions: permissions,
+		FirstName:   u.FirstName,
+		LastName:    u.LastName,
+		Username:    u.Username,
+		Email:       u.Email,
+		Status:      u.Status,
 	}
 }

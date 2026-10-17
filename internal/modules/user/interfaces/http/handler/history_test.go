@@ -64,7 +64,10 @@ func newHistoryEnv(authenticated bool, operation string) *historyEnv {
 		})
 	}
 
-	svc := service.NewUserService(env.users, testutil.MemoryRoleRepository{}, nil, env.clock, testutil.NewMemoryCompanyRepository(env.companyID, env.otherID))
+	roles := testutil.NewMemoryRoleRepository()
+	roles.Seed(&entity.Role{ID: uuid.New(), Name: entity.RoleEmployee, Status: entity.RoleStatusActive})
+	roles.Seed(&entity.Role{ID: uuid.New(), Name: entity.RoleBusinessAdmin, Status: entity.RoleStatusActive})
+	svc := service.NewUserService(env.users, roles, nil, env.clock, testutil.NewMemoryCompanyRepository(env.companyID, env.otherID))
 	history := service.NewHistoryService(env.history, env.users, env.clock)
 	h := httpHandler.NewUserHTTPHandler(
 		appHandler.NewUserCommandHandler(svc, history, testutil.Transactor{}),

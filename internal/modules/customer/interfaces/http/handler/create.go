@@ -30,6 +30,7 @@ func (h *CustomerHTTPHandler) Create(c *fiber.Ctx) error {
 		DocumentNumber: req.DocumentNumber,
 		Phone:          req.Phone,
 		Email:          req.Email,
+		CreditLimit:    req.CreditLimit,
 	}
 
 	customer, err := h.cmdHandler.HandleCreate(c.UserContext(), cmd)

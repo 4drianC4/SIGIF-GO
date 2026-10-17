@@ -6,13 +6,19 @@ import (
 )
 
 type CatalogHTTPHandler struct {
-	cmdHandler *handler.CatalogCommandHandler
-	validator  *validator.Validator
+	cmdHandler   *handler.CatalogCommandHandler
+	queryHandler *handler.CatalogQueryHandler
+	validator    *validator.Validator
 }
 
-func NewCatalogHTTPHandler(cmdHandler *handler.CatalogCommandHandler, val *validator.Validator) *CatalogHTTPHandler {
+func NewCatalogHTTPHandler(
+	cmdHandler *handler.CatalogCommandHandler,
+	queryHandler *handler.CatalogQueryHandler,
+	val *validator.Validator,
+) *CatalogHTTPHandler {
 	return &CatalogHTTPHandler{
-		cmdHandler: cmdHandler,
-		validator:  val,
+		cmdHandler:   cmdHandler,
+		queryHandler: queryHandler,
+		validator:    val,
 	}
 }

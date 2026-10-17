@@ -1,0 +1,23 @@
+meta {
+  name: Validate Duplicate
+  type: http
+  seq: 13
+}
+
+get {
+  url: {{baseUrl}}/api/v1/products/validate-duplicate?name={{productName}}&sku={{productSku}}
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{accessToken}}
+}
+
+tests {
+  test("detecta el nombre repetido", function() {
+    expect(res.status).to.equal(200);
+    expect(res.body.data.exists).to.equal(true);
+    expect(res.body.data.field).to.equal('name');
+  });
+}

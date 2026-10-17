@@ -19,6 +19,36 @@ func (grantAllPermRepo) HasPermission(_ context.Context, _ uuid.UUID, _, _ strin
 	return true, nil
 }
 
+func (grantAllPermRepo) List(context.Context, string, int, int) ([]*entity.Permission, int64, error) {
+	return nil, 0, nil
+}
+
+func (grantAllPermRepo) GetByModuleOperation(context.Context, string, string) (*entity.Permission, error) {
+	return nil, nil
+}
+
+func (grantAllPermRepo) GetByID(context.Context, uuid.UUID) (*entity.Permission, error) {
+	return nil, nil
+}
+
+func (grantAllPermRepo) ListAll(context.Context, string) ([]*entity.Permission, error) {
+	return nil, nil
+}
+
+func (grantAllPermRepo) ListByRole(context.Context, uuid.UUID) ([]*entity.Permission, error) {
+	return nil, nil
+}
+
+func (grantAllPermRepo) Create(context.Context, *entity.Permission) error { return nil }
+
+func (grantAllPermRepo) Update(context.Context, *entity.Permission) error { return nil }
+
+func (grantAllPermRepo) Delete(context.Context, uuid.UUID) error { return nil }
+
+func (grantAllPermRepo) CountRolesByPermission(context.Context, uuid.UUID) (int64, error) {
+	return 0, nil
+}
+
 func seedStoredUser(t *testing.T, users *memoryUserRepo, email string) *entity.AppUser {
 	t.Helper()
 	user := seedTestUser(t, email)
@@ -133,7 +163,10 @@ func TestActivateRestoresDeactivatedUser(t *testing.T) {
 func TestDeactivatedUserLosesPermissions(t *testing.T) {
 	users := newMemoryUserRepo()
 	user := seedStoredUser(t, users, "juan@sigif.com")
-	svc := NewUserService(users, &memoryRoleRepo{}, grantAllPermRepo{}, clock.NewMockClock(time.Now()), &memoryCompanyRepo{})
+	roles := &memoryRoleRepo{byName: map[string]*entity.Role{
+		entity.RoleEmployee: {ID: user.RoleID, Name: entity.RoleEmployee, Status: entity.RoleStatusActive},
+	}}
+	svc := NewUserService(users, roles, grantAllPermRepo{}, clock.NewMockClock(time.Now()), &memoryCompanyRepo{})
 	ctx := context.Background()
 
 	allowed, err := svc.HasPermission(ctx, user.ID, "users", "read")

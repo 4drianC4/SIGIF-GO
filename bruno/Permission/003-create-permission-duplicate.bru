@@ -1,0 +1,34 @@
+meta {
+  name: Create Permission - Duplicate (409)
+  type: http
+  seq: 3
+}
+
+post {
+  url: {{baseUrl}}/api/v1/permissions/
+  body: json
+  auth: bearer
+}
+
+headers {
+  Content-Type: application/json
+}
+
+auth:bearer {
+  token: {{accessToken}}
+}
+
+body:json {
+  {
+    "module": "users",
+    "operation": "create"
+  }
+}
+
+tests {
+  test("rechaza con 409 CONFLICT un código ya registrado por el seed", function() {
+    expect(res.status).to.equal(409);
+    expect(res.body.error.code).to.equal('CONFLICT');
+    expect(res.body.error.details.code).to.equal('already registered');
+  });
+}

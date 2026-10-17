@@ -2,24 +2,53 @@ package service
 
 import (
 	"context"
+	"sort"
 	"testing"
 	"time"
 
 	"github.com/google/uuid"
 
 	"github.com/sigif/sigif-go/internal/modules/user/domain/entity"
-	"github.com/sigif/sigif-go/internal/modules/user/testutil"
 	"github.com/sigif/sigif-go/internal/shared/clock"
 	sharedErrors "github.com/sigif/sigif-go/internal/shared/errors"
 )
 
-func setupHistoryService(t *testing.T) (*HistoryService, *testutil.MemoryHistoryRepository, *clock.MockClock, *entity.AppUser, *entity.AppUser) {
+type memoryHistoryRepository struct {
+	records []*entity.UserHistory
+}
+
+func (r *memoryHistoryRepository) Create(_ context.Context, history *entity.UserHistory) error {
+	r.records = append(r.records, history)
+	return nil
+}
+
+func (r *memoryHistoryRepository) ListByUserID(_ context.Context, userID uuid.UUID, offset, limit int) ([]*entity.UserHistory, int64, error) {
+	matches := make([]*entity.UserHistory, 0)
+	for i := len(r.records) - 1; i >= 0; i-- {
+		if r.records[i].UserID == userID {
+			matches = append(matches, r.records[i])
+		}
+	}
+	sort.SliceStable(matches, func(i, j int) bool { return matches[i].CreatedAt.After(matches[j].CreatedAt) })
+	total := int64(len(matches))
+	if offset > len(matches) {
+		offset = len(matches)
+	}
+	end := min(offset+limit, len(matches))
+	return matches[offset:end], total, nil
+}
+
+func (r *memoryHistoryRepository) All() []*entity.UserHistory {
+	return append([]*entity.UserHistory(nil), r.records...)
+}
+
+func setupHistoryService(t *testing.T) (*HistoryService, *memoryHistoryRepository, *clock.MockClock, *entity.AppUser, *entity.AppUser) {
 	t.Helper()
 	target := seedTestUser(t, "target@sigif.com")
 	actor := seedTestUser(t, "admin@sigif.com")
 	actor.FirstName = "Admin"
 	actor.LastName = "SIGIF"
-	historyRepo := testutil.NewMemoryHistoryRepository()
+	historyRepo := &memoryHistoryRepository{}
 	mockClock := clock.NewMockClock(time.Date(2026, 10, 8, 18, 20, 0, 0, time.UTC))
 	return NewHistoryService(historyRepo, newMemoryUserRepo(target, actor), mockClock), historyRepo, mockClock, target, actor
 }
