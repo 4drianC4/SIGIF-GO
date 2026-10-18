@@ -56,6 +56,7 @@ type customerItem struct {
 	CompanyID      string  `json:"company_id"`
 	LegalName      string  `json:"legal_name"`
 	DocumentNumber *string `json:"document_number"`
+	CreditLimit    string  `json:"credit_limit"`
 	Status         string  `json:"status"`
 }
 
@@ -240,17 +241,22 @@ func TestListCustomersEndpointDefaultsToActive(t *testing.T) {
 func TestListCustomersEndpointReturnsSummaryFields(t *testing.T) {
 	s := newTestServer(t)
 	customer := s.seed(t, companyA, "Ferreteria Central", "1020304050", entity.CustomerStatusActive)
-	customer.CreditLimit = decimal.NewFromInt(1000)
+	customer.CreditLimit = decimal.RequireFromString("2000.25")
 	customer.CreditBalance = decimal.NewFromFloat(250.5)
 	customer.PointsAccrued = 35
 	if err := s.customers.Update(context.Background(), customer); err != nil {
 		t.Fatalf("update financial summary: %v", err)
 	}
 
-	_, resp, _ := s.list(t, "", s.reader(t, companyA))
+	status, resp, _ := s.list(t, "", s.reader(t, companyA))
+	if status != fiber.StatusOK || !resp.Success {
+		t.Fatalf("status = %d, want 200 (error %+v)", status, resp.Error)
+	}
 
 	var raw []map[string]any
-	_ = json.Unmarshal(resp.Data, &raw)
+	if err := json.Unmarshal(resp.Data, &raw); err != nil {
+		t.Fatalf("decode listing: %v", err)
+	}
 	if len(raw) != 1 {
 		t.Fatalf("expected 1 item, got %d", len(raw))
 	}
@@ -262,7 +268,7 @@ func TestListCustomersEndpointReturnsSummaryFields(t *testing.T) {
 			t.Errorf("missing field %q in %v", field, raw[0])
 		}
 	}
-	if raw[0]["credit_limit"] != "1000" || raw[0]["credit_balance"] != "250.5" || raw[0]["points_accrued"] != float64(35) {
+	if raw[0]["credit_limit"] != "2000.25" || raw[0]["credit_balance"] != "250.5" || raw[0]["points_accrued"] != float64(35) {
 		t.Errorf("unexpected financial summary in %v", raw[0])
 	}
 	for _, field := range []string{"address", "created_at", "updated_at"} {

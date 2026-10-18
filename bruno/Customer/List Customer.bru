@@ -19,6 +19,17 @@ auth:bearer {
   token: {{accessToken}}
 }
 
+tests {
+  test("el listado incluye el limite de credito de cada cliente", function() {
+    expect(res.status).to.equal(200);
+    expect(res.body.success).to.equal(true);
+    expect(res.body.data).to.be.an('array');
+    res.body.data.forEach(function(c) {
+      expect(c).to.have.property('credit_limit').that.is.a('string');
+    });
+  });
+}
+
 settings {
   encodeUrl: true
   timeout: 0

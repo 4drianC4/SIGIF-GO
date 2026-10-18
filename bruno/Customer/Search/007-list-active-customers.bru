@@ -29,6 +29,7 @@ tests {
       expect(c).to.have.property('credit_limit');
       expect(c).to.have.property('credit_balance');
       expect(c).to.have.property('points_accrued');
+      expect(c.credit_limit).to.be.a('string');
     });
   });
 }
