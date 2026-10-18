@@ -22,15 +22,22 @@ body:json {
 }
 
 script:post-response {
+  // El access token ya no viaja en el JSON: se extrae de la cookie HttpOnly
+  // para seguir usándolo como Authorization: Bearer en esta colección.
+  const authCookie = [].concat(res.getHeader('set-cookie') || [])
+    .map((c) => c.split(';')[0])
+    .find((c) => c.startsWith('sigif_access_token='));
+  const accessTokenFromCookie = authCookie ? authCookie.substring('sigif_access_token='.length) : null;
   if (res.body && res.body.data) {
-    bru.setVar('tokenWithoutRolesStatus', res.body.data.token.access_token);
+    bru.setVar('tokenWithoutRolesStatus', accessTokenFromCookie);
   }
 }
 
 tests {
   test("responde 200 con un token sin roles.status", function() {
     expect(res.status).to.equal(200);
-    expect(res.body.data.token.access_token).to.be.a('string');
+    expect(res.body.data.token).to.equal(undefined);
+    expect([].concat(res.getHeader('set-cookie') || []).some((c) => c.startsWith('sigif_access_token='))).to.equal(true);
     expect(res.body.data.user.role).to.equal('business_admin');
   });
 }
