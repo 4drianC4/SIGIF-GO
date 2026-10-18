@@ -17,15 +17,13 @@ type User struct {
 	Status      userEntity.UserStatus `json:"status"`
 }
 
-type Token struct {
-	AccessToken string `json:"access_token"`
-	ExpiresIn   int    `json:"expires_in"`
-	TokenType   string `json:"token_type"`
-}
-
-type AuthResponse struct {
-	User  User  `json:"user"`
-	Token Token `json:"token"`
+// LoginResult is what the login use case hands to the transport layer. The
+// access token is never serialized: the HTTP layer moves it into the HttpOnly
+// auth cookie so it is not readable from JavaScript.
+type LoginResult struct {
+	User        User
+	AccessToken string `json:"-"`
+	ExpiresIn   int
 }
 
 func FromUser(u *userEntity.AppUser, permissions []string) User {

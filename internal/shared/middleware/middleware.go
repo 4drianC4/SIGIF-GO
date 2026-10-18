@@ -8,6 +8,7 @@ import (
 	"github.com/google/uuid"
 	"go.uber.org/zap"
 
+	"github.com/sigif/sigif-go/internal/shared/authcookie"
 	"github.com/sigif/sigif-go/internal/shared/errors"
 	"github.com/sigif/sigif-go/internal/shared/jwt"
 	"github.com/sigif/sigif-go/internal/shared/logger"
@@ -133,43 +134,48 @@ func isPublicPath(path string) bool {
 	return path == "/health" || path == "/api/v1/auth/login"
 }
 
-// AuthRequired authenticates the request from the Bearer token, verifies the
-// corresponding session is active and stores the identity in the context.
-func AuthRequired(jwtManager *jwt.JWTManager, sessions SessionReader) fiber.Handler {
+// AuthRequired authenticates the request, verifies the corresponding session
+// is active and stores the identity in the context.
+//
+// The access token is taken from the Authorization: Bearer header when the
+// client sends one explicitly (Bruno, automated tests, non-browser clients);
+// otherwise it is read from the HttpOnly auth cookie that login sets for
+// browsers. A rejected cookie is expired so the browser drops it.
+func AuthRequired(jwtManager *jwt.JWTManager, sessions SessionReader, cookie authcookie.Settings) fiber.Handler {
 	return func(c *fiber.Ctx) error {
 		if isPublicPath(c.Path()) {
 			return c.Next()
 		}
 
-		authorization := c.Get("Authorization")
-		if authorization == "" {
+		rawToken, fromCookie, ok := extractAccessToken(c, cookie)
+		unauthorized := func() error {
+			if fromCookie {
+				cookie.Clear(c)
+			}
 			return response.Error(c, fiber.StatusUnauthorized, errors.ErrUnauthorized)
 		}
-
-		parts := strings.SplitN(authorization, " ", 2)
-		if len(parts) != 2 || !strings.EqualFold(parts[0], "Bearer") {
-			return response.Error(c, fiber.StatusUnauthorized, errors.ErrUnauthorized)
+		if !ok {
+			return unauthorized()
 		}
-		rawToken := strings.TrimSpace(parts[1])
 
 		claims, err := jwtManager.ValidateAccessToken(rawToken)
 		if err != nil {
-			return response.Error(c, fiber.StatusUnauthorized, errors.ErrUnauthorized)
+			return unauthorized()
 		}
 
 		tokenHash := jwt.HashToken(rawToken)
 		active, err := sessions.IsActive(c.UserContext(), tokenHash)
 		if err != nil || !active {
-			return response.Error(c, fiber.StatusUnauthorized, errors.ErrUnauthorized)
+			return unauthorized()
 		}
 
 		userID, err := uuid.Parse(claims.UserID)
 		if err != nil {
-			return response.Error(c, fiber.StatusUnauthorized, errors.ErrUnauthorized)
+			return unauthorized()
 		}
 		sessionID, err := uuid.Parse(claims.SessionID)
 		if err != nil {
-			return response.Error(c, fiber.StatusUnauthorized, errors.ErrUnauthorized)
+			return unauthorized()
 		}
 
 		ctx := c.UserContext()
@@ -195,6 +201,26 @@ func AuthRequired(jwtManager *jwt.JWTManager, sessions SessionReader) fiber.Hand
 
 		return c.Next()
 	}
+}
+
+// extractAccessToken returns the raw access token, whether it came from the
+// auth cookie, and false when no usable credential was sent. An explicit
+// Authorization header takes precedence; a malformed one is rejected rather
+// than silently falling back to the cookie.
+func extractAccessToken(c *fiber.Ctx, cookie authcookie.Settings) (string, bool, bool) {
+	if authorization := c.Get(fiber.HeaderAuthorization); authorization != "" {
+		parts := strings.SplitN(authorization, " ", 2)
+		if len(parts) != 2 || !strings.EqualFold(parts[0], "Bearer") {
+			return "", false, false
+		}
+		token := strings.TrimSpace(parts[1])
+		return token, false, token != ""
+	}
+
+	if token := cookie.Read(c); token != "" {
+		return token, true, true
+	}
+	return "", false, false
 }
 
 // RequirePermission enforces role-based access control for a module/operation.
