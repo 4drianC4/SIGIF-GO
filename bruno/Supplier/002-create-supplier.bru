@@ -1,0 +1,35 @@
+meta {
+  name: Create Supplier
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{baseUrl}}/api/v1/suppliers
+  body: json
+  auth: bearer
+}
+
+headers {
+  Content-Type: application/json
+}
+
+auth:bearer {
+  token: {{accessToken}}
+}
+
+body:json {
+  {
+    "trade_name": "Distribuidora Andina",
+    "legal_name": "Distribuidora Andina S.R.L.",
+    "tax_id": "1044556670",
+    "contact": "Marcela Quispe",
+    "phone": "+591 70000001",
+    "email": "proveedores.bruno@example.com",
+    "address": "Av. Central 123",
+    "main_industry": "Abarrotes",
+    "payment_terms": "Crédito 30 días",
+    "lead_time_days": 2,
+    "minimum_order": 1500
+  }
+}

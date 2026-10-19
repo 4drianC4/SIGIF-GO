@@ -1,0 +1,15 @@
+meta {
+  name: Supplier Form Options
+  type: http
+  seq: 4
+}
+
+get {
+  url: {{baseUrl}}/api/v1/suppliers/form-options
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{accessToken}}
+}
