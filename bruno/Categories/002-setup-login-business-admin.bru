@@ -32,7 +32,7 @@ script:post-response {
 }
 
 tests {
-  test("responde 200: este rol no tiene categories.update ni categories.delete", function() {
+  test("responde 200: business_admin puede gestionar categorías de su empresa", function() {
     expect(res.status).to.equal(200);
   });
 }
