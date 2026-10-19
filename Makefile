@@ -1,4 +1,4 @@
-.PHONY: help build run test lint migrate-up migrate-down migrate-status migrate-force migrate-create docker-up docker-down docker-logs clean check-go
+.PHONY: help build run test test-integration lintmigrate-up migrate-down migrate-status migrate-force migrate-create docker-up docker-down docker-logs clean check-go
 
 GO_MIN_VERSION := 1.26
 PORT ?= 4600
@@ -15,6 +15,7 @@ help:
 	@echo "  make build         - Build the application"
 	@echo "  make run [PORT=4600] - Run the application locally"
 	@echo "  make test          - Run tests"
+	@echo "  make test-integration - Run the PostgreSQL tests (needs SIGIF_TEST_DATABASE_DSN)"
 	@echo "  make lint          - Run linter"
 	@echo "  make migrate-up    - Run database migrations"
 	@echo "  make migrate-down  - Rollback last migration"
@@ -40,6 +41,12 @@ run: check-go
 # Run tests
 test: check-go
 	go test -v -race -coverprofile=coverage.out ./...
+
+# Run the tests that need PostgreSQL. They skip without SIGIF_TEST_DATABASE_DSN, so fail early
+# instead of reporting a green run that tested nothing. -p 1: packages share the same database.
+test-integration: check-go
+	@test -n "$$SIGIF_TEST_DATABASE_DSN" || (echo "Set SIGIF_TEST_DATABASE_DSN, e.g. 'host=localhost port=5432 user=sigif password=sigif dbname=sigif_test sslmode=disable'" >&2; exit 1)
+	go test -p 1 -tags=integration -count=1 ./...
 
 # Run linter
 lint: check-go
