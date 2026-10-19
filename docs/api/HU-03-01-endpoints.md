@@ -27,6 +27,8 @@
 | `DELETE` | `/api/v1/products/:id` | `products.delete` | Elimina un producto (HU-03-03/04). |
 | `GET` | `/api/v1/categories` | `categories.list` | Lista todas las categorías (árbol + select). |
 | `POST` | `/api/v1/categories` | `categories.create` | Registra una categoría o subcategoría. |
+| `PATCH` | `/api/v1/categories/:id` | `categories.update` | Edita parcialmente una categoría o subcategoría. |
+| `DELETE` | `/api/v1/categories/:id` | `categories.delete` | Elimina (borrado lógico) una categoría sin subcategorías ni productos. |
 | `GET` | `/api/v1/units-of-measure` | — (solo sesión) | Lista unidades de medida (semilla). |
 | `GET` | `/api/v1/taxes` | — (solo sesión) | Lista impuestos (semilla). |
 
@@ -42,7 +44,7 @@
 - `userId`: claim `user_id` del token. Se usa para verificar el permiso contra `app_user → role → role_permission → permission`.
 - `companyId`: claim `company_id` del token. Productos y categorías se leen y guardan solo en esa empresa. Si el usuario no tiene empresa, responde `400 company is required`.
 
-Permisos usados: `products.list`, `products.create`, `products.read`, `products.update`, `products.delete`, `categories.list`, `categories.create`
+Permisos usados: `products.list`, `products.create`, `products.read`, `products.update`, `products.delete`, `categories.list`, `categories.create`, `categories.update`, `categories.delete`
 
 Todos se crean y se asignan al rol `superadmin` al ejecutar `make migrate-up`, también en bases ya existentes. Los roles `business_admin` y `employee` no los tienen (403). Unidades e impuestos solo requieren sesión.
 
@@ -602,6 +604,121 @@ Elimina un producto con borrado lógico. Endpoint de HU-03-03/04.
 
 ---
 
+## 13) Editar categoría — `PATCH /api/v1/categories/:id`
+
+Edita parcialmente una categoría raíz o una subcategoría. Cambia solo lo que se envía.
+
+### Permiso
+`categories.update`
+
+### Params de ruta
+- `id`: UUID de la categoría.
+
+### Body
+
+Objeto JSON con **al menos un campo editable y nada más**.
+
+```json
+{ "name": "Bebidas", "description": "Bebidas con y sin gas", "default_tax": "IVA general 13%", "target_margin": 25 }
+```
+
+| Campo | Tipo | `null` o vacío | Restricciones / notas |
+|---|---|---|---|
+| `name` | string | Error: no puede quedar vacío | 2–100 caracteres tras recortar espacios; los espacios repetidos se colapsan. Único dentro del mismo nivel, sin distinguir mayúsculas; la propia categoría no cuenta. |
+| `description` | string | Borra la descripción | Máximo 500 caracteres. |
+| `default_tax` | string | Limpia el impuesto (se hereda del padre) | Nombre exacto de un impuesto de `GET /api/v1/taxes` (sin distinguir mayúsculas). |
+| `target_margin` | number \| string | Limpia el margen (se hereda del padre) | 0–100, máximo 2 decimales. |
+
+- Un campo **no enviado** no se toca. Para volver a heredar del padre: `{ "default_tax": null, "target_margin": null }`.
+- El padre no se puede cambiar: `parent_id` se rechaza como campo no editable. Tampoco se aceptan `id`, `status`, `products_count`, `created_at`, `updated_at` ni `deleted_at`.
+- Una categoría inactiva se puede editar. Una eliminada responde `404`.
+
+### Respuesta exitosa
+
+**`200`** — mismo shape que un elemento de `GET /api/v1/categories`:
+```json
+{
+  "success": true,
+  "data": {
+    "id": "550e8400-e29b-41d4-a716-446655440003",
+    "name": "Aceites vegetales",
+    "parent_id": "550e8400-e29b-41d4-a716-446655440001",
+    "description": "Aceites de cocina",
+    "products_count": 0,
+    "default_tax": "IVA general 13%",
+    "target_margin": "25",
+    "status": "active"
+  }
+}
+```
+
+### Códigos de error
+
+| Code | HTTP | Causa |
+|---|---|---|
+| `VALIDATION_ERROR` | 400 | Cuerpo vacío o `{}` (`at least one editable field is required`); campo desconocido (`color is not a known field`) o no editable (`parent_id is not editable`); `name` vacío o fuera de 2–100; `description` de más de 500; `target_margin` fuera de 0–100 o con más de 2 decimales. `details` indica cada campo. |
+| `BAD_REQUEST` | 400 | JSON mal formado o que no es un objeto; `:id` que no es UUID (`invalid category id`); usuario sin empresa. |
+| `UNAUTHORIZED` | 401 | Token ausente, inválido, expirado o sesión cerrada. |
+| `FORBIDDEN` | 403 | Usuario sin `categories.update`. |
+| `NOT_FOUND` | 404 | `category not found` (no existe, está eliminada o es de otra empresa) o `tax not found`. |
+| `CONFLICT` | 409 | `category name already exists`: otra categoría del mismo nivel ya tiene ese nombre. |
+
+Los errores de forma (`name`, campos desconocidos) se informan juntos en `details`. El rango de `target_margin` es una regla del dominio y aparece cuando los demás ya están corregidos.
+
+```json
+{
+  "success": false,
+  "error": {
+    "code": "VALIDATION_ERROR",
+    "message": "validation failed",
+    "details": {
+      "color": "color is not a known field",
+      "parent_id": "parent_id is not editable"
+    }
+  }
+}
+```
+
+---
+
+## 14) Eliminar categoría — `DELETE /api/v1/categories/:id`
+
+Borrado **lógico**: la fila se conserva con `deleted_at`, deja de aparecer en el listado y su nombre queda libre para volver a usarse.
+
+### Permiso
+`categories.delete`
+
+### Params de ruta
+- `id`: UUID de la categoría.
+
+### Respuesta exitosa
+
+**`204`** sin cuerpo.
+
+### Reglas
+
+La categoría **no se puede eliminar** mientras tenga:
+1. **Subcategorías** no eliminadas, activas o inactivas → `409 category has subcategories`.
+2. **Productos** no eliminados, activos o inactivos → `409 category has products`.
+
+Se comprueba primero lo de subcategorías. Los productos y subcategorías ya eliminados no bloquean. Para eliminar un árbol hay que empezar por las hojas: productos, luego subcategorías y al final la categoría padre.
+
+### Códigos de error
+
+| Code | HTTP | Causa |
+|---|---|---|
+| `BAD_REQUEST` | 400 | `:id` que no es UUID (`invalid category id`); usuario sin empresa. |
+| `UNAUTHORIZED` | 401 | Token ausente, inválido, expirado o sesión cerrada. |
+| `FORBIDDEN` | 403 | Usuario sin `categories.delete`. |
+| `NOT_FOUND` | 404 | `category not found` (no existe, ya estaba eliminada o es de otra empresa). |
+| `CONFLICT` | 409 | `category has subcategories` o `category has products`. |
+
+```json
+{ "success": false, "error": { "code": "CONFLICT", "message": "category has subcategories" } }
+```
+
+---
+
 ## Estructura de respuesta de entidad `Product`
 
 ```json
@@ -650,12 +767,12 @@ Elimina un producto con borrado lógico. Endpoint de HU-03-03/04.
 
 | Code | HTTP | Origen |
 |---|---|---|
-| `BAD_REQUEST` | 400 | JSON inválido, usuario sin empresa, categoría inactiva, `validate-duplicate` sin parámetros, id de producto inválido, estado inválido o repetido |
+| `BAD_REQUEST` | 400 | JSON inválido, usuario sin empresa, categoría inactiva, `validate-duplicate` sin parámetros, id de producto o de categoría inválido, estado inválido o repetido |
 | `VALIDATION_ERROR` | 400 | Falla de validación de body o query (incluye `details` por campo) |
 | `UNAUTHORIZED` | 401 | Token ausente, inválido, expirado o sesión cerrada |
 | `FORBIDDEN` | 403 | Usuario sin el permiso del endpoint |
 | `NOT_FOUND` | 404 | Producto, categoría, categoría padre, unidad de medida o impuesto inexistente |
-| `CONFLICT` | 409 | Nombre de producto, SKU, código de barras o nombre de categoría repetido |
+| `CONFLICT` | 409 | Nombre de producto, SKU, código de barras o nombre de categoría repetido; categoría con subcategorías o productos al eliminarla |
 | `INTERNAL_ERROR` | 500 | Error no controlado |
 
 ---
@@ -672,7 +789,9 @@ Elimina un producto con borrado lógico. Endpoint de HU-03-03/04.
 - **Dinero:** se guarda como `numeric(12,2)` y se devuelve como número con 2 decimales exactos (`4.20`). Cantidades (`stock`, `percentage`, `target_margin`) se devuelven sin ceros de relleno (`496`, `13`, `25`).
 - **Paginación:** si `limit` es menor que 1 o mayor que 100, se usa `20`; si `page` es menor que 1, se usa `1`. Una página fuera de rango devuelve `data: []` con el `meta` correcto.
 - **Relaciones:** el producto trae la categoría expandida (`id` + `name`); la unidad viene solo como `unit_of_measure_id`.
-- **Herencia de categorías:** el backend guarda `null` cuando una subcategoría no define impuesto o margen; el frontend resuelve el valor heredado del padre.
+- **Herencia de categorías:** el backend guarda `null` cuando una subcategoría no define impuesto o margen; el frontend resuelve el valor heredado del padre. `PATCH` con `null` vuelve a heredar.
+- **Eliminar una categoría con altas simultáneas:** con borrado lógico las claves foráneas no impiden que una categoría eliminada siga referenciada, así que la protección está en el servicio. `DELETE` bloquea la fila de la categoría durante su transacción; crear un producto, mover un producto a otra categoría y crear una subcategoría leen la categoría o el padre con un bloqueo compartido. Si ocurren a la vez, la eliminación se rechaza (`409`) o la creación encuentra la categoría ya eliminada (`404 category not found` / `parent category not found`). Nunca queda un producto o una subcategoría activos bajo una categoría eliminada.
+- **Nombre de categoría y mayúsculas:** la regla "sin distinguir mayúsculas" la aplica el servicio; el índice único de la base de datos compara el nombre exacto.
 - **Idioma de mensajes:** los `message` y los `details` del validador están en inglés, igual que en el resto de la API.
 
 ---
@@ -692,3 +811,9 @@ Sobre los endpoints de HU-03-03/04 que ya estaban en `dev` (`GET`, `PUT`, `PATCH
 2. Todas las respuestas usan el shape de `Product` de este documento (`price`, `margin`, `stock`, `stock_status`, `category` expandida).
 3. El listado `GET /products` filtra con `search` (nombre, SKU o código de barras) en lugar de `name`, y requiere `products.list` en lugar de `products.read`.
 4. Colección Bruno `bruno/Products`: 21 peticiones con tests (001–016 de esta HU, 017–021 de HU-03-03/04).
+
+Sobre la edición y eliminación de categorías (`PATCH` y `DELETE /categories/:id`, secciones 13 y 14):
+1. Permisos nuevos `categories.update` y `categories.delete`; como `categories.create` y `categories.list`, solo los tiene el rol `superadmin`.
+2. `PATCH` sigue el mismo cuerpo estricto que la edición de clientes: al menos un campo editable, sin campos desconocidos y `null` para limpiar lo que se hereda.
+3. Crear un producto, mover un producto de categoría y crear una subcategoría ahora se ejecutan en una transacción; el contrato de sus respuestas no cambia.
+4. Colección Bruno `bruno/Categories`: 34 peticiones con tests, re-ejecutables.
