@@ -22,6 +22,7 @@ import (
 	"github.com/sigif/sigif-go/internal/modules/auth"
 	"github.com/sigif/sigif-go/internal/modules/customer"
 	"github.com/sigif/sigif-go/internal/modules/product"
+	"github.com/sigif/sigif-go/internal/modules/supplier"
 	"github.com/sigif/sigif-go/internal/modules/user"
 	"github.com/sigif/sigif-go/internal/shared/authcookie"
 	"github.com/sigif/sigif-go/internal/shared/clock"
@@ -49,6 +50,7 @@ func main() {
 		auth.Module,
 		customer.Module,
 		product.Module,
+		supplier.Module,
 		fx.Invoke(registerHooks),
 		fx.Invoke(startServer),
 	)
