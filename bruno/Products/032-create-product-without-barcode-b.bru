@@ -1,0 +1,43 @@
+meta {
+  name: Create Product Without Barcode B
+  type: http
+  seq: 32
+}
+
+post {
+  url: {{baseUrl}}/api/v1/products
+  body: json
+  auth: bearer
+}
+
+headers {
+  Content-Type: application/json
+}
+
+auth:bearer {
+  token: {{accessToken}}
+}
+
+body:json {
+  {
+    "name": "{{noBarcodeName}}",
+    "sku": "{{noBarcodeSku}}",
+    "category_id": "{{categoryId}}",
+    "unit_of_measure_id": "{{unitId}}",
+    "cost": 1,
+    "sale_price": 2
+  }
+}
+
+script:pre-request {
+  const now = String(Date.now());
+  bru.setVar('noBarcodeName', 'Sin código B ' + now);
+  bru.setVar('noBarcodeSku', 'NBB-' + now);
+}
+
+tests {
+  test("varios productos sin código de barras no son duplicados", function() {
+    expect(res.status).to.equal(201);
+    expect(res.body.data.barcode).to.equal(null);
+  });
+}

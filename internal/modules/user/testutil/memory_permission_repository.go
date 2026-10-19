@@ -27,11 +27,16 @@ type MemoryUserRepository struct {
 	byEmail map[string]*entity.AppUser
 }
 
-func NewMemoryUserRepository() *MemoryUserRepository {
-	return &MemoryUserRepository{
+func NewMemoryUserRepository(users ...*entity.AppUser) *MemoryUserRepository {
+	r := &MemoryUserRepository{
 		byID:    map[uuid.UUID]*entity.AppUser{},
 		byEmail: map[string]*entity.AppUser{},
 	}
+	for _, user := range users {
+		r.byID[user.ID] = user
+		r.byEmail[user.Email] = user
+	}
+	return r
 }
 
 func (r *MemoryUserRepository) Create(_ context.Context, user *entity.AppUser) error {
@@ -194,8 +199,15 @@ func (r *MemoryRoleRepository) List(
 		if filter.Status != nil && role.Status != *filter.Status {
 			continue
 		}
-		if q != "" && !strings.Contains(strings.ToLower(role.Name), q) {
-			continue
+		if q != "" {
+			lowerName := strings.ToLower(role.Name)
+			if !strings.Contains(lowerName, q) {
+				// System roles can also be found by their Spanish label, mirroring
+				// the GORM repository (HU-082-02).
+				if !role.IsSystem || !strings.Contains(strings.ToLower(entity.DisplayName(role.Name, true)), q) {
+					continue
+				}
+			}
 		}
 		copied := *role
 		copied.PermissionsCount = len(r.assignments[role.ID])

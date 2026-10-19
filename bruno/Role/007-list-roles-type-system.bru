@@ -26,7 +26,8 @@ tests {
     expect(res.body.meta.total).to.be.at.least(2);
     const names = res.body.data.map(r => r.name);
     expect(names).to.include('superadmin');
-    expect(names).to.include('soporte');
+    expect(names).to.include('business_admin');
+    expect(names).to.include('employee');
     res.body.data.forEach(function(r) {
       expect(r.type).to.equal('system');
       expect(r.company_id).to.equal(null);

@@ -1,0 +1,21 @@
+meta {
+  name: Cleanup - Delete Recreated Subcategory
+  type: http
+  seq: 32
+}
+
+delete {
+  url: {{baseUrl}}/api/v1/categories/{{recreatedId}}
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{accessToken}}
+}
+
+tests {
+  test("responde 204", function() {
+    expect(res.status).to.equal(204);
+  });
+}

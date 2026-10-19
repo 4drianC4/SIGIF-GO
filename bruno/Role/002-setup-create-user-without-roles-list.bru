@@ -20,25 +20,32 @@ auth:bearer {
 
 body:json {
   {
-    "first_name": "Soporte",
+    "first_name": "Empleado",
     "last_name": "Sin Roles",
     "email": "{{restrictedEmail}}",
-    "password": "{{restrictedPassword}}",
-    "role": "soporte"
+    "role": "employee",
+    "company_id": "{{companyId}}"
   }
 }
 
 script:pre-request {
   bru.setVar('restrictedEmail', 'hu08202.' + Date.now() + '@example.com');
-  bru.setVar('restrictedPassword', 'Tmp-' + Math.random().toString(36).slice(2) + '-9x');
+}
+
+script:post-response {
+  if (res.status === 201) {
+    bru.setVar('restrictedPassword', res.body.data.generated_password);
+  }
 }
 
 tests {
-  test("responde 201 con el usuario creado", function() {
+  test("responde 201 con el usuario creado y contraseña generada", function() {
     expect(res.status).to.equal(201);
     expect(res.body.success).to.equal(true);
     expect(res.body.data.id).to.be.a('string');
     expect(res.body.data.email).to.equal(bru.getVar('restrictedEmail'));
+    expect(res.body.data.role).to.equal('employee');
     expect(res.body.data.status).to.equal('active');
+    expect(res.body.data.generated_password).to.be.a('string').with.lengthOf(32);
   });
 }

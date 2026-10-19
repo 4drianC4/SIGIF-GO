@@ -2,6 +2,7 @@ package command
 
 import (
 	"github.com/google/uuid"
+	"github.com/shopspring/decimal"
 
 	"github.com/sigif/sigif-go/internal/modules/customer/domain/entity"
 )
@@ -13,6 +14,7 @@ type CreateCustomer struct {
 	DocumentNumber *string
 	Phone          *string
 	Email          *string
+	CreditLimit    *decimal.Decimal
 }
 
 type UpdateCustomer struct {

@@ -1,0 +1,31 @@
+meta {
+  name: Logout
+  type: http
+  seq: 5
+}
+
+post {
+  url: {{baseUrl}}/api/v1/auth/logout
+  body: none
+  auth: none
+}
+
+headers {
+  Origin: http://localhost:4200
+  Cookie: sigif_access_token={{authCookieToken}}
+}
+
+tests {
+  test("responde 204", function() {
+    expect(res.status).to.equal(204);
+  });
+
+  test("expira la cookie con el mismo nombre y Path", function() {
+    const cookie = [].concat(res.getHeader('set-cookie') || [])
+      .find((c) => c.startsWith('sigif_access_token='));
+    expect(cookie).to.be.a('string');
+    expect(cookie).to.match(/^sigif_access_token=;/);
+    expect(cookie).to.match(/expires=Thu, 01 Jan 1970/i);
+    expect(cookie).to.match(/Path=\/api\/v1/i);
+  });
+}

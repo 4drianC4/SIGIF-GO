@@ -19,19 +19,21 @@ tests {
     expect(res.status).to.equal(200);
     expect(res.body.success).to.equal(true);
     expect(res.body.data).to.be.an('array');
-    expect(res.body.data.length).to.be.at.least(2);
+    expect(res.body.data.length).to.be.at.least(3);
     expect(res.body.meta.page).to.equal(1);
     expect(res.body.meta.limit).to.be.at.least(1);
-    expect(res.body.meta.total).to.be.at.least(2);
+    expect(res.body.meta.total).to.be.at.least(3);
     const names = res.body.data.map(r => r.name);
     expect(names).to.include('superadmin');
-    expect(names).to.include('soporte');
+    expect(names).to.include('business_admin');
+    expect(names).to.include('employee');
   });
 
   test("cada rol trae todos los campos del contrato", function() {
     res.body.data.forEach(function(r) {
       expect(r.id).to.be.a('string');
       expect(r.name).to.be.a('string');
+      expect(r.display_name).to.be.a('string').and.not.equal('');
       expect(['system', 'custom']).to.include(r.type);
       expect(['active', 'inactive']).to.include(r.status);
       expect(r.permissions_count).to.be.a('number');
@@ -44,10 +46,20 @@ tests {
     });
   });
 
-  test("el superadmin tiene todos los permisos del catálogo", function() {
+  test("los roles del sistema muestran su etiqueta en español", function() {
+    const byName = {};
+    res.body.data.forEach(function(r) { byName[r.name] = r; });
+    expect(byName.superadmin.display_name).to.equal('Superadministrador');
+    expect(byName.business_admin.display_name).to.equal('Administrador de empresa');
+    expect(byName.employee.display_name).to.equal('Empleado');
+  });
+
+  test("el conteo de permisos refleja el seed", function() {
     const superadmin = res.body.data.find(r => r.name === 'superadmin');
-    expect(superadmin.permissions_count).to.be.at.least(22);
-    const soporte = res.body.data.find(r => r.name === 'soporte');
-    expect(soporte.permissions_count).to.equal(2);
+    expect(superadmin.permissions_count).to.be.at.least(25);
+    const businessAdmin = res.body.data.find(r => r.name === 'business_admin');
+    expect(businessAdmin.permissions_count).to.equal(4);
+    const employee = res.body.data.find(r => r.name === 'employee');
+    expect(employee.permissions_count).to.equal(0);
   });
 }

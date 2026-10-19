@@ -62,7 +62,16 @@ func (r *RoleGormRepository) List(
 		}
 
 		if q := strings.TrimSpace(filter.Q); q != "" {
-			db = db.Where("LOWER(name) LIKE ?", "%"+escapeLike(strings.ToLower(q))+"%")
+			pattern := "%" + escapeLike(strings.ToLower(q)) + "%"
+			// Search the technical name, plus the technical names of the system
+			// roles whose Spanish label matches, so visible labels are also
+			// searchable (HU-082-02). The expanded names come from the domain
+			// catalog, never from raw user input, so the query stays safe.
+			if expanded := entity.SystemRoleNamesByDisplayPrefix(q); len(expanded) > 0 {
+				db = db.Where("LOWER(name) LIKE ? OR LOWER(name) IN ?", pattern, expanded)
+			} else {
+				db = db.Where("LOWER(name) LIKE ?", pattern)
+			}
 		}
 
 		if filter.Type != nil {

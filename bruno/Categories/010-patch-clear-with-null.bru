@@ -1,0 +1,37 @@
+meta {
+  name: Patch Clear With Null
+  type: http
+  seq: 10
+}
+
+patch {
+  url: {{baseUrl}}/api/v1/categories/{{childId}}
+  body: json
+  auth: bearer
+}
+
+headers {
+  Content-Type: application/json
+}
+
+auth:bearer {
+  token: {{accessToken}}
+}
+
+body:json {
+  {
+    "default_tax": null,
+    "target_margin": null,
+    "description": ""
+  }
+}
+
+tests {
+  test("null limpia impuesto y margen (se heredan del padre)", function() {
+    expect(res.status).to.equal(200);
+    expect(res.body.data.default_tax).to.equal(null);
+    expect(res.body.data.target_margin).to.equal(null);
+    expect(res.body.data).to.not.have.property('description');
+    expect(res.body.data.name).to.equal(bru.getVar('childName') + ' editada');
+  });
+}

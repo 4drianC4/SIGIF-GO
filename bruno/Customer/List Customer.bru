@@ -16,7 +16,18 @@ params:query {
 }
 
 auth:bearer {
-  token: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjoiOGY0MzE3ZGYtNTI5Ni00YzE5LWEwZGItMGM2YmFiZjUyY2EyIiwic2Vzc2lvbl9pZCI6IjkzYzczOGNlLTg5M2MtNGEyNi1iYTAzLWFmNzZjODkzZTg0YSIsImNvbXBhbnlfaWQiOiIxMTExMTExMS0xMTExLTQxMTEtODExMS0xMTExMTExMTExMTEiLCJlbWFpbCI6ImFkbWluQHNpZ2lmLmNvbSIsInJvbGUiOiJzdXBlcmFkbWluIiwidHlwIjoiYWNjZXNzIiwiaXNzIjoic2lnaWYtZ28iLCJzdWIiOiI4ZjQzMTdkZi01Mjk2LTRjMTktYTBkYi0wYzZiYWJmNTJjYTIiLCJhdWQiOlsic2lnaWYiXSwiZXhwIjoxNzkxMzgxMDE3LCJuYmYiOjE3OTEzODAxMTcsImlhdCI6MTc5MTM4MDExNywianRpIjoiNjRiZTk1NzYtMTc4MC00MzM5LTg5NGUtYTI2ODdjYmMxMDc4In0.e9rwDrdI3jPhRQB0XKlGlxHlPcRgNP2SnuOHajEeass
+  token: {{auth}}
+}
+
+tests {
+  test("el listado incluye el limite de credito de cada cliente", function() {
+    expect(res.status).to.equal(200);
+    expect(res.body.success).to.equal(true);
+    expect(res.body.data).to.be.an('array');
+    res.body.data.forEach(function(c) {
+      expect(c).to.have.property('credit_limit').that.is.a('string');
+    });
+  });
 }
 
 settings {

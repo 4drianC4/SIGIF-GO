@@ -1,0 +1,22 @@
+meta {
+  name: Delete Subcategory
+  type: http
+  seq: 27
+}
+
+delete {
+  url: {{baseUrl}}/api/v1/categories/{{childId}}
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{accessToken}}
+}
+
+tests {
+  test("responde 204 sin cuerpo", function() {
+    expect(res.status).to.equal(204);
+    expect(res.body === undefined || res.body === null || res.body === "").to.equal(true);
+  });
+}

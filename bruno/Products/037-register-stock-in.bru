@@ -1,0 +1,38 @@
+meta {
+  name: Inventory - Register Stock In
+  type: http
+  seq: 37
+}
+
+post {
+  url: {{baseUrl}}/api/v1/inventory/movements
+  body: json
+  auth: bearer
+}
+
+headers {
+  Content-Type: application/json
+}
+
+auth:bearer {
+  token: {{accessToken}}
+}
+
+body:json {
+  {
+    "product_id": "{{lowStockProductId}}",
+    "type": "in",
+    "quantity": 10,
+    "reason": "Compra inicial"
+  }
+}
+
+tests {
+  test("registra la entrada sobre el stock inicial y devuelve el saldo", function() {
+    expect(res.status).to.equal(201);
+    expect(res.body.data.movement.type).to.equal('in');
+    expect(res.body.data.movement.quantity).to.equal('10');
+    expect(res.body.data.balance).to.equal('12');
+    expect(res.body.data.movement.branch_id).to.be.a('number');
+  });
+}

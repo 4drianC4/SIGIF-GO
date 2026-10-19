@@ -20,6 +20,7 @@ func (h *AuthHTTPHandler) Logout(c *fiber.Ctx) error {
 		return response.Error(c, fiber.StatusInternalServerError, err)
 	}
 
+	h.cookie.Clear(c)
 	return response.NoContent(c)
 }
 

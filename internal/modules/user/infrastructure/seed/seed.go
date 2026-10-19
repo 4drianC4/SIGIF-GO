@@ -44,6 +44,9 @@ func Seed(ctx context.Context, db *gorm.DB, cfg *config.Config) error {
 			permIDs[entity.PermUsersList],
 			permIDs[entity.PermUsersRead],
 			permIDs[entity.PermPermissionsRead],
+			// HU-082-02: business_admin must list the roles of its company.
+			// Read-only: no create/update/delete/assign permissions are granted.
+			permIDs[entity.PermRolesList],
 		}); err != nil {
 			return err
 		}
@@ -184,12 +187,12 @@ func seedDefaultAdmin(tx *gorm.DB, cfg *config.Config, superadminID uuid.UUID) e
 	}
 
 	var existing model.UserModel
-	err := tx.Where("email = ?", email).First(&existing).Error
+	err := tx.Unscoped().Where("email = ?", email).First(&existing).Error
 	if err == nil {
 		// Ensure the bootstrap admin is always usable: reactivate it if it was
 		// deactivated or soft-deleted during testing.
 		if existing.Status != entity.UserStatusActive.String() || existing.DeletedAt.Valid {
-			return tx.Model(&existing).Updates(map[string]any{
+			return tx.Unscoped().Model(&existing).Updates(map[string]any{
 				"status":     entity.UserStatusActive.String(),
 				"deleted_at": nil,
 			}).Error
@@ -234,7 +237,7 @@ func seedCompanyAndAdmin(tx *gorm.DB, cfg *config.Config, superadminID, business
 	}
 
 	var existing model.UserModel
-	err = tx.Where("email = ?", email).First(&existing).Error
+	err = tx.Unscoped().Where("email = ?", email).First(&existing).Error
 	if err == nil {
 		return seedBusinessAdminUser(tx, cfg, company, businessAdminID)
 	}

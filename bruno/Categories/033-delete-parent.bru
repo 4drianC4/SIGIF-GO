@@ -1,0 +1,21 @@
+meta {
+  name: Delete Parent Category
+  type: http
+  seq: 33
+}
+
+delete {
+  url: {{baseUrl}}/api/v1/categories/{{parentId}}
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{accessToken}}
+}
+
+tests {
+  test("sin subcategorías ni productos se puede eliminar (204)", function() {
+    expect(res.status).to.equal(204);
+  });
+}

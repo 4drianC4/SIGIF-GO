@@ -19,6 +19,12 @@ type ListUsers struct {
 	Limit  int
 }
 
+type ListUserHistory struct {
+	UserID uuid.UUID
+	Offset int
+	Limit  int
+}
+
 // ListPermissions filters the permission catalog; an empty Module lists every
 // permission.
 type ListPermissions struct {

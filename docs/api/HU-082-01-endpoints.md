@@ -288,7 +288,7 @@ curl -s "http://localhost:4600/api/v1/permissions/export?module=permissions" \
       "first_name": "Usuario",
       "last_name": "Negocio"
     },
-    "token": { "access_token": "...", "expires_in": 3600, "token_type": "Bearer" }
+    "expires_in": 3600
   }
 }
 ```

@@ -1,0 +1,25 @@
+meta {
+  name: Verify Identifier Available
+  type: http
+  seq: 33
+}
+
+get {
+  url: {{baseUrl}}/api/v1/products/verificar-identificador?sku=NEW-{{holderSku}}
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{accessToken}}
+}
+
+tests {
+  test("informa disponibilidad para un SKU libre", function() {
+    expect(res.status).to.equal(200);
+    expect(res.body.success).to.equal(true);
+    expect(res.body.data.available).to.equal(true);
+    expect(res.body.data.existing_product).to.equal(null);
+    expect(res.body.data.conflicts).to.have.lengthOf(0);
+  });
+}

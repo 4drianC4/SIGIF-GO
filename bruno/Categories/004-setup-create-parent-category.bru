@@ -1,0 +1,42 @@
+meta {
+  name: Setup - Create Parent Category
+  type: http
+  seq: 4
+}
+
+post {
+  url: {{baseUrl}}/api/v1/categories
+  body: json
+  auth: bearer
+}
+
+headers {
+  Content-Type: application/json
+}
+
+auth:bearer {
+  token: {{accessToken}}
+}
+
+body:json {
+  {
+    "name": "{{parentName}}"
+  }
+}
+
+script:pre-request {
+  const now = String(Date.now());
+  bru.setVar('parentName', 'Abarrotes ' + now);
+  bru.setVar('otherName', 'Limpieza ' + now);
+  bru.setVar('childName', 'Gaseosas ' + now);
+}
+
+script:post-response {
+  bru.setVar('parentId', res.body && res.body.data ? res.body.data.id : '');
+}
+
+tests {
+  test("responde 201", function() {
+    expect(res.status).to.equal(201);
+  });
+}

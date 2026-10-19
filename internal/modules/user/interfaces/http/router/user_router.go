@@ -14,6 +14,7 @@ func RegisterUserRoutes(router fiber.Router, h *handler.UserHTTPHandler, checker
 	users.Get("/", middleware.RequirePermission(checker, "users", "list"), h.List)
 	users.Get("/by-email", middleware.RequirePermission(checker, "users", "read"), h.GetByEmail)
 	users.Get("/:id", middleware.RequirePermission(checker, "users", "read"), h.GetByID)
+	users.Get("/:id/history", middleware.RequirePermission(checker, "users", "read"), h.History)
 	users.Patch("/:id", middleware.RequirePermission(checker, "users", "update"), h.Edit)
 	users.Put("/:id/password", middleware.RequirePermission(checker, "users", "change_password"), h.ChangePassword)
 	users.Delete("/:id", middleware.RequirePermission(checker, "users", "delete"), h.Delete)
