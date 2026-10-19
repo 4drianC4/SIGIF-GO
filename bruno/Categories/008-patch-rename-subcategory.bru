@@ -1,0 +1,39 @@
+meta {
+  name: Patch Rename Subcategory
+  type: http
+  seq: 8
+}
+
+patch {
+  url: {{baseUrl}}/api/v1/categories/{{childId}}
+  body: json
+  auth: bearer
+}
+
+headers {
+  Content-Type: application/json
+}
+
+auth:bearer {
+  token: {{accessToken}}
+}
+
+body:json {
+  {
+    "name": "  {{childName}} editada "
+  }
+}
+
+tests {
+  test("responde 200 y solo cambia el nombre", function() {
+    expect(res.status).to.equal(200);
+    expect(res.body.data.id).to.equal(bru.getVar('childId'));
+    expect(res.body.data.name).to.equal(bru.getVar('childName') + ' editada');
+    expect(res.body.data.parent_id).to.equal(bru.getVar('parentId'));
+    expect(res.body.data.description).to.equal('Bebidas con gas');
+    expect(res.body.data.default_tax).to.equal('IVA general 13%');
+    expect(res.body.data.target_margin).to.equal(25);
+    expect(res.body.data.products_count).to.equal(1);
+    expect(res.body.data.status).to.equal('active');
+  });
+}

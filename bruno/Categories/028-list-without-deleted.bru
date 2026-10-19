@@ -1,0 +1,24 @@
+meta {
+  name: List Does Not Include The Deleted Category
+  type: http
+  seq: 28
+}
+
+get {
+  url: {{baseUrl}}/api/v1/categories
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{accessToken}}
+}
+
+tests {
+  test("la categoría eliminada ya no aparece", function() {
+    expect(res.status).to.equal(200);
+    const ids = res.body.data.map(function(c) { return c.id; });
+    expect(ids).to.not.include(bru.getVar('childId'));
+    expect(ids).to.include(bru.getVar('parentId'));
+  });
+}
