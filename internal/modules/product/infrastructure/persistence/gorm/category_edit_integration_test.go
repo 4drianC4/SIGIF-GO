@@ -71,14 +71,14 @@ func TestUpdateAndDeleteCategoryWithPostgres(t *testing.T) {
 	if _, err := svc.UpdateCategory(ctx, service.UpdateCategoryParams{CompanyID: companyID, CategoryID: other, Name: &same}); err != nil {
 		t.Errorf("changing the case of its own name: %v", err)
 	}
-	// The index is the safety net when the check is skipped. It compares the
-	// exact name; ignoring case is the job of the check above.
+	// The index is the safety net when the check is skipped, also for a name
+	// that only differs in case.
 	rootCategory, err := r.categories.GetByID(ctx, companyID, root)
 	if err != nil || rootCategory == nil {
 		t.Fatalf("reload root: %v", err)
 	}
 	dup := *rootCategory
-	dup.Name = "LIMPIEZA"
+	dup.Name = "limpieza"
 	if err := r.categories.Update(ctx, &dup); !errors.Is(err, service.ErrCategoryNameTaken) {
 		t.Errorf("unique index on update: error = %v, want ErrCategoryNameTaken", err)
 	}
