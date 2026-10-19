@@ -1,0 +1,22 @@
+meta {
+  name: List Supplier Options
+  type: http
+  seq: 15
+}
+
+get {
+  url: {{baseUrl}}/api/v1/products/{{supplierProductId}}/supplier-options?page=1&limit=20
+  body: none
+  auth: bearer
+}
+
+params:query {
+  page: 1
+  limit: 20
+  ~search: Andina
+}
+
+auth:bearer {
+  token: {{accessToken}}
+}
+
