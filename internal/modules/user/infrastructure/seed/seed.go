@@ -45,8 +45,18 @@ func Seed(ctx context.Context, db *gorm.DB, cfg *config.Config) error {
 			permIDs[entity.PermUsersRead],
 			permIDs[entity.PermPermissionsRead],
 			// HU-082-02: business_admin must list the roles of its company.
-			// Read-only: no create/update/delete/assign permissions are granted.
 			permIDs[entity.PermRolesList],
+			// An administrator manages the catalogue of its own company. Company
+			// scope is still enforced by the product handlers and repositories.
+			permIDs[entity.PermProductsList],
+			permIDs[entity.PermProductsRead],
+			permIDs[entity.PermProductsCreate],
+			permIDs[entity.PermProductsUpdate],
+			permIDs[entity.PermProductsDelete],
+			permIDs[entity.PermCategoriesList],
+			permIDs[entity.PermCategoriesCreate],
+			permIDs[entity.PermCategoriesUpdate],
+			permIDs[entity.PermCategoriesDelete],
 		}); err != nil {
 			return err
 		}
@@ -136,7 +146,7 @@ func ensureBusinessAdminRole(tx *gorm.DB) (uuid.UUID, error) {
 		return uuid.Nil, err
 	}
 
-	return ensureRole(tx, entity.RoleBusinessAdmin, "Admin de negocio con acceso de solo lectura a usuarios", true, true)
+	return ensureRole(tx, entity.RoleBusinessAdmin, "Administrador de empresa con gestión de catálogo", true, true)
 }
 
 func assignPermissions(tx *gorm.DB, roleID uuid.UUID, permissionIDs []uuid.UUID) error {
@@ -224,7 +234,7 @@ func seedDefaultAdmin(tx *gorm.DB, cfg *config.Config, superadminID uuid.UUID) e
 
 // seedCompanyAndAdmin creates a demo company with a superadmin user linked to
 // it so business modules (product, customer) that require company_id can be
-// used, plus a business_admin user that only sees the user read-only views.
+// used, plus a business_admin user that manages its company's catalogue.
 func seedCompanyAndAdmin(tx *gorm.DB, cfg *config.Config, superadminID, businessAdminID uuid.UUID) error {
 	company, err := ensureCompany(tx, cfg)
 	if err != nil {
@@ -284,7 +294,7 @@ func seedCompanyAndAdmin(tx *gorm.DB, cfg *config.Config, superadminID, business
 }
 
 // seedBusinessAdminUser creates the demo business_admin account so the
-// read-only views can be exercised with a user that is not superadmin.
+// catalogue can be managed without granting global superadmin access.
 func seedBusinessAdminUser(tx *gorm.DB, cfg *config.Config, company *companyModel.CompanyModel, businessAdminID uuid.UUID) error {
 	email := cfg.Seed.BusinessAdminEmail
 	if email == "" {
