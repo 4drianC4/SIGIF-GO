@@ -75,7 +75,21 @@ func (s *MemoryStore) ProductCount() int {
 
 type memoryCategories struct{ s *MemoryStore }
 
+// WithinTransaction has nothing to undo: the checks of every use case run
+// before its single write.
+func (r memoryCategories) WithinTransaction(ctx context.Context, fn func(context.Context) error) error {
+	return fn(ctx)
+}
+
 func (r memoryCategories) Create(_ context.Context, category *entity.Category) error {
+	r.s.mu.Lock()
+	defer r.s.mu.Unlock()
+	copied := *category
+	r.s.Categories[category.ID] = &copied
+	return nil
+}
+
+func (r memoryCategories) Update(_ context.Context, category *entity.Category) error {
 	r.s.mu.Lock()
 	defer r.s.mu.Unlock()
 	copied := *category
@@ -87,22 +101,91 @@ func (r memoryCategories) GetByID(_ context.Context, companyID, id uuid.UUID) (*
 	r.s.mu.Lock()
 	defer r.s.mu.Unlock()
 	category, ok := r.s.Categories[id]
-	if !ok || category.CompanyID != companyID {
+	if !ok || category.CompanyID != companyID || category.DeletedAt != nil {
 		return nil, nil
 	}
 	copied := *category
 	return &copied, nil
 }
 
-func (r memoryCategories) ExistsByName(_ context.Context, companyID uuid.UUID, parentID *uuid.UUID, name string) (bool, error) {
+func (r memoryCategories) GetByIDForUpdate(ctx context.Context, companyID, id uuid.UUID) (*entity.Category, error) {
+	return r.GetByID(ctx, companyID, id)
+}
+
+func (r memoryCategories) ExistsByName(_ context.Context, companyID uuid.UUID, parentID *uuid.UUID, name string, excludeID uuid.UUID) (bool, error) {
 	r.s.mu.Lock()
 	defer r.s.mu.Unlock()
 	for _, c := range r.s.Categories {
-		if c.CompanyID == companyID && sameParent(c.ParentID, parentID) && strings.EqualFold(c.Name, name) {
+		if c.CompanyID == companyID && c.DeletedAt == nil && c.ID != excludeID && sameParent(c.ParentID, parentID) && strings.EqualFold(c.Name, name) {
 			return true, nil
 		}
 	}
 	return false, nil
+}
+
+func (r memoryCategories) CountSubcategories(_ context.Context, companyID, id uuid.UUID) (int64, error) {
+	r.s.mu.Lock()
+	defer r.s.mu.Unlock()
+	var count int64
+	for _, c := range r.s.Categories {
+		if c.CompanyID == companyID && c.DeletedAt == nil && c.ParentID != nil && *c.ParentID == id {
+			count++
+		}
+	}
+	return count, nil
+}
+
+func (r memoryCategories) CountProducts(_ context.Context, companyID, id uuid.UUID) (int64, error) {
+	r.s.mu.Lock()
+	defer r.s.mu.Unlock()
+	return r.countProducts(companyID, id), nil
+}
+
+func (r memoryCategories) countProducts(companyID, id uuid.UUID) int64 {
+	var count int64
+	for _, p := range r.s.Products {
+		if p.CompanyID == companyID && p.CategoryID == id && p.DeletedAt == nil {
+			count++
+		}
+	}
+	return count
+}
+
+// SoftDelete marks the category as deleted, as the GORM repository does: the
+// row stays and frees its name.
+func (r memoryCategories) SoftDelete(_ context.Context, companyID, id uuid.UUID) (bool, error) {
+	r.s.mu.Lock()
+	defer r.s.mu.Unlock()
+	category, ok := r.s.Categories[id]
+	if !ok || category.CompanyID != companyID || category.DeletedAt != nil {
+		return false, nil
+	}
+	now := time.Now().UTC()
+	category.DeletedAt = &now
+	return true, nil
+}
+
+func (r memoryCategories) GetListItem(_ context.Context, companyID, id uuid.UUID) (*repository.CategoryListItem, error) {
+	r.s.mu.Lock()
+	defer r.s.mu.Unlock()
+	c, ok := r.s.Categories[id]
+	if !ok || c.CompanyID != companyID || c.DeletedAt != nil {
+		return nil, nil
+	}
+	item := r.listItem(c)
+	return &item, nil
+}
+
+func (r memoryCategories) listItem(c *entity.Category) repository.CategoryListItem {
+	var taxName *string
+	for _, t := range r.s.Taxes {
+		if c.DefaultTaxID != nil && t.ID == *c.DefaultTaxID {
+			name := t.Name
+			taxName = &name
+		}
+	}
+	copied := *c
+	return repository.CategoryListItem{Category: &copied, ProductsCount: r.countProducts(c.CompanyID, c.ID), DefaultTaxName: taxName}
 }
 
 func (r memoryCategories) List(_ context.Context, companyID uuid.UUID) ([]repository.CategoryListItem, error) {
@@ -110,24 +193,9 @@ func (r memoryCategories) List(_ context.Context, companyID uuid.UUID) ([]reposi
 	defer r.s.mu.Unlock()
 	var items []repository.CategoryListItem
 	for _, c := range r.s.Categories {
-		if c.CompanyID != companyID {
-			continue
+		if c.CompanyID == companyID && c.DeletedAt == nil {
+			items = append(items, r.listItem(c))
 		}
-		var count int64
-		for _, p := range r.s.Products {
-			if p.CategoryID == c.ID {
-				count++
-			}
-		}
-		var taxName *string
-		for _, t := range r.s.Taxes {
-			if c.DefaultTaxID != nil && t.ID == *c.DefaultTaxID {
-				name := t.Name
-				taxName = &name
-			}
-		}
-		copied := *c
-		items = append(items, repository.CategoryListItem{Category: &copied, ProductsCount: count, DefaultTaxName: taxName})
 	}
 	sort.Slice(items, func(i, j int) bool { return items[i].Category.Name < items[j].Category.Name })
 	return items, nil

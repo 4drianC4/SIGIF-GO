@@ -116,10 +116,10 @@ func TestCatalogRepositories(t *testing.T) {
 	if err := r.categories.Create(ctx, newCategory("Aceites", &abarrotes.ID, nil)); !errors.Is(err, service.ErrCategoryNameTaken) {
 		t.Fatalf("duplicate child category: got %v", err)
 	}
-	if ok, _ := r.categories.ExistsByName(ctx, companyID, &abarrotes.ID, "ACEITES"); !ok {
+	if ok, _ := r.categories.ExistsByName(ctx, companyID, &abarrotes.ID, "ACEITES", uuid.Nil); !ok {
 		t.Errorf("ExistsByName child must ignore case")
 	}
-	if ok, _ := r.categories.ExistsByName(ctx, companyID, nil, "abarrotes"); !ok {
+	if ok, _ := r.categories.ExistsByName(ctx, companyID, nil, "abarrotes", uuid.Nil); !ok {
 		t.Errorf("ExistsByName root must ignore case")
 	}
 

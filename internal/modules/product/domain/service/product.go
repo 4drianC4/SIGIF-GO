@@ -28,6 +28,8 @@ type CreateProductParams struct {
 	MinStock        decimal.Decimal
 }
 
+// CreateProduct registers a product. It runs in a transaction that locks the
+// category, so the category cannot be deleted while the product is created.
 func (s *CatalogService) CreateProduct(ctx context.Context, params CreateProductParams) (*repository.ProductListItem, error) {
 	if params.CompanyID == uuid.Nil {
 		return nil, ErrCompanyRequired
@@ -50,19 +52,24 @@ func (s *CatalogService) CreateProduct(ctx context.Context, params CreateProduct
 		return nil, err
 	}
 
-	var category *entity.Category
+	var item *repository.ProductListItem
 	err = s.products.WithinTransaction(ctx, func(txCtx context.Context) error {
-		var checkErr error
-		category, checkErr = s.checkProductReferences(txCtx, product, uuid.Nil)
-		if checkErr != nil {
-			return checkErr
+		category, err := s.checkProductReferences(txCtx, product, uuid.Nil)
+		if err != nil {
+			return err
 		}
-		return s.products.Create(txCtx, product)
+		if err := s.products.Create(txCtx, product); err != nil {
+			return err
+		}
+		item = &repository.ProductListItem{Product: product, CategoryName: category.Name}
+		return nil
 	})
 	if err != nil {
+		// A unique index violation aborts the transaction, so the product that
+		// won is looked up outside of it.
 		return nil, s.detailDuplicate(ctx, err, product.CompanyID, product.Name, product.SKU, product.Barcode, uuid.Nil)
 	}
-	return &repository.ProductListItem{Product: product, CategoryName: category.Name}, nil
+	return item, nil
 }
 
 type ListProductsParams struct {
