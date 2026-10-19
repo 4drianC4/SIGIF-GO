@@ -34,7 +34,7 @@ func TestPatchCategoryFollowsContract(t *testing.T) {
 		category["description"] != "Bebidas con gas" || category["default_tax"] != "IVA general 13%" || category["status"] != "active" {
 		t.Errorf("category = %s", resp.raw)
 	}
-	for _, fragment := range []string{`"products_count":1`, `"target_margin":25`} {
+	for _, fragment := range []string{`"products_count":1`, `"target_margin":"25"`} {
 		if !strings.Contains(resp.raw, fragment) {
 			t.Errorf("response missing %s: %s", fragment, resp.raw)
 		}
@@ -48,7 +48,7 @@ func TestPatchCategoryFollowsContract(t *testing.T) {
 	}
 
 	status, resp = s.do(t, fiber.MethodPatch, categoryPath(id), token, map[string]any{"default_tax": "Exempt", "target_margin": "12.5", "description": "Nueva"})
-	if status != fiber.StatusOK || !strings.Contains(resp.raw, `"default_tax":"Exempt"`) || !strings.Contains(resp.raw, `"target_margin":12.5`) ||
+	if status != fiber.StatusOK || !strings.Contains(resp.raw, `"default_tax":"Exempt"`) || !strings.Contains(resp.raw, `"target_margin":"12.5"`) ||
 		!strings.Contains(resp.raw, `"description":"Nueva"`) {
 		t.Fatalf("setting: %d %s", status, resp.raw)
 	}

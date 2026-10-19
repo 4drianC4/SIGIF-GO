@@ -52,19 +52,19 @@ func TestGetProductIncludesStockTotal(t *testing.T) {
 
 	status, resp := s.do(t, fiber.MethodGet, "/api/v1/products/"+id, token, nil)
 	product := decode(t, resp.Data)
-	if status != 200 || product["stock_total"] != float64(8) || product["id"] != id {
+	if status != 200 || product["stock_total"] != "8.000" || product["id"] != id {
 		t.Fatalf("stock response: %d %s", status, resp.raw)
 	}
 	// "stock" is the quantity kept on the product itself; "stock_total" is the sum
 	// of the stock_balance cache. They are independent until inventory movements
 	// keep both in sync.
-	if !strings.Contains(resp.raw, `"stock":0`) {
+	if !strings.Contains(resp.raw, `"stock":"0"`) {
 		t.Errorf("product stock should still come from the product row: %s", resp.raw)
 	}
 
 	s.store.Stock.Balances = nil
 	status, resp = s.do(t, fiber.MethodGet, "/api/v1/products/"+id, token, nil)
-	if status != 200 || decode(t, resp.Data)["stock_total"] != float64(0) {
+	if status != 200 || decode(t, resp.Data)["stock_total"] != "0.000" {
 		t.Fatalf("empty stock: %d %s", status, resp.raw)
 	}
 
@@ -98,7 +98,7 @@ func TestPatchProductPriceAndHistory(t *testing.T) {
 		t.Fatalf("patch: %d %s", status, resp.raw)
 	}
 	updated := decode(t, resp.Data)
-	for _, fragment := range []string{`"cost":4.00`, `"price":7.00`} {
+	for _, fragment := range []string{`"cost":"4.00"`, `"price":"7.00"`} {
 		if !strings.Contains(resp.raw, fragment) {
 			t.Errorf("response missing %s: %s", fragment, resp.raw)
 		}
@@ -120,7 +120,7 @@ func TestPatchProductPriceAndHistory(t *testing.T) {
 	}
 
 	status, resp = s.do(t, fiber.MethodPatch, path, token, map[string]any{"sale_price": 7.50})
-	if status != 200 || !strings.Contains(resp.raw, `"cost":4.00`) || !strings.Contains(resp.raw, `"price":7.50`) {
+	if status != 200 || !strings.Contains(resp.raw, `"cost":"4.00"`) || !strings.Contains(resp.raw, `"price":"7.50"`) {
 		t.Fatalf("partial patch: %d %s", status, resp.raw)
 	}
 
