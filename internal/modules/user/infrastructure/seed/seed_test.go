@@ -178,4 +178,18 @@ func TestSeedBusinessAdminCanListRoles(t *testing.T) {
 			t.Error("business_admin lost permissions.read")
 		}
 	})
+
+	t.Run("business_admin manages its company catalogue", func(t *testing.T) {
+		for _, permission := range []struct{ module, operation string }{
+			{"products", "list"}, {"products", "read"}, {"products", "create"}, {"products", "update"}, {"products", "delete"},
+			{"categories", "list"}, {"categories", "create"}, {"categories", "update"}, {"categories", "delete"},
+		} {
+			if !hasPermission(t, db, businessAdminID, permission.module, permission.operation) {
+				t.Errorf("business_admin does not have %s.%s", permission.module, permission.operation)
+			}
+			if hasPermission(t, db, employeeID, permission.module, permission.operation) {
+				t.Errorf("employee unexpectedly has %s.%s", permission.module, permission.operation)
+			}
+		}
+	})
 }
