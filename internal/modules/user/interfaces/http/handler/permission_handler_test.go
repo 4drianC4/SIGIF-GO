@@ -102,10 +102,11 @@ func newTestServer(t *testing.T) *testServer {
 	permRepo := testutil.NewMemoryPermissionRepository()
 	clk := clock.NewMockClock(time.Date(2026, 10, 5, 12, 0, 0, 0, time.UTC))
 	svc := service.NewUserService(users, roles, permRepo, clk, testutil.NewMemoryCompanyRepository())
+	history := service.NewHistoryService(testutil.NewMemoryHistoryRepository(), users, clk)
 
 	h := httpHandler.NewPermissionHTTPHandler(
-		appHandler.NewUserCommandHandler(svc),
-		appHandler.NewUserQueryHandler(svc),
+		appHandler.NewUserCommandHandler(svc, history, testutil.Transactor{}),
+		appHandler.NewUserQueryHandler(svc, history),
 		validator.New(),
 		cfg,
 	)
@@ -116,8 +117,8 @@ func newTestServer(t *testing.T) *testServer {
 	router.RegisterPermissionRoutes(app.Group("/api/v1"), h, stub)
 	router.RegisterRoleRoutes(app.Group("/api/v1"),
 		httpHandler.NewRoleHTTPHandler(
-			appHandler.NewUserQueryHandler(svc),
-			appHandler.NewUserCommandHandler(svc),
+			appHandler.NewUserQueryHandler(svc, history),
+			appHandler.NewUserCommandHandler(svc, history, testutil.Transactor{}),
 			validator.New(),
 			cfg,
 		), stub)
