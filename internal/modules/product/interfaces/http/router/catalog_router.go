@@ -36,6 +36,8 @@ func RegisterCatalogRoutes(router fiber.Router, h *handler.CatalogHTTPHandler, c
 	categories := router.Group("/categories")
 	categories.Get("/", middleware.RequirePermission(checker, "categories", "list"), h.ListCategories)
 	categories.Post("/", middleware.RequirePermission(checker, "categories", "create"), h.CreateCategory)
+	categories.Patch("/:id", middleware.RequirePermission(checker, "categories", "update"), h.UpdateCategory)
+	categories.Delete("/:id", middleware.RequirePermission(checker, "categories", "delete"), h.DeleteCategory)
 
 	router.Get("/units-of-measure", h.ListUnitsOfMeasure)
 	router.Get("/taxes", h.ListTaxes)

@@ -34,7 +34,7 @@ const (
 
 var allPermissions = []string{
 	"products.list", "products.create", "products.read", "products.update", "products.delete",
-	"categories.list", "categories.create",
+	"categories.list", "categories.create", "categories.update", "categories.delete",
 }
 
 type apiResponse struct {
@@ -545,6 +545,7 @@ func TestCatalogPermissions(t *testing.T) {
 	productID := s.createProduct(t, admin, base)
 	base["name"], base["sku"] = "Producto a borrar", "BASE-2"
 	otherProductID := s.createProduct(t, admin, base)
+	spareCategoryID := s.createCategory(t, admin, map[string]any{"name": "Descartable"})
 
 	routes := []struct {
 		method, path, permission string
@@ -562,6 +563,8 @@ func TestCatalogPermissions(t *testing.T) {
 		{fiber.MethodDelete, "/api/v1/products/" + otherProductID, "products.delete", nil},
 		{fiber.MethodGet, "/api/v1/categories", "categories.list", nil},
 		{fiber.MethodPost, "/api/v1/categories", "categories.create", map[string]any{"name": "Nueva"}},
+		{fiber.MethodPatch, "/api/v1/categories/" + categoryID, "categories.update", map[string]any{"description": "Editada"}},
+		{fiber.MethodDelete, "/api/v1/categories/" + spareCategoryID, "categories.delete", nil},
 	}
 	for _, r := range routes {
 		t.Run(r.method+" "+r.path, func(t *testing.T) {

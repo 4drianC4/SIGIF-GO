@@ -16,6 +16,22 @@ type CreateCategory struct {
 	TargetMargin *decimal.Decimal
 }
 
+// UpdateCategory is a partial update: fields that were not sent stay as they
+// are, and DefaultTax and TargetMargin can be cleared.
+type UpdateCategory struct {
+	CompanyID    uuid.UUID
+	CategoryID   uuid.UUID
+	Name         *string
+	Description  *string
+	DefaultTax   entity.Optional[string]
+	TargetMargin entity.Optional[decimal.Decimal]
+}
+
+type DeleteCategory struct {
+	CompanyID  uuid.UUID
+	CategoryID uuid.UUID
+}
+
 type CreateProduct struct {
 	CompanyID       uuid.UUID
 	CategoryID      uuid.UUID
