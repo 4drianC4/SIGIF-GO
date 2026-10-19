@@ -7,7 +7,6 @@
 > | `cost_price` (peticiones y respuestas) | `cost` |
 > | `sale_price` en **respuestas** de producto | `price` (en **peticiones** sigue siendo `sale_price`) |
 > | `unit_of_measure` (texto: `unit`, `kg`…) | `unit_of_measure_id` (uuid; ver `GET /units-of-measure`) |
-> | Importes como texto (`"13.30"`) en el producto | Números con 2 decimales (`13.30`). El historial de precios sigue usando texto |
 > | El producto trae `company_id` y `category_id` | Trae `category: { id, name }`, `margin`, `stock`, `min_stock` y `stock_status` |
 > | El costo puede ser `0` | El costo debe ser mayor que 0. `PUT /products/:id` y `PATCH /products/:id/price` validan `cost` y `sale_price` con la misma regla |
 > | `PUT /products/:id` sin stock mínimo | Acepta `min_stock` opcional |

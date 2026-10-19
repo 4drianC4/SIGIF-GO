@@ -786,12 +786,12 @@ Se comprueba primero lo de subcategorías. Los productos y subcategorías ya eli
 - **Unicidad por empresa:** nombre de producto, SKU y código de barras se pueden repetir en otra empresa. El nombre de categoría solo es único dentro del mismo nivel: "Aceites" puede existir como raíz y como hija de "Abarrotes".
 - **Borrado lógico:** un producto borrado libera su nombre, pero su SKU y su código de barras siguen ocupados (HU-06-01). Una categoría borrada libera su nombre.
 - **Peticiones simultáneas:** dos altas iguales a la vez crean una sola; la otra recibe el mismo `409` con el producto que ganó, no `500` (índices únicos en la base de datos).
-- **Dinero:** se guarda como `numeric(12,2)` y se devuelve como número con 2 decimales exactos (`4.20`). Cantidades (`stock`, `percentage`, `target_margin`) se devuelven sin ceros de relleno (`496`, `13`, `25`).
+- **Dinero y cantidades:** el dinero se guarda como `numeric(12,2)` y se devuelve como string con 2 decimales exactos (`"4.20"`). Las cantidades (`stock`, `min_stock`, `percentage`, `target_margin`) se devuelven como string sin ceros de relleno (`"496"`, `"13"`, `"25"`); `stock_total` lleva 3 decimales (`"8.000"`). En las peticiones se aceptan número o string.
 - **Paginación:** si `limit` es menor que 1 o mayor que 100, se usa `20`; si `page` es menor que 1, se usa `1`. Una página fuera de rango devuelve `data: []` con el `meta` correcto.
 - **Relaciones:** el producto trae la categoría expandida (`id` + `name`); la unidad viene solo como `unit_of_measure_id`.
 - **Herencia de categorías:** el backend guarda `null` cuando una subcategoría no define impuesto o margen; el frontend resuelve el valor heredado del padre. `PATCH` con `null` vuelve a heredar.
 - **Eliminar una categoría con altas simultáneas:** con borrado lógico las claves foráneas no impiden que una categoría eliminada siga referenciada, así que la protección está en el servicio. `DELETE` bloquea la fila de la categoría durante su transacción; crear un producto, mover un producto a otra categoría y crear una subcategoría leen la categoría o el padre con un bloqueo compartido. Si ocurren a la vez, la eliminación se rechaza (`409`) o la creación encuentra la categoría ya eliminada (`404 category not found` / `parent category not found`). Nunca queda un producto o una subcategoría activos bajo una categoría eliminada.
-- **Nombre de categoría y mayúsculas:** la regla "sin distinguir mayúsculas" la aplica el servicio; el índice único de la base de datos compara el nombre exacto.
+- **Nombre de categoría y mayúsculas:** "Bebidas" y "BEBIDAS" son el mismo nombre. Lo comprueba el servicio y además lo garantizan índices únicos sobre `lower(name)` en la base de datos, así que dos peticiones simultáneas con esos nombres no pueden crear ambas (la segunda recibe `409`).
 - **Idioma de mensajes:** los `message` y los `details` del validador están en inglés, igual que en el resto de la API.
 
 ---
@@ -802,9 +802,8 @@ Sobre la primera versión de la HU que estaba en `dev` (solo `POST /products` y 
 1. Endpoints nuevos: `GET /products`, `GET /products/summary`, `GET /products/validate-duplicate`, `GET /categories`, `GET /units-of-measure`, `GET /taxes`.
 2. `POST /products` adaptado al contrato: `cost` (antes `cost_price`), `unit_of_measure_id` (antes un enum `unit_of_measure`), `initial_stock`, `sku` opcional y `name` único. Las respuestas incluyen `price`, `margin`, `stock` y `stock_status`.
 3. `POST /categories` acepta `parent_id`, `default_tax` y `target_margin`; el nombre ahora es único por nivel y no por empresa.
-4. El dinero se devuelve como número (`4.20`) en lugar de string (`"4.20"`).
-5. Tablas nuevas `units_of_measure` y `taxes`, sembradas por `make migrate-up`; permisos nuevos `products.list` y `categories.list`.
-6. El esquema del catálogo se cambia con migraciones SQL versionadas, que convierten las bases existentes sin perder datos.
+4. Tablas nuevas `units_of_measure` y `taxes`, sembradas por `make migrate-up`; permisos nuevos `products.list` y `categories.list`.
+5. El esquema del catálogo se cambia con migraciones SQL versionadas, que convierten las bases existentes sin perder datos.
 
 Sobre los endpoints de HU-03-03/04 que ya estaban en `dev` (`GET`, `PUT`, `PATCH .../status` y `DELETE` de `/products/:id`):
 1. `PUT /products/:id` usa los mismos campos que `POST /products`: `cost` y `unit_of_measure_id` en lugar de `cost_price` y `unit_of_measure`; `sku` es opcional; el nombre debe ser único; acepta `min_stock`.
