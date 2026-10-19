@@ -32,7 +32,7 @@ tests {
     expect(res.body.data.parent_id).to.equal(bru.getVar('parentId'));
     expect(res.body.data.description).to.equal('Bebidas con gas');
     expect(res.body.data.default_tax).to.equal('IVA general 13%');
-    expect(res.body.data.target_margin).to.equal(25);
+    expect(res.body.data.target_margin).to.equal('25');
     expect(res.body.data.products_count).to.equal(1);
     expect(res.body.data.status).to.equal('active');
   });

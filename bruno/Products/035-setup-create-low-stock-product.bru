@@ -37,6 +37,10 @@ script:pre-request {
   bru.setVar('lowStockSku', 'LOW-' + now);
 }
 
+script:post-response {
+  bru.setVar('lowStockProductId', res.body && res.body.data ? res.body.data.id : '');
+}
+
 tests {
   test("responde 201 con stock_status low_stock", function() {
     expect(res.status).to.equal(201);
