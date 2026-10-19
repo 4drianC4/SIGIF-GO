@@ -51,9 +51,10 @@ func (r *CreateProductRequest) Normalize() {
 }
 
 type ListProductsQuery struct {
-	Search     string `query:"search" json:"search" validate:"omitempty,max=100"`
-	CategoryID string `query:"category_id" json:"category_id" validate:"omitempty,uuid"`
-	Status     string `query:"status" json:"status" validate:"omitempty,oneof=active inactive"`
+	Search      string `query:"search" json:"search" validate:"omitempty,max=100"`
+	CategoryID  string `query:"category_id" json:"category_id" validate:"omitempty,uuid"`
+	Status      string `query:"status" json:"status" validate:"omitempty,oneof=active inactive"`
+	StockStatus string `query:"stock_status" json:"stock_status" validate:"omitempty,oneof=normal low_stock out_of_stock"`
 }
 
 func (q *ListProductsQuery) CategoryUUID() *uuid.UUID {
@@ -68,11 +69,30 @@ func (q *ListProductsQuery) StatusFilter() *entity.Status {
 	return &status
 }
 
+func (q *ListProductsQuery) StockStatusFilter() *entity.StockStatus {
+	if q.StockStatus == "" {
+		return nil
+	}
+	status := entity.StockStatus(q.StockStatus)
+	return &status
+}
+
+// HasFilters reports whether the query narrows the listing, so an empty result
+// can be explained to the user as "no matches" instead of "no products".
+func (q *ListProductsQuery) HasFilters() bool {
+	return strings.TrimSpace(q.Search) != "" || q.CategoryID != "" || q.Status != "" || q.StockStatus != ""
+}
+
 type ValidateDuplicateQuery struct {
 	Name      string `query:"name" json:"name" validate:"omitempty,max=150"`
 	SKU       string `query:"sku" json:"sku" validate:"omitempty,max=50"`
 	Barcode   string `query:"barcode" json:"barcode" validate:"omitempty,max=14"`
 	ExcludeID string `query:"exclude_id" json:"exclude_id" validate:"omitempty,uuid"`
+}
+
+type VerifyIdentifierQuery struct {
+	SKU     string `query:"sku" json:"sku" validate:"omitempty,max=50"`
+	Barcode string `query:"barcode" json:"barcode" validate:"omitempty,numeric,min=8,max=14"`
 }
 
 func (q *ValidateDuplicateQuery) ExcludeUUID() uuid.UUID {
@@ -121,6 +141,7 @@ type UpdateProductRequest struct {
 	Cost            *decimal.Decimal `json:"cost" validate:"required"`
 	SalePrice       *decimal.Decimal `json:"sale_price" validate:"required"`
 	MinStock        *decimal.Decimal `json:"min_stock"`
+	Reason          string           `json:"reason" validate:"omitempty,max=160"`
 }
 
 func (r *UpdateProductRequest) Normalize() {
@@ -130,4 +151,15 @@ func (r *UpdateProductRequest) Normalize() {
 	r.Description = strings.TrimSpace(r.Description)
 	r.CategoryID = strings.TrimSpace(r.CategoryID)
 	r.UnitOfMeasureID = strings.TrimSpace(r.UnitOfMeasureID)
+	r.Reason = strings.TrimSpace(r.Reason)
+}
+
+type UpdateProductPriceRequest struct {
+	Cost      *decimal.Decimal `json:"cost"`
+	SalePrice *decimal.Decimal `json:"sale_price"`
+	Reason    string           `json:"reason" validate:"omitempty,max=160"`
+}
+
+func (r *UpdateProductPriceRequest) Normalize() {
+	r.Reason = strings.TrimSpace(r.Reason)
 }

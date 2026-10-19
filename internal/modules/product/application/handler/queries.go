@@ -15,9 +15,10 @@ func (h *CatalogQueryHandler) HandleListProducts(ctx context.Context, q query.Li
 	return h.service.ListProducts(ctx, service.ListProductsParams{
 		CompanyID: q.CompanyID,
 		Filter: repository.ProductFilter{
-			Search:     q.Search,
-			CategoryID: q.CategoryID,
-			Status:     q.Status,
+			Search:      q.Search,
+			CategoryID:  q.CategoryID,
+			Status:      q.Status,
+			StockStatus: q.StockStatus,
 		},
 		Offset: q.Offset,
 		Limit:  q.Limit,
@@ -28,10 +29,19 @@ func (h *CatalogQueryHandler) HandleProductSummary(ctx context.Context, companyI
 	return h.service.ProductSummary(ctx, companyID)
 }
 
-func (h *CatalogQueryHandler) HandleGetProduct(ctx context.Context, q query.GetProduct) (*repository.ProductListItem, error) {
+func (h *CatalogQueryHandler) HandleGetProduct(ctx context.Context, q query.GetProduct) (*repository.ProductDetail, error) {
 	return h.service.GetProduct(ctx, service.GetProductParams{
 		CompanyID: q.CompanyID,
 		ProductID: q.ProductID,
+	})
+}
+
+func (h *CatalogQueryHandler) HandleGetPriceHistory(ctx context.Context, q query.GetPriceHistory) ([]*entity.PriceHistoryEntry, int64, error) {
+	return h.service.GetPriceHistory(ctx, service.GetPriceHistoryParams{
+		CompanyID: q.CompanyID,
+		ProductID: q.ProductID,
+		Page:      q.Page,
+		Limit:     q.Limit,
 	})
 }
 

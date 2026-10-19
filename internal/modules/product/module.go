@@ -10,6 +10,7 @@ import (
 	"github.com/sigif/sigif-go/internal/modules/product/infrastructure/persistence/gorm"
 	httpHandler "github.com/sigif/sigif-go/internal/modules/product/interfaces/http/handler"
 	httpRouter "github.com/sigif/sigif-go/internal/modules/product/interfaces/http/router"
+	"github.com/sigif/sigif-go/internal/shared/config"
 	"github.com/sigif/sigif-go/internal/shared/middleware"
 )
 
@@ -19,6 +20,8 @@ var Module = fx.Options(
 		fx.Annotate(gorm.NewCategoryGormRepository, fx.As(new(repository.CategoryRepository))),
 		fx.Annotate(gorm.NewUnitOfMeasureGormRepository, fx.As(new(repository.UnitOfMeasureRepository))),
 		fx.Annotate(gorm.NewTaxGormRepository, fx.As(new(repository.TaxRepository))),
+		fx.Annotate(gorm.NewPriceHistoryGormRepository, fx.As(new(repository.PriceHistoryRepository))),
+		fx.Annotate(gorm.NewStockGormRepository, fx.As(new(repository.StockRepository))),
 		service.NewCatalogService,
 		handler.NewCatalogCommandHandler,
 		handler.NewCatalogQueryHandler,
@@ -26,7 +29,7 @@ var Module = fx.Options(
 
 	fx.Provide(httpHandler.NewCatalogHTTPHandler),
 
-	fx.Invoke(func(app *fiber.App, handler *httpHandler.CatalogHTTPHandler, checker middleware.PermissionChecker) {
-		httpRouter.RegisterCatalogRoutes(app.Group("/api/v1"), handler, checker)
+	fx.Invoke(func(app *fiber.App, handler *httpHandler.CatalogHTTPHandler, checker middleware.PermissionChecker, cfg *config.Config) {
+		httpRouter.RegisterCatalogRoutes(app.Group("/api/v1"), handler, checker, cfg.RateLimit.IdentifierCheck)
 	}),
 )

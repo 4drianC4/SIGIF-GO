@@ -130,6 +130,26 @@ func (p *Product) IsActive() bool {
 	return p.Status == StatusActive
 }
 
+// UpdatePrices changes only the product's cost and selling price. It applies the
+// same money rules as Update and also requires the price not to be below the cost.
+func (p *Product) UpdatePrices(clock clock.Clock, cost, salePrice decimal.Decimal) error {
+	details := validationDetails{}
+	validateMoney(details, "cost", cost)
+	validateMoney(details, "sale_price", salePrice)
+	_, costInvalid := details["cost"]
+	_, priceInvalid := details["sale_price"]
+	if !costInvalid && !priceInvalid && salePrice.LessThan(cost) {
+		details["sale_price"] = "no puede ser menor que el costo"
+	}
+	if err := details.err(); err != nil {
+		return err
+	}
+	p.Cost = cost
+	p.SalePrice = salePrice
+	p.UpdatedAt = clock.NowUTC()
+	return nil
+}
+
 func (p *Product) Activate(clock clock.Clock) {
 	p.Status = StatusActive
 	p.UpdatedAt = clock.NowUTC()

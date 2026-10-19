@@ -623,14 +623,14 @@ func TestDeletePermissionEndpoint(t *testing.T) {
 	})
 
 	t.Run("removes a free permission", func(t *testing.T) {
-		permission := s.seedPermissionEntity(t, "categories", "update", "Editar categorías")
+		permission := s.seedPermissionEntity(t, "categories", "export", "Exportar categorías")
 		status, _, _ := s.doRaw(t, fiber.MethodDelete, "/api/v1/permissions/"+permission.ID.String(), deleteToken)
 		if status != fiber.StatusNoContent {
 			t.Fatalf("got %d, want 204", status)
 		}
 		_, _, items := s.list(t, "module=categories", s.token(t, "permissions.read"))
 		for _, item := range items {
-			if item.Code == "categories.update" {
+			if item.Code == "categories.export" {
 				t.Fatalf("permission still listed after delete: %v", items)
 			}
 		}

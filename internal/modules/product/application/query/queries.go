@@ -7,17 +7,25 @@ import (
 )
 
 type ListProducts struct {
-	CompanyID  uuid.UUID
-	Search     string
-	CategoryID *uuid.UUID
-	Status     *entity.Status
-	Offset     int
-	Limit      int
+	CompanyID   uuid.UUID
+	Search      string
+	CategoryID  *uuid.UUID
+	Status      *entity.Status
+	StockStatus *entity.StockStatus
+	Offset      int
+	Limit       int
 }
 
 type GetProduct struct {
 	CompanyID uuid.UUID
 	ProductID uuid.UUID
+}
+
+type GetPriceHistory struct {
+	CompanyID uuid.UUID
+	ProductID uuid.UUID
+	Page      int
+	Limit     int
 }
 
 type ValidateDuplicate struct {

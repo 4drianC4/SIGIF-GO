@@ -8,6 +8,8 @@ import (
 	"gorm.io/gorm"
 )
 
+// The two name indexes compare the exact name here. GORM tags cannot express
+// lower(name), so migration 000006 recreates them (same names) to ignore case.
 type CategoryModel struct {
 	ID           uuid.UUID        `gorm:"type:uuid;primaryKey;default:gen_random_uuid()"`
 	CompanyID    uuid.UUID        `gorm:"type:uuid;not null;uniqueIndex:idx_categories_company_root_name,where:deleted_at IS NULL AND parent_id IS NULL;uniqueIndex:idx_categories_company_parent_name,where:deleted_at IS NULL AND parent_id IS NOT NULL"`

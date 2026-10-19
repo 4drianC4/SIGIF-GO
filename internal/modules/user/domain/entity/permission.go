@@ -93,11 +93,16 @@ const (
 	PermUsersChangePassword = "users.change_password"
 	PermCategoriesCreate    = "categories.create"
 	PermCategoriesList      = "categories.list"
+	PermCategoriesUpdate    = "categories.update"
+	PermCategoriesDelete    = "categories.delete"
 	PermProductsCreate      = "products.create"
 	PermProductsList        = "products.list"
 	PermProductsRead        = "products.read"
 	PermProductsUpdate      = "products.update"
 	PermProductsDelete      = "products.delete"
+	PermInventoryCreate     = "inventory.create"
+	PermInventoryList       = "inventory.list"
+	PermInventoryRead       = "inventory.read"
 	PermCustomersCreate     = "customers.create"
 	PermCustomersList       = "customers.list"
 	PermCustomersRead       = "customers.read"
@@ -162,6 +167,8 @@ func AllPermissions() []Permission {
 			ops: []struct{ op, desc string }{
 				{"create", "Registrar categorías de productos"},
 				{"list", "Listar categorías de productos"},
+				{"update", "Editar categorías de productos"},
+				{"delete", "Eliminar categorías de productos"},
 			},
 		},
 		{
@@ -172,6 +179,14 @@ func AllPermissions() []Permission {
 				{"read", "Ver un producto"},
 				{"update", "Editar productos y cambiar estado"},
 				{"delete", "Eliminar productos permanentemente"},
+			},
+		},
+		{
+			module: "inventory",
+			ops: []struct{ op, desc string }{
+				{"create", "Registrar movimientos de inventario"},
+				{"list", "Listar movimientos y sucursales"},
+				{"read", "Consultar el stock por sucursal"},
 			},
 		},
 		{
