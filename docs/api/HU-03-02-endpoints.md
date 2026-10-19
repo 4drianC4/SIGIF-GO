@@ -45,7 +45,7 @@ Permisos usados en esta HU:
 
 | Permiso | Endpoint | Roles sembrados que lo tienen |
 |---|---|---|
-| `products.update` | `PUT /api/v1/products/:id` | `superadmin` |
+| `products.update` | `PUT /api/v1/products/:id` | `superadmin`, `business_admin` (solo su empresa) |
 
 ---
 

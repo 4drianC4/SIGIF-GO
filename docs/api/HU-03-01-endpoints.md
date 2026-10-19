@@ -46,7 +46,7 @@
 
 Permisos usados: `products.list`, `products.create`, `products.read`, `products.update`, `products.delete`, `categories.list`, `categories.create`, `categories.update`, `categories.delete`
 
-Todos se crean y se asignan al rol `superadmin` al ejecutar `make migrate-up`, también en bases ya existentes. Los roles `business_admin` y `employee` no los tienen (403). Unidades e impuestos solo requieren sesión.
+Todos se crean al ejecutar `make migrate-up`. El rol `superadmin` recibe todos; `business_admin` recibe los permisos de productos y categorías para gestionar únicamente el catálogo de su empresa; `employee` no los tiene (403). Unidades e impuestos solo requieren sesión.
 
 ---
 
@@ -812,7 +812,7 @@ Sobre los endpoints de HU-03-03/04 que ya estaban en `dev` (`GET`, `PUT`, `PATCH
 4. Colección Bruno `bruno/Products`: 21 peticiones con tests (001–016 de esta HU, 017–021 de HU-03-03/04).
 
 Sobre la edición y eliminación de categorías (`PATCH` y `DELETE /categories/:id`, secciones 13 y 14):
-1. Permisos nuevos `categories.update` y `categories.delete`; como `categories.create` y `categories.list`, solo los tiene el rol `superadmin`.
+1. Permisos nuevos `categories.update` y `categories.delete`; junto con `categories.create` y `categories.list`, los tienen `superadmin` y `business_admin`. Este último solo opera dentro de su empresa.
 2. `PATCH` sigue el mismo cuerpo estricto que la edición de clientes: al menos un campo editable, sin campos desconocidos y `null` para limpiar lo que se hereda.
 3. Crear un producto, mover un producto de categoría y crear una subcategoría ahora se ejecutan en una transacción; el contrato de sus respuestas no cambia.
 4. Colección Bruno `bruno/Categories`: 34 peticiones con tests, re-ejecutables.
