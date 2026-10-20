@@ -1,0 +1,21 @@
+meta {
+  name: Cleanup - Delete Other Category
+  type: http
+  seq: 34
+}
+
+delete {
+  url: {{baseUrl}}/api/v1/categories/{{otherId}}
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{accessToken}}
+}
+
+tests {
+  test("responde 204", function() {
+    expect(res.status).to.equal(204);
+  });
+}

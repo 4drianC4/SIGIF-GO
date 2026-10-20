@@ -1,0 +1,38 @@
+meta {
+  name: Setup - Login Business Admin
+  type: http
+  seq: 2
+}
+
+post {
+  url: {{baseUrl}}/api/v1/auth/login
+  body: json
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "email": "{{businessAdminEmail}}",
+    "password": "{{businessAdminPassword}}"
+  }
+}
+
+script:post-response {
+  const authCookie = [].concat(res.getHeader('set-cookie') || [])
+    .map((c) => c.split(';')[0])
+    .find((c) => c.startsWith('sigif_access_token='));
+  const token = authCookie ? authCookie.substring('sigif_access_token='.length) : null;
+  if (res.body && res.body.data) {
+    bru.setVar('readerToken', token);
+  }
+}
+
+tests {
+  test("responde 200: business_admin puede gestionar categorías de su empresa", function() {
+    expect(res.status).to.equal(200);
+  });
+}

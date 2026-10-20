@@ -1,0 +1,36 @@
+meta {
+  name: Recreate The Name Of The Deleted Category
+  type: http
+  seq: 31
+}
+
+post {
+  url: {{baseUrl}}/api/v1/categories
+  body: json
+  auth: bearer
+}
+
+headers {
+  Content-Type: application/json
+}
+
+auth:bearer {
+  token: {{accessToken}}
+}
+
+body:json {
+  {
+    "name": "{{childName}} editada",
+    "parent_id": "{{parentId}}"
+  }
+}
+
+script:post-response {
+  bru.setVar('recreatedId', res.body && res.body.data ? res.body.data.id : '');
+}
+
+tests {
+  test("el nombre de una categoría eliminada queda libre", function() {
+    expect(res.status).to.equal(201);
+  });
+}

@@ -1,0 +1,36 @@
+meta {
+  name: Patch Set Tax And Margin
+  type: http
+  seq: 9
+}
+
+patch {
+  url: {{baseUrl}}/api/v1/categories/{{childId}}
+  body: json
+  auth: bearer
+}
+
+headers {
+  Content-Type: application/json
+}
+
+auth:bearer {
+  token: {{accessToken}}
+}
+
+body:json {
+  {
+    "default_tax": "Exempt",
+    "target_margin": 12.5,
+    "description": "Sin gas"
+  }
+}
+
+tests {
+  test("cambia impuesto, margen y descripción", function() {
+    expect(res.status).to.equal(200);
+    expect(res.body.data.default_tax).to.equal('Exempt');
+    expect(res.body.data.target_margin).to.equal('12.5');
+    expect(res.body.data.description).to.equal('Sin gas');
+  });
+}

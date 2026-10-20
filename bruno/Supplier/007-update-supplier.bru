@@ -1,0 +1,35 @@
+meta {
+  name: Update Supplier
+  type: http
+  seq: 6
+}
+
+put {
+  url: {{baseUrl}}/api/v1/suppliers/{{supplierId}}
+  body: json
+  auth: bearer
+}
+
+headers {
+  Content-Type: application/json
+}
+
+auth:bearer {
+  token: {{accessToken}}
+}
+
+body:json {
+  {
+    "trade_name": "Distribuidora Andina",
+    "legal_name": "Distribuidora Andina S.R.L. editada",
+    "tax_id": "1044556679",
+    "contact": "Jorge Aliaga",
+    "phone": "+591 70000009",
+    "email": "pedidos.bruno@example.com",
+    "address": "Av. Central 123",
+    "main_industry": "Abarrotes",
+    "payment_terms": "Contado",
+    "lead_time_days": 3,
+    "minimum_order": 2000
+  }
+}

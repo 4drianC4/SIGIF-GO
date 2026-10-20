@@ -23,15 +23,15 @@ func (h *UserHTTPHandler) Create(c *fiber.Ctx) error {
 		FirstName: req.FirstName,
 		LastName:  req.LastName,
 		Email:     req.Email,
-		Password:  req.Password,
+		CompanyID: &req.CompanyID,
 		RoleName:  req.Role,
-		Area:      req.Area,
 	})
 	if err != nil {
 		return response.Error(c, fiber.StatusInternalServerError, err)
 	}
 
-	return response.Created(c, dtos.ToResponse(user))
+	c.Set("Cache-Control", "no-store")
+	return response.Created(c, dtos.RegisterUserResponse{User: dtos.ToResponse(user.User), GeneratedPassword: user.GeneratedPassword})
 }
 
 func (h *UserHTTPHandler) List(c *fiber.Ctx) error {

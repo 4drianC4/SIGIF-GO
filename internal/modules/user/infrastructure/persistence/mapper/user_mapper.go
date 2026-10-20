@@ -21,7 +21,6 @@ func UserToModel(u *entity.AppUser) *model.UserModel {
 		PasswordAlgorithm: u.PasswordAlgorithm,
 		RequiresOTP:       u.RequiresOTP,
 		Status:            u.Status.String(),
-		Area:              u.Area,
 		LastAccess:        u.LastAccess,
 		CreatedAt:         u.CreatedAt,
 		UpdatedAt:         u.UpdatedAt,
@@ -47,7 +46,6 @@ func UserToDomain(m *model.UserModel) *entity.AppUser {
 		PasswordAlgorithm: m.PasswordAlgorithm,
 		RequiresOTP:       m.RequiresOTP,
 		Status:            entity.UserStatus(m.Status),
-		Area:              m.Area,
 		LastAccess:        m.LastAccess,
 		CreatedAt:         m.CreatedAt,
 		UpdatedAt:         m.UpdatedAt,
@@ -63,6 +61,33 @@ func RoleToDomain(m *model.RoleModel) *entity.Role {
 		Description: m.Description,
 		IsTemplate:  m.IsTemplate,
 		IsSystem:    m.IsSystem,
+		Status:      entity.RoleStatus(m.Status),
 		CreatedAt:   m.CreatedAt,
+	}
+}
+
+// RoleListToDomain maps a listing row, including the permissions count
+// computed by the query (HU-082-02).
+func RoleListToDomain(m *model.RoleListModel) *entity.Role {
+	role := RoleToDomain(&m.RoleModel)
+	role.PermissionsCount = int(m.PermissionsCount)
+	return role
+}
+
+func PermissionToModel(p *entity.Permission) *model.PermissionModel {
+	return &model.PermissionModel{
+		ID:          p.ID,
+		Module:      p.Module,
+		Operation:   p.Operation,
+		Description: p.Description,
+	}
+}
+
+func PermissionToDomain(m *model.PermissionModel) *entity.Permission {
+	return &entity.Permission{
+		ID:          m.ID,
+		Module:      m.Module,
+		Operation:   m.Operation,
+		Description: m.Description,
 	}
 }

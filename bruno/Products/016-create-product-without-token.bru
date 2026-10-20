@@ -1,0 +1,28 @@
+meta {
+  name: Create Product - Without Token (401)
+  type: http
+  seq: 16
+}
+
+post {
+  url: {{baseUrl}}/api/v1/products
+  body: json
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "name": "Sin token"
+  }
+}
+
+tests {
+  test("responde 401 UNAUTHORIZED", function() {
+    expect(res.status).to.equal(401);
+    expect(res.body.error.code).to.equal('UNAUTHORIZED');
+  });
+}

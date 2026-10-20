@@ -1,0 +1,29 @@
+meta {
+  name: Associate Products Batch
+  type: http
+  seq: 10
+}
+
+post {
+  url: {{baseUrl}}/api/v1/suppliers/{{supplierId}}/products/batch
+  body: json
+  auth: bearer
+}
+
+headers {
+  Content-Type: application/json
+}
+
+auth:bearer {
+  token: {{accessToken}}
+}
+
+body:json {
+  {
+    "product_ids": [
+      "{{supplierProductId}}",
+      "{{secondProductId}}"
+    ]
+  }
+}
+

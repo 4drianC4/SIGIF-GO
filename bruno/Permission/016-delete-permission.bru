@@ -1,0 +1,21 @@
+meta {
+  name: Delete Permission
+  type: http
+  seq: 16
+}
+
+delete {
+  url: {{baseUrl}}/api/v1/permissions/{{editablePermissionId}}
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{accessToken}}
+}
+
+tests {
+  test("borra un permiso sin asignar y responde 204", function() {
+    expect(res.status).to.equal(204);
+  });
+}

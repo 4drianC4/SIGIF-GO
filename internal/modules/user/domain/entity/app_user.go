@@ -24,7 +24,6 @@ type AppUser struct {
 	PasswordAlgorithm string
 	RequiresOTP       bool
 	Status            UserStatus
-	Area              string
 	LastAccess        *time.Time
 	CreatedAt         time.Time
 	UpdatedAt         time.Time
@@ -38,7 +37,6 @@ type RegisterUserParams struct {
 	LastName  string
 	Email     string
 	Password  string
-	Area      string
 }
 
 func NewUser(clock clock.Clock, params RegisterUserParams) (*AppUser, error) {
@@ -60,14 +58,9 @@ func NewUser(clock clock.Clock, params RegisterUserParams) (*AppUser, error) {
 		PasswordAlgorithm: security.Algorithm,
 		RequiresOTP:       false,
 		Status:            UserStatusActive,
-		Area:              params.Area,
 		CreatedAt:         now,
 		UpdatedAt:         now,
 	}, nil
-}
-
-func (u *AppUser) FullName() string {
-	return u.FirstName + " " + u.LastName
 }
 
 func (u *AppUser) IsActive() bool {
@@ -77,15 +70,18 @@ func (u *AppUser) IsActive() bool {
 // EditUserParams holds the fields an administrator may edit (the same data
 // that is provided when registering a user). Nil = leave the field unchanged.
 type EditUserParams struct {
+	CompanyID *uuid.UUID
 	FirstName *string
 	LastName  *string
 	Email     *string
 	RoleID    *uuid.UUID
-	Area      *string
 }
 
 // Edit applies the provided fields onto the user (PATCH semantics).
 func (u *AppUser) Edit(params EditUserParams, clock clock.Clock) {
+	if params.CompanyID != nil {
+		u.CompanyID = params.CompanyID
+	}
 	if params.FirstName != nil {
 		u.FirstName = *params.FirstName
 	}
@@ -98,9 +94,6 @@ func (u *AppUser) Edit(params EditUserParams, clock clock.Clock) {
 	}
 	if params.RoleID != nil {
 		u.RoleID = *params.RoleID
-	}
-	if params.Area != nil {
-		u.Area = *params.Area
 	}
 	u.UpdatedAt = clock.NowUTC()
 }

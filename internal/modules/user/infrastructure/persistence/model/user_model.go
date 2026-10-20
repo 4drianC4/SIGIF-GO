@@ -21,7 +21,6 @@ type UserModel struct {
 	PasswordAlgorithm string         `gorm:"type:varchar(20);not null;default:'argon2id'"`
 	RequiresOTP       bool           `gorm:"not null;default:false"`
 	Status            string         `gorm:"type:varchar(20);not null;default:'active';index"`
-	Area              string         `gorm:"type:varchar(120)"`
 	LastAccess        *time.Time     `gorm:"index"`
 	CreatedAt         time.Time      `gorm:"autoCreateTime"`
 	UpdatedAt         time.Time      `gorm:"autoUpdateTime"`

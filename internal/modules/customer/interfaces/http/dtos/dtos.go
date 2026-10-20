@@ -1,15 +1,18 @@
 package dtos
 
 import (
+	"github.com/shopspring/decimal"
+
 	"github.com/sigif/sigif-go/internal/modules/customer/domain/entity"
 )
 
 type CreateCustomerRequest struct {
-	LegalName      string  `json:"legal_name" validate:"required,min=1,max=160"`
-	DocumentType   string  `json:"document_type" validate:"omitempty,oneof=national_id tax_id passport other"`
-	DocumentNumber *string `json:"document_number" validate:"omitempty,max=30"`
-	Phone          *string `json:"phone" validate:"omitempty,max=30"`
-	Email          *string `json:"email" validate:"omitempty,email,max=160"`
+	LegalName      string           `json:"legal_name" validate:"required,min=1,max=160"`
+	DocumentType   string           `json:"document_type" validate:"omitempty,oneof=national_id tax_id passport other"`
+	DocumentNumber *string          `json:"document_number" validate:"omitempty,max=30"`
+	Phone          *string          `json:"phone" validate:"omitempty,max=30"`
+	Email          *string          `json:"email" validate:"omitempty,email,max=160"`
+	CreditLimit    *decimal.Decimal `json:"credit_limit" validate:"-"`
 }
 
 type UpdateCustomerRequest struct {

@@ -1,8 +1,13 @@
 package entity
 
-import "github.com/google/uuid"
+import (
+	"slices"
+
+	"github.com/google/uuid"
+)
 
 // Permission is the smallest unit of authorization: a module + an operation.
+// Its code is the canonical "module.operation" key (Key).
 type Permission struct {
 	ID          uuid.UUID
 	Module      string
@@ -10,8 +15,70 @@ type Permission struct {
 	Description string
 }
 
+// Key returns the unique code that identifies the permission from the backend.
 func (p *Permission) Key() string {
 	return p.Module + "." + p.Operation
+}
+
+// SupportedOperations is the catalog of operations a permission may use. It
+// holds the operations defined by HU-082-01 (read, create, update, delete,
+// export) plus the ones already seeded for the implemented modules, so a new
+// permission never invalidates a permission granted by the seed.
+var SupportedOperations = []string{
+	"read",
+	"list",
+	"create",
+	"update",
+	"delete",
+	"export",
+	"activate",
+	"deactivate",
+	"change_password",
+	"status",
+}
+
+// IsSupportedOperation reports whether operation belongs to the catalog.
+func IsSupportedOperation(operation string) bool {
+	return slices.Contains(SupportedOperations, operation)
+}
+
+// ModuleWithOperations pairs a module of the catalog with the operations its
+// permissions may use.
+type ModuleWithOperations struct {
+	Module     string
+	Operations []string
+}
+
+// SupportedModules returns the catalog of modules a permission may belong to,
+// in seed order and without repetitions. The modules come from the same source
+// of truth as the seeded permissions.
+func SupportedModules() []string {
+	var modules []string
+	for _, p := range AllPermissions() {
+		if !slices.Contains(modules, p.Module) {
+			modules = append(modules, p.Module)
+		}
+	}
+	return modules
+}
+
+// IsSupportedModule reports whether module belongs to the catalog.
+func IsSupportedModule(module string) bool {
+	return slices.Contains(SupportedModules(), module)
+}
+
+// SupportedModuleCatalog returns every module of the catalog together with the
+// operations a permission of that module may use.
+func SupportedModuleCatalog() []ModuleWithOperations {
+	modules := SupportedModules()
+	catalog := make([]ModuleWithOperations, 0, len(modules))
+	for _, module := range modules {
+		catalog = append(catalog, ModuleWithOperations{
+			Module:     module,
+			Operations: slices.Clone(SupportedOperations),
+		})
+	}
+	return catalog
 }
 
 // Predefined permissions for the modules currently implemented.
@@ -25,17 +92,55 @@ const (
 	PermUsersDeactivate     = "users.deactivate"
 	PermUsersChangePassword = "users.change_password"
 	PermCategoriesCreate    = "categories.create"
+	PermCategoriesList      = "categories.list"
+	PermCategoriesUpdate    = "categories.update"
+	PermCategoriesDelete    = "categories.delete"
 	PermProductsCreate      = "products.create"
+	PermProductsList        = "products.list"
 	PermProductsRead        = "products.read"
 	PermProductsUpdate      = "products.update"
 	PermProductsDelete      = "products.delete"
+	PermInventoryCreate     = "inventory.create"
+	PermInventoryList       = "inventory.list"
+	PermInventoryRead       = "inventory.read"
 	PermCustomersCreate     = "customers.create"
 	PermCustomersList       = "customers.list"
 	PermCustomersRead       = "customers.read"
 	PermCustomersUpdate     = "customers.update"
 	PermCustomersStatus     = "customers.status"
 	PermCustomersDelete     = "customers.delete"
+	PermPermissionsRead     = "permissions.read"
+	PermPermissionsCreate   = "permissions.create"
+	PermRolesList           = "roles.list"
+	PermRolesStatus         = "roles.status"
+	PermPermissionsUpdate   = "permissions.update"
+	PermPermissionsDelete   = "permissions.delete"
+	PermPermissionsExport   = "permissions.export"
+	PermSuppliersCreate     = "suppliers.create"
+	PermSuppliersList       = "suppliers.list"
+	PermSuppliersRead       = "suppliers.read"
+	PermSuppliersUpdate     = "suppliers.update"
+	PermSuppliersDeactivate = "suppliers.deactivate"
 )
+
+// IsSystemPermission reports whether the pair module.operation belongs to the
+// canonical seed. System permissions are protected: they cannot be deleted.
+func IsSystemPermission(module, operation string) bool {
+	return slices.ContainsFunc(AllPermissions(), func(p Permission) bool {
+		return p.Module == module && p.Operation == operation
+	})
+}
+
+// SystemPermissionKeys returns the codes (module.operation) of every permission
+// of the canonical seed, so clients can tell which ones are protected.
+func SystemPermissionKeys() []string {
+	perms := AllPermissions()
+	keys := make([]string, len(perms))
+	for i := range perms {
+		keys[i] = perms[i].Key()
+	}
+	return keys
+}
 
 // AllPermissions returns the canonical set of permissions for the implemented
 // modules. Kept as a single source of truth for seeding.
@@ -61,15 +166,27 @@ func AllPermissions() []Permission {
 			module: "categories",
 			ops: []struct{ op, desc string }{
 				{"create", "Registrar categorías de productos"},
+				{"list", "Listar categorías de productos"},
+				{"update", "Editar categorías de productos"},
+				{"delete", "Eliminar categorías de productos"},
 			},
 		},
 		{
 			module: "products",
 			ops: []struct{ op, desc string }{
 				{"create", "Registrar productos"},
-				{"read", "Ver y listar productos"},
+				{"list", "Listar productos y ver su resumen"},
+				{"read", "Ver un producto"},
 				{"update", "Editar productos y cambiar estado"},
 				{"delete", "Eliminar productos permanentemente"},
+			},
+		},
+		{
+			module: "inventory",
+			ops: []struct{ op, desc string }{
+				{"create", "Registrar movimientos de inventario"},
+				{"list", "Listar movimientos y sucursales"},
+				{"read", "Consultar el stock por sucursal"},
 			},
 		},
 		{
@@ -81,6 +198,33 @@ func AllPermissions() []Permission {
 				{"update", "Actualizar clientes"},
 				{"status", "Cambiar estado de clientes"},
 				{"delete", "Eliminar clientes"},
+			},
+		},
+		{
+			module: "suppliers",
+			ops: []struct{ op, desc string }{
+				{"create", "Registrar proveedores"},
+				{"list", "Listar proveedores y ver su resumen"},
+				{"read", "Ver proveedores y sus productos"},
+				{"update", "Editar proveedores"},
+				{"deactivate", "Desactivar proveedores"},
+			},
+		},
+		{
+			module: "permissions",
+			ops: []struct{ op, desc string }{
+				{"read", "Consultar el catálogo de permisos"},
+				{"create", "Registrar permisos"},
+				{"update", "Editar la descripción de un permiso"},
+				{"delete", "Eliminar permisos"},
+				{"export", "Exportar el catálogo de permisos"},
+			},
+		},
+		{
+			module: "roles",
+			ops: []struct{ op, desc string }{
+				{"list", "Listar roles"},
+				{"status", "Activar y desactivar roles"},
 			},
 		},
 	}

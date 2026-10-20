@@ -13,11 +13,9 @@ type User struct {
 	Role       string            `json:"role"`
 	FirstName  string            `json:"first_name"`
 	LastName   string            `json:"last_name"`
-	FullName   string            `json:"full_name"`
 	Username   string            `json:"username"`
 	Email      string            `json:"email"`
 	Phone      string            `json:"phone,omitempty"`
-	Area       string            `json:"area,omitempty"`
 	Status     entity.UserStatus `json:"status"`
 	LastAccess *string           `json:"last_access,omitempty"`
 	CreatedAt  string            `json:"created_at"`
@@ -44,11 +42,9 @@ func FromEntity(u *entity.AppUser) User {
 		Role:       u.RoleName,
 		FirstName:  u.FirstName,
 		LastName:   u.LastName,
-		FullName:   u.FullName(),
 		Username:   u.Username,
 		Email:      u.Email,
 		Phone:      u.Phone,
-		Area:       u.Area,
 		Status:     u.Status,
 		LastAccess: lastAccess,
 		CreatedAt:  u.CreatedAt.Format(time.RFC3339),

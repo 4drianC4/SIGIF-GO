@@ -1,166 +1,54 @@
-# Reporte de endpoints — HU-02-02 Editar usuario
+# HU-02-02 — Editar usuario
 
-## Información general
+## PATCH /api/v1/users/:id
 
-- HU: HU-02-02 — Editar usuario (RF-02). Depende de HU-02-01 (Registrar usuario).
-- Rama: `dev`
-- Prefijo base: `/api/v1`
-- Requiere contexto autenticado del backend: la ruta exige `Authorization: Bearer <access_token>` (validado por `AuthRequired`, sesión activa en `user_session`) y el permiso `users.update` (validado por `RequirePermission`).
-- Formato de respuesta exitosa: `{ "success": true, "data": ... }`.
-- Formato de respuesta de error: `{ "success": false, "error": { "code": "CODIGO", "message": "descripción", "details": { "campo": "motivo" } } }`. `details` solo aparece en errores de validación.
-
----
-
-## Resumen rápido
-
-| Método | Ruta | Permiso | Descripción |
-|---|---|---|---|
-| `PATCH` | `/api/v1/users/:id` | `users.update` | Edita los datos permitidos de un usuario existente. |
-
----
-
-## Autenticación / permisos (todas las rutas)
-
-| Header | Obligatorio | Descripción |
-|---|---|---|
-| `Authorization` | Sí | `Bearer <access_token>` con una sesión activa. |
-| `Content-Type` | Sí | `application/json`. |
-
-Permisos usados en esta HU: `users.update` (lo tiene el rol `superadmin`; `business_admin` recibe `403`).
-
----
-
-## 1) Editar usuario — `PATCH /api/v1/users/:id`
-
-Edita un usuario existente con semántica de parche: **solo se aplican los campos enviados**; los omitidos se conservan. El cuerpo acepta exactamente los **mismos campos que el registro** (HU-02-01), todos opcionales.
-
-### Permiso
-`users.update`
-
-### Params de ruta
-- `id`: UUID — identificador del usuario.
-
-### Body
+Requiere `Authorization: Bearer <access_token>`, sesión activa y permiso `users.update`. `id` debe ser un UUID de usuario existente.
 
 ```json
 {
   "first_name": "Juan Carlos",
   "last_name": "Pérez Gómez",
   "email": "nuevo@sigif.com",
-  "password": "nuevaPassword123",
-  "role": "superadmin",
-  "area": "Sistemas"
+  "company_id": "11111111-1111-4111-8111-111111111111",
+  "role": "business_admin",
+  "password": "nuevaPassword123"
 }
 ```
 
-| Campo | Tipo | Obligatorio | Restricciones / notas |
-|---|---|---|---|
-| `first_name` | string | No | Entre 1 y 80 caracteres si se envía. |
-| `last_name` | string | No | Entre 1 y 80 caracteres si se envía. |
-| `email` | string | No | Formato email. Si cambia, debe ser único en el sistema; al cambiarlo también se actualiza `username`. |
-| `password` | string | No | Mínimo 8 caracteres si se envía; se almacena hasheada con Argon2id. Es un restablecimiento por parte del admin: no exige la contraseña actual (para eso existe `PUT /users/:id/password` del propio usuario). |
-| `role` | string | No | `business_admin` o `employee`. Si el rol no existe, se rechaza con `VALIDATION_ERROR` (400). |
-| `area` | string | No | Máximo 120 caracteres; permite vaciarlo (`""`). |
+Todos los campos son opcionales. Solo se modifican los enviados; los omitidos o `null` conservan su valor. `{}` es válido. No se puede desvincular una compañía mediante `null`.
 
-### Respuesta exitosa
+| Campo | Validación cuando se envía |
+|---|---|
+| first_name | 1–80 caracteres. |
+| last_name | 1–80 caracteres. |
+| email | Email válido y único; actualiza también `username`. |
+| company_id | UUID no nulo de una compañía existente y no eliminada. |
+| role | `business_admin` o `employee`; no permite asignar `superadmin`. |
+| password | Mínimo 8 caracteres; no acepta cadena vacía. Se almacena hasheada con Argon2id. |
 
-**`200`**
+Respuesta **200**: `{ "success": true, "data": { ...User } }`, con los valores actualizados, incluido el nombre del rol y `company_id`. No devuelve contraseña ni `generated_password`.
 
-```json
-{
-  "success": true,
-  "data": {
-    "id": "uuid",
-    "role_id": "uuid",
-    "role": "superadmin",
-    "first_name": "Juan Carlos",
-    "last_name": "Pérez Gómez",
-    "full_name": "Juan Carlos Pérez Gómez",
-    "username": "nuevo@sigif.com",
-    "email": "nuevo@sigif.com",
-    "area": "Sistemas",
-    "status": "active",
-    "created_at": "2026-10-02T12:00:00Z",
-    "updated_at": "2026-10-03T12:30:00Z"
-  }
-}
-```
+Para cargar la empresa actual, seleccionar la opción cuyo `id` coincida con el `company_id` del usuario. Las opciones se obtienen con [GET /api/v1/companies](HU-02-01-endpoints.md#get-apiv1companies--opciones-del-selector).
 
-### Códigos de error
+`area` y `full_name` ya no forman parte del contrato; si se envían, se ignoran. `phone` se conserva, pero no se edita mediante este formulario. El estado se cambia por los endpoints de activación/desactivación.
 
-| Code | HTTP | Causa |
+El cambio administrativo de contraseña no exige la anterior y no invalida sesiones existentes automáticamente. El cambio de compañía tampoco renueva tokens emitidos: el usuario debe volver a iniciar sesión para obtener el nuevo contexto de compañía.
+
+## Respuesta User
+
+Incluye `id`, `company_id`, `role_id`, `role`, `first_name`, `last_name`, `username`, `email`, `phone`, `status`, `last_access`, `created_at` y `updated_at`. Los valores opcionales vacíos (`company_id`, `phone`, `last_access`) se omiten. `username` sigue sincronizado con el email; `phone` se conserva pero no se edita en estos formularios. Ya no se exponen `area` ni `full_name`. Nunca se devuelve `password_hash`.
+
+## Errores
+
+| HTTP | Código | Causa |
 |---|---|---|
-| `BAD_REQUEST` | 400 | JSON ilegible; validación de formato fallida (campos en `details`). |
-| `NOT_FOUND` | 404 | El usuario no existe. |
-| `CONFLICT` | 409 | El nuevo email ya pertenece a otro usuario. |
-| `FORBIDDEN` | 403 | El usuario autenticado no tiene el permiso `users.update`. |
-| `UNAUTHORIZED` | 401 | Token ausente, inválido, expirado o sesión terminada. |
-| `INTERNAL_ERROR` | 500 | Error de persistencia al guardar el usuario. |
+| 400 | BAD_REQUEST | JSON ilegible o UUID mal formado. |
+| 400 | VALIDATION_ERROR | Campos inválidos, rol no permitido o compañía inexistente/eliminada. |
+| 401 | UNAUTHORIZED | Token ausente, inválido o sesión terminada. |
+| 403 | FORBIDDEN | Sin permiso para la operación. |
+| 409 | CONFLICT | Email ya registrado. |
+| 500 | INTERNAL_ERROR | Error de persistencia. |
 
----
+Formato: `{ "success": false, "error": { "code": "...", "message": "..." } }`. Los errores del validador pueden incluir `details`.
 
-## Estructura de respuesta de entidad `User`
-
-Misma estructura que en HU-02-01:
-
-```json
-{
-  "id": "uuid",
-  "company_id": "uuid | null",
-  "role_id": "uuid",
-  "role": "superadmin | business_admin | employee",
-  "first_name": "string",
-  "last_name": "string",
-  "full_name": "string",
-  "username": "string",
-  "email": "string",
-  "phone": "string",
-  "area": "string",
-  "status": "active | inactive | invited | locked",
-  "last_access": "date | null",
-  "created_at": "date",
-  "updated_at": "date"
-}
-```
-
-Los campos `company_id`, `phone`, `area` y `last_access` se omiten cuando están vacíos o son nulos. El `password_hash` nunca se expone.
-
----
-
-## Tabla de errores consolidada
-
-```json
-{
-  "success": false,
-  "error": {
-    "code": "CODIGO",
-    "message": "descripción"
-  }
-}
-```
-
-| Code | HTTP | Origen |
-|---|---|---|
-| `BAD_REQUEST` | 400 | Body ilegible, validación o rol inexistente. |
-| `UNAUTHORIZED` | 401 | Token ausente/inválido/expirado o sesión terminada. |
-| `FORBIDDEN` | 403 | Sin permiso `users.update`. |
-| `NOT_FOUND` | 404 | Usuario inexistente. |
-| `CONFLICT` | 409 | Email duplicado. |
-| `INTERNAL_ERROR` | 500 | Error de persistencia. |
-
----
-
-## Casos borde / comportamiento no obvio
-
-- **Cambios parciales**: un body `{}` o con solo algunos campos aplica únicamente esos campos; el resto conserva su valor (el servicio hace read-modify-write y persiste todo el agregado).
-- **Email**: si se envía uno distinto al actual, se verifica unicidad (`CONFLICT` 409). El `username` se mantiene igual al email (no existe ingreso de username separado).
-- **Contraseña**: enviar `password` sustituye la contraseña (re-hash Argon2id). No requiere la contraseña anterior porque es un cambio administrativo; la sesión actual del usuario editado no se invalida automáticamente.
-- **Role**: el nombre del rol se resuelve a su `role_id`; un nombre inexistente responde `400`.
-- **Estado**: esta HU no cubre activación/desactivación; eso se hace con `POST /users/:id/activate|deactivate` (dueño del estado separado del PATCH).
-- **`phone`** no forma parte de los campos del panel de registro/edición de esta HU.
-
----
-
-## Diferencias respecto a una versión anterior (si aplica)
-
-- Se reemplazó el `PUT /api/v1/users/:id` (solo aceptaba `first_name`, `last_name`, `phone`, `area`) por este `PATCH`, que acepta **todos los campos del registro** (`email`, `role`, `password`, `area`, `first_name`, `last_name`) como opcionales.
+También responde **404 NOT_FOUND** si el usuario no existe.
