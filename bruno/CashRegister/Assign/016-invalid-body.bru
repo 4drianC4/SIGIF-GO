@@ -1,0 +1,33 @@
+meta {
+  name: 08 Invalid Body (400)
+  type: http
+  seq: 16
+}
+
+post {
+  url: {{baseUrl}}/api/v1/cash-register-assignments/
+  body: json
+  auth: bearer
+}
+
+headers {
+  Content-Type: application/json
+}
+
+auth:bearer {
+  token: {{accessTokenB}}
+}
+
+body:json {
+  {
+    "cash_register_id": "CAJA-01"
+  }
+}
+
+tests {
+  test("responde 400 VALIDATION_ERROR si el id no es un UUID", function() {
+    expect(res.status).to.equal(400);
+    expect(res.body.error.code).to.equal('VALIDATION_ERROR');
+    expect(res.body.error.details.cash_register_id).to.be.a('string');
+  });
+}

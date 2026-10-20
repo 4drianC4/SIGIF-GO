@@ -1,0 +1,24 @@
+meta {
+  name: 14 Release Without Token (401)
+  type: http
+  seq: 22
+}
+
+post {
+  url: {{baseUrl}}/api/v1/cash-register-assignments/{{assignmentAId}}/release
+  body: none
+  auth: none
+}
+
+script:pre-request {
+  // Bruno reenvía la cookie HttpOnly del último login; se borra para que
+  // la petición viaje de verdad sin credenciales.
+  await bru.cookies.delete('sigif_access_token');
+}
+
+tests {
+  test("responde 401 UNAUTHORIZED sin token", function() {
+    expect(res.status).to.equal(401);
+    expect(res.body.error.code).to.equal('UNAUTHORIZED');
+  });
+}

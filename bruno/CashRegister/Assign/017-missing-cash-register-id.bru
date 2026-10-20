@@ -1,0 +1,30 @@
+meta {
+  name: 09 Missing Cash Register Id (400)
+  type: http
+  seq: 17
+}
+
+post {
+  url: {{baseUrl}}/api/v1/cash-register-assignments/
+  body: json
+  auth: bearer
+}
+
+headers {
+  Content-Type: application/json
+}
+
+auth:bearer {
+  token: {{accessTokenB}}
+}
+
+body:json {
+  {}
+}
+
+tests {
+  test("responde 400 VALIDATION_ERROR si falta cash_register_id", function() {
+    expect(res.status).to.equal(400);
+    expect(res.body.error.code).to.equal('VALIDATION_ERROR');
+  });
+}

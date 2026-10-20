@@ -1,0 +1,41 @@
+meta {
+  name: Setup - Login Cashier A
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{baseUrl}}/api/v1/auth/login
+  body: json
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "email": "{{cashierAEmail}}",
+    "password": "{{cashierAPassword}}"
+  }
+}
+
+script:post-response {
+  // El access token ya no viaja en el JSON: se extrae de la cookie HttpOnly
+  // para seguir usándolo como Authorization: Bearer en esta colección.
+  const authCookie = [].concat(res.getHeader('set-cookie') || [])
+    .map((c) => c.split(';')[0])
+    .find((c) => c.startsWith('sigif_access_token='));
+  const accessTokenFromCookie = authCookie ? authCookie.substring('sigif_access_token='.length) : null;
+  if (res.body && res.body.data) {
+    bru.setVar('accessTokenA', accessTokenFromCookie);
+    bru.setVar('cashierAId', res.body.data.user.id);
+  }
+}
+
+tests {
+  test("responde 200 con token", function() {
+    expect(res.status).to.equal(200);
+  });
+}

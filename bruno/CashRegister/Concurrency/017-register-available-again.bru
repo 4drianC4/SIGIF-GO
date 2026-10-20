@@ -1,0 +1,23 @@
+meta {
+  name: 09 Register Available Again
+  type: http
+  seq: 17
+}
+
+get {
+  url: {{baseUrl}}/api/v1/cash-registers/?availability=available
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{accessTokenB}}
+}
+
+tests {
+  test("CAJA-01 vuelve a estar disponible", function() {
+    expect(res.status).to.equal(200);
+    const item = res.body.data.find(function(r) { return r.code === 'CAJA-01'; });
+    expect(item.availability).to.equal('available');
+  });
+}

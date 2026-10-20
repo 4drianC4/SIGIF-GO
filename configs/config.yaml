@@ -89,3 +89,7 @@ seed:
   business_admin_password: "negocio123"
   business_admin_first_name: "Usuario"
   business_admin_last_name: "Negocio"
+  cashier_a_email: "cajero.a@sigif.com"
+  cashier_a_password: "cajero123"
+  cashier_b_email: "cajero.b@sigif.com"
+  cashier_b_password: "cajero123"

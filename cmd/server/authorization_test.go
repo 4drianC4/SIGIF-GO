@@ -13,6 +13,7 @@ import (
 	"github.com/google/uuid"
 	"go.uber.org/fx"
 
+	"github.com/sigif/sigif-go/internal/shared/authcookie"
 	"github.com/sigif/sigif-go/internal/shared/clock"
 	"github.com/sigif/sigif-go/internal/shared/config"
 	"github.com/sigif/sigif-go/internal/shared/database"
@@ -68,6 +69,7 @@ func newAuthorizationApp(t *testing.T, checker middleware.PermissionChecker) (*f
 		fx.Supply(cfg, &database.Database{}),
 		fx.Provide(
 			jwt.NewManager,
+			authcookie.New,
 			validator.New,
 			newFiberApp,
 			fx.Annotate(clock.NewRealClock, fx.As(new(clock.Clock))),

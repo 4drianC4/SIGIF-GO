@@ -1,0 +1,42 @@
+meta {
+  name: 05 Assign Cash Register
+  type: http
+  seq: 13
+}
+
+post {
+  url: {{baseUrl}}/api/v1/cash-register-assignments/
+  body: json
+  auth: bearer
+}
+
+headers {
+  Content-Type: application/json
+}
+
+auth:bearer {
+  token: {{accessTokenA}}
+}
+
+body:json {
+  {
+    "cash_register_id": "{{register1Id}}"
+  }
+}
+
+script:post-response {
+  bru.setVar('assignmentAId', res.body && res.body.data ? res.body.data.id : '');
+}
+
+tests {
+  test("responde 201 con la asignación activa de CAJA-01 al cajero A", function() {
+    expect(res.status).to.equal(201);
+    expect(res.body.data.status).to.equal('active');
+    expect(res.body.data.cash_register.id).to.equal(bru.getVar('register1Id'));
+    expect(res.body.data.cash_register.code).to.equal('CAJA-01');
+    expect(res.body.data.cashier.id).to.equal(bru.getVar('cashierAId'));
+    expect(res.body.data.cashier.name).to.equal('Cajero A');
+    expect(res.body.data.assigned_at).to.be.a('string');
+    expect(res.body.data).to.not.have.property('released_at');
+  });
+}

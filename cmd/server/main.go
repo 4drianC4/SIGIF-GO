@@ -20,6 +20,8 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/sigif/sigif-go/internal/modules/auth"
+	"github.com/sigif/sigif-go/internal/modules/cashregister"
+	"github.com/sigif/sigif-go/internal/modules/cashsession"
 	"github.com/sigif/sigif-go/internal/modules/customer"
 	"github.com/sigif/sigif-go/internal/modules/inventory"
 	"github.com/sigif/sigif-go/internal/modules/product"
@@ -40,6 +42,10 @@ var modules = fx.Options(
 	auth.Module,
 	customer.Module,
 	product.Module,
+	cashregister.Module,
+	cashsession.Module,
+	inventory.Module,
+	supplier.Module,
 )
 
 func main() {
@@ -55,12 +61,6 @@ func main() {
 			fx.Annotate(clock.NewRealClock, fx.As(new(clock.Clock))),
 		),
 		modules,
-		user.Module,
-		auth.Module,
-		customer.Module,
-		product.Module,
-		inventory.Module,
-		supplier.Module,
 		fx.Invoke(registerHooks),
 		fx.Invoke(startServer),
 	)

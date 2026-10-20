@@ -12,6 +12,9 @@ import (
 	"gorm.io/gorm"
 
 	authModel "github.com/sigif/sigif-go/internal/modules/auth/infrastructure/persistence/model"
+	cashRegisterModel "github.com/sigif/sigif-go/internal/modules/cashregister/infrastructure/persistence/model"
+	cashRegisterSeed "github.com/sigif/sigif-go/internal/modules/cashregister/infrastructure/seed"
+	cashSessionModel "github.com/sigif/sigif-go/internal/modules/cashsession/infrastructure/persistence/model"
 	companyModel "github.com/sigif/sigif-go/internal/modules/company/infrastructure/persistence/model"
 	customerModel "github.com/sigif/sigif-go/internal/modules/customer/infrastructure/persistence/model"
 	supplierModel "github.com/sigif/sigif-go/internal/modules/supplier/infrastructure/persistence/model"
@@ -119,6 +122,12 @@ func runMigrations(lc fx.Lifecycle, cfg *config.Config, log *zap.Logger, db *dat
 				return err
 			}
 
+			log.Info("Seeding demo cash registers...")
+			if err := seedCashRegisters(ctx, db.DB); err != nil {
+				log.Error("Cash register seeding failed", zap.Error(err))
+				return err
+			}
+
 			log.Info("Migrations completed successfully")
 			os.Exit(0)
 			return nil
@@ -181,7 +190,20 @@ func autoMigrate(db *gorm.DB) error {
 		&authModel.SessionModel{},
 		&authModel.LoginAttemptModel{},
 		&customerModel.CustomerModel{},
+		&cashRegisterModel.CashRegisterModel{},
+		&cashRegisterModel.CashRegisterAssignmentModel{},
+		&cashSessionModel.CashSessionModel{},
 	)
+}
+
+// seedCashRegisters creates the demo cash registers for the demo company the
+// user seed created (the first company, as in ensureCompany).
+func seedCashRegisters(ctx context.Context, db *gorm.DB) error {
+	var company companyModel.CompanyModel
+	if err := db.WithContext(ctx).First(&company).Error; err != nil {
+		return err
+	}
+	return cashRegisterSeed.Seed(ctx, db, company.ID)
 }
 
 func autoMigrateSuppliers(db *gorm.DB) error {
