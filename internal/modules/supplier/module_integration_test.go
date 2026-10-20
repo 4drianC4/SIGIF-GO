@@ -25,6 +25,7 @@ import (
 	"github.com/sigif/sigif-go/internal/modules/supplier/infrastructure/persistence/model"
 	httpHandler "github.com/sigif/sigif-go/internal/modules/supplier/interfaces/http/handler"
 	"github.com/sigif/sigif-go/internal/modules/supplier/interfaces/http/router"
+	"github.com/sigif/sigif-go/internal/shared/authcookie"
 	"github.com/sigif/sigif-go/internal/shared/clock"
 	"github.com/sigif/sigif-go/internal/shared/config"
 	"github.com/sigif/sigif-go/internal/shared/database"
@@ -96,7 +97,7 @@ func newServer(t *testing.T) *server {
 	h := httpHandler.NewSupplierHTTPHandler(appHandler.NewSupplierCommandHandler(svc), appHandler.NewSupplierQueryHandler(svc), validator.New())
 	manager := jwt.NewManager(&config.Config{JWT: config.JWTConfig{Secret: "supplier-integration-test", AccessTokenExpiry: 60, Issuer: "sigif-test"}})
 	app := fiber.New()
-	app.Use(middleware.AuthRequired(manager, sessions{}))
+	app.Use(middleware.AuthRequired(manager, sessions{}, authcookie.Default()))
 	router.RegisterSupplierRoutes(app.Group("/api/v1"), h, permissions{})
 	return &server{app: app, db: db, jwt: manager, clk: clk, company: uuid.New(), service: svc}
 }

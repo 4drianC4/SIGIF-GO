@@ -18,6 +18,7 @@ import (
 	httpHandler "github.com/sigif/sigif-go/internal/modules/auth/interfaces/http/handler"
 	"github.com/sigif/sigif-go/internal/modules/auth/interfaces/http/router"
 	userEntity "github.com/sigif/sigif-go/internal/modules/user/domain/entity"
+	"github.com/sigif/sigif-go/internal/shared/authcookie"
 	"github.com/sigif/sigif-go/internal/shared/clock"
 	"github.com/sigif/sigif-go/internal/shared/config"
 	"github.com/sigif/sigif-go/internal/shared/jwt"
@@ -58,7 +59,7 @@ func (r *permissionUsers) PermissionsByRole(_ context.Context, roleID uuid.UUID)
 func newPermissionsApp(users *permissionUsers, authenticatedAs *uuid.UUID) *fiber.App {
 	manager := jwt.NewManager(&config.Config{JWT: config.JWTConfig{Secret: "test-secret", AccessTokenExpiry: 15, Issuer: "sigif-test"}})
 	svc := service.NewAuthService(users, nil, nil, manager, clock.NewMockClock(time.Now()))
-	h := httpHandler.NewAuthHTTPHandler(appHandler.NewAuthCommandHandler(svc), validator.New())
+	h := httpHandler.NewAuthHTTPHandler(appHandler.NewAuthCommandHandler(svc), validator.New(), authcookie.Default())
 
 	app := fiber.New()
 	if authenticatedAs != nil {

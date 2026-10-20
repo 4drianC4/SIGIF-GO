@@ -12,6 +12,8 @@ import (
 	"github.com/google/uuid"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zaptest/observer"
+
+	"github.com/sigif/sigif-go/internal/shared/authcookie"
 )
 
 type recordingChecker struct {
@@ -133,7 +135,7 @@ func TestGuardAnswersUnauthorizedBeforeForbiddenThroughTheWholeChain(t *testing.
 	checker := &recordingChecker{}
 	executed := 0
 	app := fiber.New()
-	app.Use(AuthRequired(manager, stubSessionReader{active: true}))
+	app.Use(AuthRequired(manager, stubSessionReader{active: true}, authcookie.Default()))
 	app.Delete("/users/:id", RequirePermission(checker, "users", "delete"), func(c *fiber.Ctx) error {
 		executed++
 		return c.SendStatus(fiber.StatusNoContent)

@@ -29,7 +29,7 @@ var errSessionRequired = errors.New("CASH_SESSION_REQUIRED", "an open cash sessi
 
 // guardedApp mounts a fake cash transaction behind RequireOpenCashSession. The
 // identity is injected as AuthRequired would do it.
-func guardedApp(checker CashSessionChecker, userID, companyID uuid.UUID, ran *int, seen *uuid.UUID) *fiber.App {
+func cashSessionApp(checker CashSessionChecker, userID, companyID uuid.UUID, ran *int, seen *uuid.UUID) *fiber.App {
 	app := fiber.New()
 	app.Use(func(c *fiber.Ctx) error {
 		ctx := c.UserContext()
@@ -86,7 +86,7 @@ func TestRequireOpenCashSession(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			ran, seen := 0, uuid.Nil
-			status, code := call(t, guardedApp(tt.checker, tt.user, tt.company, &ran, &seen))
+			status, code := call(t, cashSessionApp(tt.checker, tt.user, tt.company, &ran, &seen))
 			if status != tt.wantStatus || code != tt.wantCode {
 				t.Errorf("got %d %q, want %d %q", status, code, tt.wantStatus, tt.wantCode)
 			}
