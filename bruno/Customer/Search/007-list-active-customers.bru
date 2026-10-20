@@ -26,7 +26,10 @@ tests {
       expect(c.status).to.equal('active');
       expect(c).to.have.property('id');
       expect(c).to.have.property('legal_name');
-      expect(c).to.have.property('credit_limit').that.is.a('string');
+      expect(c).to.have.property('credit_limit');
+      expect(c).to.have.property('credit_balance');
+      expect(c).to.have.property('points_accrued');
+      expect(c.credit_limit).to.be.a('string');
     });
   });
 }

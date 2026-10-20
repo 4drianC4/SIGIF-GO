@@ -9,6 +9,10 @@ import (
 	sharedErrors "github.com/sigif/sigif-go/internal/shared/errors"
 )
 
+// ChangeStatus sets the customer's status (HU-08-05). Only status and
+// updated_at are written; the customer is never deleted. Changing to the
+// status it already has is idempotent: the customer is returned without
+// writing to the database.
 func (s *CustomerService) ChangeStatus(
 	ctx context.Context,
 	companyID uuid.UUID,
@@ -25,7 +29,11 @@ func (s *CustomerService) ChangeStatus(
 		return nil, err
 	}
 	if customer == nil {
-		return nil, sharedErrors.New(sharedErrors.CodeNotFound, "customer not found", 404)
+		return nil, ErrCustomerNotFound
+	}
+
+	if customer.Status == newStatus {
+		return customer, nil
 	}
 
 	switch newStatus {
@@ -37,7 +45,7 @@ func (s *CustomerService) ChangeStatus(
 		customer.Block(s.clock)
 	}
 
-	if err := s.repo.Update(ctx, customer); err != nil {
+	if err := s.repo.UpdateStatus(ctx, companyID, id, customer.Status, *customer.UpdatedAt); err != nil {
 		return nil, err
 	}
 

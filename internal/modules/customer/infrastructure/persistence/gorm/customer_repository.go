@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"strings"
+	"time"
 
 	"github.com/google/uuid"
 	"gorm.io/gorm"
@@ -143,6 +144,26 @@ func (r *CustomerGormRepository) Update(ctx context.Context, customer *entity.Cu
 		if isUniqueViolation(result.Error) {
 			return service.ErrDocumentTaken
 		}
+		return result.Error
+	}
+	if result.RowsAffected == 0 {
+		return service.ErrCustomerNotFound
+	}
+	return nil
+}
+
+// UpdateStatus writes only status and updated_at; every other column keeps
+// the value stored in the database.
+func (r *CustomerGormRepository) UpdateStatus(
+	ctx context.Context,
+	companyID, id uuid.UUID,
+	status entity.CustomerStatus,
+	updatedAt time.Time,
+) error {
+	result := r.db.GetDB(ctx).Model(&model.CustomerModel{}).
+		Where("customer_id = ? AND company_id = ? AND deleted_at IS NULL", id, companyID).
+		Updates(map[string]any{"status": string(status), "updated_at": updatedAt})
+	if result.Error != nil {
 		return result.Error
 	}
 	if result.RowsAffected == 0 {

@@ -1,0 +1,23 @@
+meta {
+  name: 10 Delete Again (404)
+  type: http
+  seq: 13
+}
+
+delete {
+  url: {{baseUrl}}/api/v1/customers/{{clientId}}
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{accessToken}}
+}
+
+tests {
+  test("eliminar de nuevo responde 404", function() {
+    expect(res.status).to.equal(404);
+    expect(res.body.error.code).to.equal('NOT_FOUND');
+    expect(res.body.error.message).to.equal('customer not found');
+  });
+}

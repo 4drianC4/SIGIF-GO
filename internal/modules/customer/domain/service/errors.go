@@ -9,4 +9,10 @@ var (
 	ErrDocumentTaken    = sharedErrors.New(sharedErrors.CodeConflict,
 		"a customer with this document already exists in this company", 409).
 		WithDetails(map[string]string{"document_number": "already registered for another customer"})
+	ErrCustomerNotActive = sharedErrors.New(sharedErrors.CodeConflict,
+		"customer is not active and cannot be used in new operations", 409)
+	ErrCustomerHasBalance = sharedErrors.New(sharedErrors.CodeConflict,
+		"customer has credit balance or accrued points and cannot be deleted; deactivate it instead", 409)
+	ErrCustomerHasDependencies = sharedErrors.New(sharedErrors.CodeConflict,
+		"customer has related records and cannot be deleted; deactivate it instead", 409)
 )

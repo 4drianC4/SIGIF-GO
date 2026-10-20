@@ -56,8 +56,8 @@ func FromEntityList(customers []*entity.Customer) []Customer {
 	return result
 }
 
-// CustomerSummary carries identification fields and the credit limit shown in
-// the customer listing; the full record is served by GET /customers/:id.
+// CustomerSummary carries the fields needed by the customer listing and its
+// financial summary; the full record is served by GET /customers/:id.
 type CustomerSummary struct {
 	ID             string                `json:"id"`
 	CompanyID      string                `json:"company_id"`
@@ -67,6 +67,8 @@ type CustomerSummary struct {
 	Phone          *string               `json:"phone,omitempty"`
 	Email          *string               `json:"email,omitempty"`
 	CreditLimit    decimal.Decimal       `json:"credit_limit"`
+	CreditBalance  decimal.Decimal       `json:"credit_balance"`
+	PointsAccrued  int                   `json:"points_accrued"`
 	Status         entity.CustomerStatus `json:"status"`
 }
 
@@ -82,6 +84,8 @@ func SummaryFromEntityList(customers []*entity.Customer) []CustomerSummary {
 			Phone:          c.Phone,
 			Email:          c.Email,
 			CreditLimit:    c.CreditLimit,
+			CreditBalance:  c.CreditBalance,
+			PointsAccrued:  c.PointsAccrued,
 			Status:         c.Status,
 		}
 	}

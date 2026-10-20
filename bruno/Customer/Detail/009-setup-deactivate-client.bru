@@ -1,0 +1,31 @@
+meta {
+  name: Setup - Deactivate Client
+  type: http
+  seq: 9
+}
+
+patch {
+  url: {{baseUrl}}/api/v1/customers/{{clientId}}/status
+  body: json
+  auth: bearer
+}
+
+headers {
+  Content-Type: application/json
+}
+
+auth:bearer {
+  token: {{accessToken}}
+}
+
+body:json {
+  {
+    "status": "inactive"
+  }
+}
+
+tests {
+  test("responde 200", function() {
+    expect(res.status).to.equal(200);
+  });
+}

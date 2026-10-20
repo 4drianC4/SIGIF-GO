@@ -81,7 +81,9 @@ curl -s "http://localhost:4600/api/v1/customers/?q=ferreteria&status=active&page
       "document_number": "1020304050",
       "phone": "+59170000001",
       "email": "central@example.com",
-      "credit_limit": "2000.25",
+      "credit_limit": "1000",
+      "credit_balance": "250.5",
+      "points_accrued": 35,
       "status": "active"
     }
   ],
@@ -94,7 +96,7 @@ curl -s "http://localhost:4600/api/v1/customers/?q=ferreteria&status=active&page
 }
 ```
 
-El listado devuelve los campos de identificación y `credit_limit` (`CustomerSummary`), para mostrar el límite de crédito sin pedir el detalle de cada cliente. `credit_limit` es un decimal en texto y siempre se incluye; `"0"` significa sin crédito habilitado. `id` es el valor que se usa en `GET /api/v1/customers/:id` para ver el detalle completo (HU-08-03). Los campos opcionales nulos (`document_number`, `phone`, `email`) se omiten.
+El listado devuelve los campos de identificación y el resumen financiero (`credit_limit`, `credit_balance` y `points_accrued`) que usa la tabla maestra y sus indicadores. `id` es el valor que se usa en `GET /api/v1/customers/:id` para ver el detalle completo (HU-08-03). Los campos opcionales nulos (`document_number`, `phone`, `email`) se omiten.
 
 **`200 OK`** — sin coincidencias (estado vacío, no es 404)
 
@@ -195,7 +197,7 @@ Nota: la coincidencia parcial `LOWER(col) LIKE '%texto%'` no puede usar índices
 | 1. Ver clientes registrados | `GET /api/v1/customers/` sin filtros lista los activos, paginados. |
 | 2. Introducir un criterio | Parámetro `q` (más `status`, `sort_by`, `sort_order`). |
 | 3. Solo los que coinciden | Filtro parcial sobre nombre, documento, teléfono y email, dentro de la empresa. |
-| 4. Información para identificar | `CustomerSummary`: id, nombre, tipo y número de documento, teléfono, email, límite de crédito, estado. |
+| 4. Información para identificar | `CustomerSummary`: id, nombre, tipo y número de documento, teléfono, email, límite, saldo deudor, puntos y estado. |
 | 5. Estado vacío | `200` con `data: []` y `meta.total: 0`. |
 | 6. No modifica datos | Transacción de solo lectura; probado en tests (`updated_at` sin cambios). |
 | 7. Seleccionar un resultado | Cada ítem trae `id` para `GET /api/v1/customers/:id`. |
@@ -233,6 +235,6 @@ El listado ya existía en HU-08-01; esta HU define su contrato de búsqueda:
 1. `status` por defecto pasa a ser `active` (antes devolvía todos los estados) y se agrega `status=all`.
 2. Parámetros inválidos responden `400` (antes `status` inválido se ignoraba y `page`/`limit` fuera de rango se ajustaban en silencio).
 3. Se agregan `sort_by` y `sort_order`, y el límite de 100 caracteres en `q`.
-4. Los ítems del listado son `CustomerSummary`, con `credit_limit` y sin `address`, `credit_balance`, `points_accrued`, `created_at`, `updated_at`; el detalle completo queda en `GET /api/v1/customers/:id`.
+4. Los ítems del listado son `CustomerSummary`, con `credit_limit`, `credit_balance` y `points_accrued` para la tabla maestra (sin `address`, `created_at` ni `updated_at`); el detalle completo queda en `GET /api/v1/customers/:id`.
 5. `%` y `_` en `q` se buscan literalmente.
 6. Corrección: un token sin empresa ahora corta la petición con `400 company is required` en todas las rutas de clientes; antes se respondía 400 pero la operación seguía ejecutándose con `company_id` vacío.

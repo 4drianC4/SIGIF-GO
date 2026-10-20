@@ -2,6 +2,7 @@ package repository
 
 import (
 	"context"
+	"time"
 
 	"github.com/google/uuid"
 
@@ -56,6 +57,11 @@ type Writer interface {
 	// Update modifies an existing, non-deleted customer of its company and
 	// never inserts; it returns a not-found error when no row matches.
 	Update(ctx context.Context, customer *entity.Customer) error
+
+	// UpdateStatus writes only status and updated_at of an existing,
+	// non-deleted customer of the company; it returns a not-found error when
+	// no row matches.
+	UpdateStatus(ctx context.Context, companyID, id uuid.UUID, status entity.CustomerStatus, updatedAt time.Time) error
 }
 
 type CustomerRepository interface {

@@ -65,6 +65,8 @@ type testServer struct {
 	app        *fiber.App
 	jwtManager *jwt.JWTManager
 	customers  *testutil.MemoryCustomerRepository
+	deps       *testutil.StubDependencyChecker
+	service    *service.CustomerService
 	perms      *stubPermissions
 	seq        int
 }
@@ -98,7 +100,8 @@ func newTestServer(t *testing.T) *testServer {
 
 	customers := testutil.NewMemoryCustomerRepository()
 	clk := clock.NewMockClock(time.Date(2026, 10, 5, 12, 0, 0, 0, time.UTC))
-	svc := service.NewCustomerService(customers, clk)
+	deps := testutil.NewStubDependencyChecker()
+	svc := service.NewCustomerService(customers, deps, clk)
 	h := httpHandler.NewCustomerHTTPHandler(
 		appHandler.NewCustomerCommandHandler(svc),
 		appHandler.NewCustomerQueryHandler(svc),
@@ -111,7 +114,7 @@ func newTestServer(t *testing.T) *testServer {
 	app.Use(middleware.AuthRequired(jwtManager, activeSessions{}, authcookie.Default()))
 	router.RegisterCustomerRoutes(app.Group("/api/v1"), h, perms)
 
-	return &testServer{app: app, jwtManager: jwtManager, customers: customers, perms: perms}
+	return &testServer{app: app, jwtManager: jwtManager, customers: customers, deps: deps, service: svc, perms: perms}
 }
 
 func (s *testServer) token(t *testing.T, companyID string, perms ...string) string {
@@ -236,12 +239,14 @@ func TestListCustomersEndpointDefaultsToActive(t *testing.T) {
 	}
 }
 
-func TestListCustomersEndpointReturnsIdentificationAndCreditLimit(t *testing.T) {
+func TestListCustomersEndpointReturnsSummaryFields(t *testing.T) {
 	s := newTestServer(t)
 	customer := s.seed(t, companyA, "Ferreteria Central", "1020304050", entity.CustomerStatusActive)
 	customer.CreditLimit = decimal.RequireFromString("2000.25")
+	customer.CreditBalance = decimal.NewFromFloat(250.5)
+	customer.PointsAccrued = 35
 	if err := s.customers.Update(context.Background(), customer); err != nil {
-		t.Fatalf("set credit limit: %v", err)
+		t.Fatalf("update financial summary: %v", err)
 	}
 
 	status, resp, _ := s.list(t, "", s.reader(t, companyA))
@@ -256,15 +261,18 @@ func TestListCustomersEndpointReturnsIdentificationAndCreditLimit(t *testing.T) 
 	if len(raw) != 1 {
 		t.Fatalf("expected 1 item, got %d", len(raw))
 	}
-	for _, field := range []string{"id", "legal_name", "document_type", "document_number", "phone", "email", "credit_limit", "status"} {
+	for _, field := range []string{
+		"id", "legal_name", "document_type", "document_number", "phone", "email",
+		"credit_limit", "credit_balance", "points_accrued", "status",
+	} {
 		if _, ok := raw[0][field]; !ok {
 			t.Errorf("missing field %q in %v", field, raw[0])
 		}
 	}
-	if raw[0]["credit_limit"] != "2000.25" {
-		t.Errorf("credit_limit = %v, want decimal string 2000.25", raw[0]["credit_limit"])
+	if raw[0]["credit_limit"] != "2000.25" || raw[0]["credit_balance"] != "250.5" || raw[0]["points_accrued"] != float64(35) {
+		t.Errorf("unexpected financial summary in %v", raw[0])
 	}
-	for _, field := range []string{"credit_balance", "points_accrued", "address"} {
+	for _, field := range []string{"address", "created_at", "updated_at"} {
 		if _, ok := raw[0][field]; ok {
 			t.Errorf("listing must not expose %q", field)
 		}

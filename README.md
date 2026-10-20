@@ -204,6 +204,20 @@ Respuesta:
 
 Los roles visibles son los del sistema (`company_id` nulo) más los de la empresa del token; un usuario sin empresa solo ve los del sistema. `permissions_count` cuenta los permisos asignados a cada rol. Una lista vacía responde `200` con `data: []` y `total: 0` (nunca `404`).
 
+### Clientes (RF-08)
+
+```
+POST   /api/v1/customers/            # Registrar cliente (permiso customers.create) — HU-08-01
+GET    /api/v1/customers/            # Buscar y listar clientes (customers.list) — HU-08-02
+GET    /api/v1/customers/:id         # Ver cliente (customers.read) — HU-08-03
+PUT    /api/v1/customers/:id         # Reemplazar los datos editables (customers.update) — HU-08-01
+PATCH  /api/v1/customers/:id         # Editar parcialmente (customers.update) — HU-08-04
+PATCH  /api/v1/customers/:id/status  # Desactivar, bloquear o reactivar (customers.status) — HU-08-05
+DELETE /api/v1/customers/:id         # Eliminar lógicamente (customers.delete) — HU-08-06
+```
+
+Todas las rutas trabajan sobre la empresa del token; un cliente de otra empresa responde `404`. El listado devuelve solo clientes `active` por defecto (`status=inactive|blocked|all` para el resto). Desactivar conserva el registro; eliminar es un borrado lógico y responde `409` si el cliente tiene saldo de crédito, puntos o registros relacionados. El detalle de cada endpoint está en `docs/api/HU-08-0X-endpoints.md`.
+
 ### Registro de usuario
 
 ```json

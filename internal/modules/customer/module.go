@@ -16,6 +16,7 @@ import (
 var Module = fx.Options(
 	fx.Provide(
 		fx.Annotate(gorm.NewCustomerGormRepository, fx.As(new(repository.CustomerRepository))),
+		gorm.NewNoDependencyChecker,
 		service.NewCustomerService,
 		handler.NewCustomerCommandHandler,
 		handler.NewCustomerQueryHandler,

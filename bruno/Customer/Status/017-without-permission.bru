@@ -1,0 +1,32 @@
+meta {
+  name: 14 Without Permission (403)
+  type: http
+  seq: 17
+}
+
+patch {
+  url: {{baseUrl}}/api/v1/customers/{{clientId}}/status
+  body: json
+  auth: bearer
+}
+
+headers {
+  Content-Type: application/json
+}
+
+auth:bearer {
+  token: {{tokenWithoutPermission}}
+}
+
+body:json {
+  {
+    "status": "inactive"
+  }
+}
+
+tests {
+  test("responde 403 FORBIDDEN sin customers.status", function() {
+    expect(res.status).to.equal(403);
+    expect(res.body.error.code).to.equal('FORBIDDEN');
+  });
+}

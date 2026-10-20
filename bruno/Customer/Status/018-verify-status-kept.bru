@@ -1,0 +1,22 @@
+meta {
+  name: 15 Verify Status Kept After Rejections
+  type: http
+  seq: 18
+}
+
+get {
+  url: {{baseUrl}}/api/v1/customers/{{clientId}}
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{accessToken}}
+}
+
+tests {
+  test("las peticiones rechazadas no cambiaron el estado", function() {
+    expect(res.status).to.equal(200);
+    expect(res.body.data.status).to.equal('active');
+  });
+}

@@ -5,6 +5,7 @@ import (
 	"sort"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/google/uuid"
 
@@ -44,6 +45,19 @@ func (r *MemoryCustomerRepository) Update(_ context.Context, customer *entity.Cu
 	}
 	copied := *customer
 	r.Customers[customer.ID] = &copied
+	r.Writes++
+	return nil
+}
+
+func (r *MemoryCustomerRepository) UpdateStatus(_ context.Context, companyID, id uuid.UUID, status entity.CustomerStatus, updatedAt time.Time) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	stored, ok := r.Customers[id]
+	if !ok || stored.CompanyID != companyID || stored.IsDeleted() {
+		return service.ErrCustomerNotFound
+	}
+	stored.Status = status
+	stored.UpdatedAt = &updatedAt
 	r.Writes++
 	return nil
 }
