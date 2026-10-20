@@ -33,6 +33,8 @@ func (h *CatalogHTTPHandler) UpdateProduct(c *fiber.Ctx) error {
 		return response.Error(c, fiber.StatusBadRequest, service.ErrCompanyRequired)
 	}
 
+	userID, _ := middleware.UserIDFromContext(c.UserContext())
+
 	product, err := h.cmdHandler.HandleUpdateProduct(c.UserContext(), command.UpdateProduct{
 		CompanyID:       companyID,
 		ProductID:       productID,
@@ -45,6 +47,8 @@ func (h *CatalogHTTPHandler) UpdateProduct(c *fiber.Ctx) error {
 		Cost:            *req.Cost,
 		SalePrice:       *req.SalePrice,
 		MinStock:        req.MinStock,
+		UserID:          userID,
+		Reason:          req.Reason,
 	})
 	if err != nil {
 		return response.Error(c, fiber.StatusInternalServerError, err)

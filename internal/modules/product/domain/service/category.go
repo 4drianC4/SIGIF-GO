@@ -25,11 +25,26 @@ type CreatedCategory struct {
 	DefaultTaxName *string
 }
 
+// CreateCategory registers a category. It runs in a transaction that locks the
+// parent, so the parent cannot be deleted while the subcategory is created.
 func (s *CatalogService) CreateCategory(ctx context.Context, params CreateCategoryParams) (*CreatedCategory, error) {
 	if params.CompanyID == uuid.Nil {
 		return nil, ErrCompanyRequired
 	}
 
+	var created *CreatedCategory
+	err := s.categories.WithinTransaction(ctx, func(txCtx context.Context) error {
+		var err error
+		created, err = s.createCategory(txCtx, params)
+		return err
+	})
+	if err != nil {
+		return nil, err
+	}
+	return created, nil
+}
+
+func (s *CatalogService) createCategory(ctx context.Context, params CreateCategoryParams) (*CreatedCategory, error) {
 	if params.ParentID != nil {
 		parent, err := s.categories.GetByID(ctx, params.CompanyID, *params.ParentID)
 		if err != nil {
@@ -68,7 +83,7 @@ func (s *CatalogService) CreateCategory(ctx context.Context, params CreateCatego
 		return nil, err
 	}
 
-	exists, err := s.categories.ExistsByName(ctx, category.CompanyID, category.ParentID, category.Name)
+	exists, err := s.categories.ExistsByName(ctx, category.CompanyID, category.ParentID, category.Name, uuid.Nil)
 	if err != nil {
 		return nil, err
 	}

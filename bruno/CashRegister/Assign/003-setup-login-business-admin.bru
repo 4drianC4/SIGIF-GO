@@ -22,8 +22,14 @@ body:json {
 }
 
 script:post-response {
+  // El access token ya no viaja en el JSON: se extrae de la cookie HttpOnly
+  // para seguir usándolo como Authorization: Bearer en esta colección.
+  const authCookie = [].concat(res.getHeader('set-cookie') || [])
+    .map((c) => c.split(';')[0])
+    .find((c) => c.startsWith('sigif_access_token='));
+  const accessTokenFromCookie = authCookie ? authCookie.substring('sigif_access_token='.length) : null;
   if (res.body && res.body.data) {
-    bru.setVar('accessTokenSupervisor', res.body.data.token.access_token);
+    bru.setVar('accessTokenSupervisor', accessTokenFromCookie);
     bru.setVar('businessAdminId', res.body.data.user.id);
   }
 }

@@ -4,20 +4,35 @@ import (
 	"context"
 
 	"github.com/google/uuid"
-
-	sharedErrors "github.com/sigif/sigif-go/internal/shared/errors"
 )
 
+// Delete soft-deletes a customer (HU-08-06) only when nothing that must be
+// kept depends on it. The checks and the delete run in one transaction, so a
+// rejected delete changes nothing.
 func (s *CustomerService) Delete(ctx context.Context, companyID, id uuid.UUID) error {
-	customer, err := s.repo.GetByID(ctx, companyID, id)
-	if err != nil {
-		return err
-	}
-	if customer == nil {
-		return sharedErrors.New(sharedErrors.CodeNotFound, "customer not found", 404)
-	}
+	return s.repo.WithinTransaction(ctx, func(ctx context.Context) error {
+		customer, err := s.repo.GetByID(ctx, companyID, id)
+		if err != nil {
+			return err
+		}
+		if customer == nil {
+			return ErrCustomerNotFound
+		}
 
-	customer.SoftDelete(s.clock)
+		if customer.HasBalanceOrPoints() {
+			return ErrCustomerHasBalance
+		}
 
-	return s.repo.Update(ctx, customer)
+		hasDependencies, err := s.deps.HasDependencies(ctx, companyID, id)
+		if err != nil {
+			return err
+		}
+		if hasDependencies {
+			return ErrCustomerHasDependencies
+		}
+
+		customer.SoftDelete(s.clock)
+
+		return s.repo.Update(ctx, customer)
+	})
 }

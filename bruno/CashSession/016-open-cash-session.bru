@@ -1,0 +1,45 @@
+meta {
+  name: Open Cash Session
+  type: http
+  seq: 16
+}
+
+post {
+  url: {{baseUrl}}/api/v1/cash-sessions/
+  body: json
+  auth: bearer
+}
+
+headers {
+  Content-Type: application/json
+}
+
+auth:bearer {
+  token: {{accessTokenA}}
+}
+
+body:json {
+  {
+    "opening_amount": 150.50,
+    "opening_notes": "Billetes de 10 en el cajón"
+  }
+}
+
+script:post-response {
+  bru.setVar('sessionAId', res.body && res.body.data ? res.body.data.id : '');
+}
+
+tests {
+  test("responde 201 con la sesión abierta sobre la caja asignada", function() {
+    expect(res.status).to.equal(201);
+    expect(res.body.data.status).to.equal('open');
+    expect(res.body.data.opening_amount).to.equal(150.5);
+    expect(res.body.data.opening_notes).to.equal('Billetes de 10 en el cajón');
+    expect(res.body.data.opened_at).to.be.a('string');
+    expect(res.body.data.closed_at).to.equal(null);
+    expect(res.body.data.cashier_id).to.equal(bru.getVar('cashierAId'));
+    expect(res.body.data.assignment_id).to.equal(bru.getVar('assignmentAId'));
+    expect(res.body.data.cash_register.id).to.equal(bru.getVar('register1Id'));
+    expect(res.body.data.cash_register.code).to.equal('CAJA-01');
+  });
+}

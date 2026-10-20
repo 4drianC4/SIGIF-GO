@@ -112,6 +112,7 @@ Prefijo base: `/api/v1`.
 POST /api/v1/auth/login    # Iniciar sesión (email + contraseña)
 POST /api/v1/auth/logout   # Cerrar sesión (revoca la sesión actual)
 GET  /api/v1/auth/me       # Usuario autenticado
+GET  /api/v1/auth/me/permissions   # Códigos de permiso del usuario autenticado
 ```
 
 ### Usuarios (requieren permiso)
@@ -120,6 +121,7 @@ GET  /api/v1/auth/me       # Usuario autenticado
 POST   /api/v1/users                  # Registrar usuario (permiso users.create)
 GET    /api/v1/users                  # Listar usuarios (users.list)
 GET    /api/v1/users/:id              # Ver usuario (users.read)
+GET    /api/v1/users/:id/history      # Historial del usuario (users.read)
 GET    /api/v1/users/by-email         # Buscar por email (users.read)
 PATCH  /api/v1/users/:id              # Editar usuario (users.update) — mismos campos que el registro, todos opcionales
 PUT    /api/v1/users/:id/password     # Cambiar contraseña (users.change_password)
@@ -138,6 +140,15 @@ POST /api/v1/cash-register-assignments/:id/release       # Liberar la caja (cash
 ```
 
 El cajero y la empresa salen del token. Una caja tiene un solo cajero y un cajero una sola caja a la vez; la regla la garantizan índices únicos parciales, también ante peticiones simultáneas (`409 CASH_REGISTER_IN_USE` / `409 CASHIER_ALREADY_ASSIGNED`). Liberar conserva el historial. El rol `employee` trabaja como cajero; `business_admin` ve las cajas en uso y puede liberarlas. Detalle en `docs/api/HU-10-01-endpoints.md` y `docs/api/HU-10-02-endpoints.md`.
+
+### Sesión de caja (RF-09)
+
+```
+POST /api/v1/cash-sessions/          # Abrir la sesión de caja con el monto inicial (cash_sessions.open) — HU-009
+GET  /api/v1/cash-sessions/current   # Sesión abierta del cajero (cash_sessions.read) — HU-009
+```
+
+La sesión se abre sobre la caja asignada al cajero (HU-10), con un monto inicial de 0 o más. Solo hay una sesión abierta por cajero y por caja (`409 CASH_SESSION_ALREADY_OPEN`). Las operaciones de caja de otros módulos se protegen con `middleware.RequireOpenCashSession`, que responde `409 CASH_SESSION_REQUIRED` sin sesión abierta. Detalle en `docs/api/HU-009-endpoints.md`.
 
 ### Permisos (catálogo, HU-082-01)
 
@@ -192,6 +203,20 @@ Respuesta:
 ```
 
 Los roles visibles son los del sistema (`company_id` nulo) más los de la empresa del token; un usuario sin empresa solo ve los del sistema. `permissions_count` cuenta los permisos asignados a cada rol. Una lista vacía responde `200` con `data: []` y `total: 0` (nunca `404`).
+
+### Clientes (RF-08)
+
+```
+POST   /api/v1/customers/            # Registrar cliente (permiso customers.create) — HU-08-01
+GET    /api/v1/customers/            # Buscar y listar clientes (customers.list) — HU-08-02
+GET    /api/v1/customers/:id         # Ver cliente (customers.read) — HU-08-03
+PUT    /api/v1/customers/:id         # Reemplazar los datos editables (customers.update) — HU-08-01
+PATCH  /api/v1/customers/:id         # Editar parcialmente (customers.update) — HU-08-04
+PATCH  /api/v1/customers/:id/status  # Desactivar, bloquear o reactivar (customers.status) — HU-08-05
+DELETE /api/v1/customers/:id         # Eliminar lógicamente (customers.delete) — HU-08-06
+```
+
+Todas las rutas trabajan sobre la empresa del token; un cliente de otra empresa responde `404`. El listado devuelve solo clientes `active` por defecto (`status=inactive|blocked|all` para el resto). Desactivar conserva el registro; eliminar es un borrado lógico y responde `409` si el cliente tiene saldo de crédito, puntos o registros relacionados. El detalle de cada endpoint está en `docs/api/HU-08-0X-endpoints.md`.
 
 ### Registro de usuario
 

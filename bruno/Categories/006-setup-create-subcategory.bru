@@ -1,0 +1,40 @@
+meta {
+  name: Setup - Create Subcategory
+  type: http
+  seq: 6
+}
+
+post {
+  url: {{baseUrl}}/api/v1/categories
+  body: json
+  auth: bearer
+}
+
+headers {
+  Content-Type: application/json
+}
+
+auth:bearer {
+  token: {{accessToken}}
+}
+
+body:json {
+  {
+    "name": "{{childName}}",
+    "parent_id": "{{parentId}}",
+    "description": "Bebidas con gas",
+    "default_tax": "IVA general 13%",
+    "target_margin": 25
+  }
+}
+
+script:post-response {
+  bru.setVar('childId', res.body && res.body.data ? res.body.data.id : '');
+}
+
+tests {
+  test("responde 201", function() {
+    expect(res.status).to.equal(201);
+    expect(res.body.data.parent_id).to.equal(bru.getVar('parentId'));
+  });
+}

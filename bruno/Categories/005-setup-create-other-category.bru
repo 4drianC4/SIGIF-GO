@@ -1,0 +1,35 @@
+meta {
+  name: Setup - Create Other Category
+  type: http
+  seq: 5
+}
+
+post {
+  url: {{baseUrl}}/api/v1/categories
+  body: json
+  auth: bearer
+}
+
+headers {
+  Content-Type: application/json
+}
+
+auth:bearer {
+  token: {{accessToken}}
+}
+
+body:json {
+  {
+    "name": "{{otherName}}"
+  }
+}
+
+script:post-response {
+  bru.setVar('otherId', res.body && res.body.data ? res.body.data.id : '');
+}
+
+tests {
+  test("responde 201", function() {
+    expect(res.status).to.equal(201);
+  });
+}

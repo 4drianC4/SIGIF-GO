@@ -1,0 +1,21 @@
+meta {
+  name: Cleanup - Delete Client
+  type: http
+  seq: 11
+}
+
+delete {
+  url: {{baseUrl}}/api/v1/customers/{{clientId}}
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{accessToken}}
+}
+
+tests {
+  test("responde 204", function() {
+    expect(res.status).to.equal(204);
+  });
+}

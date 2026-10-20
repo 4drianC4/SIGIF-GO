@@ -1,0 +1,32 @@
+meta {
+  name: Setup - List Cash Registers
+  type: http
+  seq: 4
+}
+
+get {
+  url: {{baseUrl}}/api/v1/cash-registers/?availability=all
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{accessTokenA}}
+}
+
+script:post-response {
+  if (res.body && res.body.data) {
+    const byCode = {};
+    res.body.data.forEach(function(r) { byCode[r.code] = r.id; });
+    bru.setVar('register1Id', byCode['CAJA-01'] || '');
+    bru.setVar('register2Id', byCode['CAJA-02'] || '');
+  }
+}
+
+tests {
+  test("responde 200 e incluye CAJA-01 y CAJA-02", function() {
+    expect(res.status).to.equal(200);
+    expect(bru.getVar('register1Id')).to.not.equal('');
+    expect(bru.getVar('register2Id')).to.not.equal('');
+  });
+}

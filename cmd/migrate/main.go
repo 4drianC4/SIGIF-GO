@@ -14,8 +14,10 @@ import (
 	authModel "github.com/sigif/sigif-go/internal/modules/auth/infrastructure/persistence/model"
 	cashRegisterModel "github.com/sigif/sigif-go/internal/modules/cashregister/infrastructure/persistence/model"
 	cashRegisterSeed "github.com/sigif/sigif-go/internal/modules/cashregister/infrastructure/seed"
+	cashSessionModel "github.com/sigif/sigif-go/internal/modules/cashsession/infrastructure/persistence/model"
 	companyModel "github.com/sigif/sigif-go/internal/modules/company/infrastructure/persistence/model"
 	customerModel "github.com/sigif/sigif-go/internal/modules/customer/infrastructure/persistence/model"
+	supplierModel "github.com/sigif/sigif-go/internal/modules/supplier/infrastructure/persistence/model"
 	userModel "github.com/sigif/sigif-go/internal/modules/user/infrastructure/persistence/model"
 	"github.com/sigif/sigif-go/internal/modules/user/infrastructure/seed"
 	"github.com/sigif/sigif-go/internal/shared/config"
@@ -107,6 +109,13 @@ func runMigrations(lc fx.Lifecycle, cfg *config.Config, log *zap.Logger, db *dat
 				return err
 			}
 
+			// Supplier associations reference the catalog. Migrate them after the
+			// existing catalog migrations have converted any legacy product data.
+			if err := autoMigrateSuppliers(db.DB); err != nil {
+				log.Error("Supplier migration failed", zap.Error(err))
+				return err
+			}
+
 			log.Info("Seeding roles, permissions and default admin...")
 			if err := seed.Seed(ctx, db.DB, cfg); err != nil {
 				log.Error("Seeding failed", zap.Error(err))
@@ -177,11 +186,13 @@ func autoMigrate(db *gorm.DB) error {
 		&userModel.RoleModel{},
 		&userModel.PermissionModel{},
 		&userModel.RolePermissionModel{},
+		&userModel.UserHistoryModel{},
 		&authModel.SessionModel{},
 		&authModel.LoginAttemptModel{},
 		&customerModel.CustomerModel{},
 		&cashRegisterModel.CashRegisterModel{},
 		&cashRegisterModel.CashRegisterAssignmentModel{},
+		&cashSessionModel.CashSessionModel{},
 	)
 }
 
@@ -193,6 +204,10 @@ func seedCashRegisters(ctx context.Context, db *gorm.DB) error {
 		return err
 	}
 	return cashRegisterSeed.Seed(ctx, db, company.ID)
+}
+
+func autoMigrateSuppliers(db *gorm.DB) error {
+	return db.AutoMigrate(&supplierModel.SupplierModel{}, &supplierModel.ProductSupplierModel{})
 }
 
 func main() {

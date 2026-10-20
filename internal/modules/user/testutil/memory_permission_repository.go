@@ -27,11 +27,16 @@ type MemoryUserRepository struct {
 	byEmail map[string]*entity.AppUser
 }
 
-func NewMemoryUserRepository() *MemoryUserRepository {
-	return &MemoryUserRepository{
+func NewMemoryUserRepository(users ...*entity.AppUser) *MemoryUserRepository {
+	r := &MemoryUserRepository{
 		byID:    map[uuid.UUID]*entity.AppUser{},
 		byEmail: map[string]*entity.AppUser{},
 	}
+	for _, user := range users {
+		r.byID[user.ID] = user
+		r.byEmail[user.Email] = user
+	}
+	return r
 }
 
 func (r *MemoryUserRepository) Create(_ context.Context, user *entity.AppUser) error {

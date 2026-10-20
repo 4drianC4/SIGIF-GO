@@ -1,11 +1,11 @@
 meta {
-  name: Delete Product
+  name: Cleanup - Delete Client
   type: http
-  seq: 21
+  seq: 19
 }
 
 delete {
-  url: {{baseUrl}}/api/v1/products/{{productId}}
+  url: {{baseUrl}}/api/v1/customers/{{clientId}}
   body: none
   auth: bearer
 }
@@ -15,7 +15,7 @@ auth:bearer {
 }
 
 tests {
-  test("responde 204 sin contenido", function() {
+  test("responde 204", function() {
     expect(res.status).to.equal(204);
   });
 }

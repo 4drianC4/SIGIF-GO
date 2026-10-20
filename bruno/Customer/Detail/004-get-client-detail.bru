@@ -1,0 +1,37 @@
+meta {
+  name: 01 Get Client Detail
+  type: http
+  seq: 4
+}
+
+get {
+  url: {{baseUrl}}/api/v1/customers/{{clientId}}
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{accessToken}}
+}
+
+tests {
+  test("responde 200 con todos los datos del cliente y su estado", function() {
+    expect(res.status).to.equal(200);
+    expect(res.body.success).to.equal(true);
+    expect(res.body.data.id).to.equal(bru.getVar('clientId'));
+    expect(res.body.data.company_id).to.equal(bru.getVar('companyId'));
+    expect(res.body.data.legal_name).to.equal(bru.getVar('clientLegalName'));
+    expect(res.body.data.document_type).to.equal('tax_id');
+    expect(res.body.data.document_number).to.equal(bru.getVar('clientDocument'));
+    expect(res.body.data.phone).to.equal('+59170000020');
+    expect(res.body.data.email).to.equal('cliente@example.com');
+    expect(res.body.data.status).to.equal('active');
+    expect(res.body.data).to.have.property('credit_limit');
+    expect(res.body.data).to.have.property('credit_balance');
+    expect(res.body.data.points_accrued).to.equal(0);
+    expect(res.body.data.created_at).to.be.a('string');
+  });
+  test("no expone deleted_at", function() {
+    expect(res.body.data).to.not.have.property('deleted_at');
+  });
+}

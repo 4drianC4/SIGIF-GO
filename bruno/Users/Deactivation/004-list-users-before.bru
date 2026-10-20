@@ -1,0 +1,24 @@
+meta {
+  name: List Users Before Deactivation
+  type: http
+  seq: 4
+}
+
+get {
+  url: {{baseUrl}}/api/v1/users?page=1&limit=100
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{accessToken}}
+}
+
+tests {
+  test("lists the user as active", function() {
+    expect(res.status).to.equal(200);
+    expect(res.body.data).to.be.an('array');
+    const user = res.body.data.find(function(item) { return item.id === bru.getVar('deactivationUserId'); });
+    expect(user.status).to.equal('active');
+  });
+}

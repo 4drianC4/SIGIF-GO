@@ -1,0 +1,38 @@
+meta {
+  name: Setup - Login Company Admin
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{baseUrl}}/api/v1/auth/login
+  body: json
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "email": "{{companyAdminEmail}}",
+    "password": "{{companyAdminPassword}}"
+  }
+}
+
+script:post-response {
+  const authCookie = [].concat(res.getHeader('set-cookie') || [])
+    .map((c) => c.split(';')[0])
+    .find((c) => c.startsWith('sigif_access_token='));
+  const token = authCookie ? authCookie.substring('sigif_access_token='.length) : null;
+  if (res.body && res.body.data) {
+    bru.setVar('accessToken', token);
+  }
+}
+
+tests {
+  test("responde 200 con la cookie de sesión", function() {
+    expect(res.status).to.equal(200);
+  });
+}

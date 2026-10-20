@@ -1,0 +1,24 @@
+meta {
+  name: Current Session
+  type: http
+  seq: 18
+}
+
+get {
+  url: {{baseUrl}}/api/v1/cash-sessions/current
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{accessTokenA}}
+}
+
+tests {
+  test("responde 200 con la sesión abierta del cajero", function() {
+    expect(res.status).to.equal(200);
+    expect(res.body.data.id).to.equal(bru.getVar('sessionAId'));
+    expect(res.body.data.status).to.equal('open');
+    expect(res.body.data.cash_register.code).to.equal('CAJA-01');
+  });
+}

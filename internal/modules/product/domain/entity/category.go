@@ -37,13 +37,7 @@ type NewCategoryParams struct {
 
 func NewCategory(clock clock.Clock, params NewCategoryParams) (*Category, error) {
 	details := validationDetails{}
-	if m := params.TargetMargin; m != nil {
-		if m.IsNegative() || m.GreaterThan(maxTargetMargin) {
-			details["target_margin"] = "debe estar entre 0 y 100"
-		} else if !hasAtMostDecimals(*m, 2) {
-			details["target_margin"] = "admite como máximo 2 decimales"
-		}
-	}
+	validateTargetMargin(details, params.TargetMargin)
 	if err := details.err(); err != nil {
 		return nil, err
 	}
@@ -65,4 +59,52 @@ func NewCategory(clock clock.Clock, params NewCategoryParams) (*Category, error)
 
 func (c *Category) IsActive() bool {
 	return c.Status == StatusActive
+}
+
+// UpdateCategoryParams holds the fields a partial update may change. A nil
+// pointer or an Optional that is not set leaves the field as it is; the parent
+// of a category never changes.
+type UpdateCategoryParams struct {
+	Name         *string
+	Description  *string
+	DefaultTaxID Optional[uuid.UUID]
+	TargetMargin Optional[decimal.Decimal]
+}
+
+// Update applies the fields that were sent. Clearing the default tax or the
+// target margin makes the category inherit them from its parent.
+func (c *Category) Update(clock clock.Clock, params UpdateCategoryParams) error {
+	details := validationDetails{}
+	if params.TargetMargin.Set {
+		validateTargetMargin(details, params.TargetMargin.Value)
+	}
+	if err := details.err(); err != nil {
+		return err
+	}
+
+	if params.Name != nil {
+		c.Name = NormalizeName(*params.Name)
+	}
+	if params.Description != nil {
+		c.Description = strings.TrimSpace(*params.Description)
+	}
+	if params.DefaultTaxID.Set {
+		c.DefaultTaxID = params.DefaultTaxID.Value
+	}
+	if params.TargetMargin.Set {
+		c.TargetMargin = params.TargetMargin.Value
+	}
+	c.UpdatedAt = clock.NowUTC()
+	return nil
+}
+
+func validateTargetMargin(details validationDetails, margin *decimal.Decimal) {
+	if margin == nil {
+		return
+	}
+	if margin.IsNegative() || margin.GreaterThan(maxTargetMargin) {
+		details["target_margin"] = "debe estar entre 0 y 100"
+	} else if !hasAtMostDecimals(*margin, 2) {
+		details["target_margin"] = "admite como máximo 2 decimales"
+	}
 }

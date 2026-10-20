@@ -21,8 +21,11 @@ import (
 
 	"github.com/sigif/sigif-go/internal/modules/auth"
 	"github.com/sigif/sigif-go/internal/modules/cashregister"
+	"github.com/sigif/sigif-go/internal/modules/cashsession"
 	"github.com/sigif/sigif-go/internal/modules/customer"
+	"github.com/sigif/sigif-go/internal/modules/inventory"
 	"github.com/sigif/sigif-go/internal/modules/product"
+	"github.com/sigif/sigif-go/internal/modules/supplier"
 	"github.com/sigif/sigif-go/internal/modules/user"
 	"github.com/sigif/sigif-go/internal/shared/authcookie"
 	"github.com/sigif/sigif-go/internal/shared/clock"
@@ -32,6 +35,17 @@ import (
 	sharedLogger "github.com/sigif/sigif-go/internal/shared/logger"
 	"github.com/sigif/sigif-go/internal/shared/middleware"
 	"github.com/sigif/sigif-go/internal/shared/validator"
+)
+
+var modules = fx.Options(
+	user.Module,
+	auth.Module,
+	customer.Module,
+	product.Module,
+	cashregister.Module,
+	cashsession.Module,
+	inventory.Module,
+	supplier.Module,
 )
 
 func main() {
@@ -46,11 +60,7 @@ func main() {
 			newFiberApp,
 			fx.Annotate(clock.NewRealClock, fx.As(new(clock.Clock))),
 		),
-		user.Module,
-		auth.Module,
-		customer.Module,
-		product.Module,
-		cashregister.Module,
+		modules,
 		fx.Invoke(registerHooks),
 		fx.Invoke(startServer),
 	)

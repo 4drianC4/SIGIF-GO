@@ -1,0 +1,47 @@
+meta {
+  name: Setup - Create Client To View
+  type: http
+  seq: 2
+}
+
+post {
+  url: {{baseUrl}}/api/v1/customers/
+  body: json
+  auth: bearer
+}
+
+headers {
+  Content-Type: application/json
+}
+
+auth:bearer {
+  token: {{accessToken}}
+}
+
+body:json {
+  {
+    "legal_name": "{{clientLegalName}}",
+    "document_type": "tax_id",
+    "document_number": "{{clientDocument}}",
+    "phone": "+59170000020",
+    "email": "cliente@example.com"
+  }
+}
+
+script:pre-request {
+  const tag = 'HU0803-' + Date.now();
+  bru.setVar('clientTag', tag);
+  bru.setVar('clientLegalName', tag + ' Cliente');
+  bru.setVar('clientDocument', '3' + String(Date.now()).slice(-9));
+}
+
+script:post-response {
+  bru.setVar('clientId', res.body && res.body.data ? res.body.data.id : '');
+}
+
+tests {
+  test("responde 201 con el cliente activo", function() {
+    expect(res.status).to.equal(201);
+    expect(res.body.data.status).to.equal('active');
+  });
+}
