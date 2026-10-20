@@ -12,6 +12,7 @@ type APIResponse struct {
 	Success bool         `json:"success"`
 	Data    any          `json:"data,omitempty"`
 	Meta    any          `json:"meta,omitempty"`
+	Message string       `json:"message,omitempty"`
 	Error   *ErrorDetail `json:"error,omitempty"`
 }
 
@@ -42,6 +43,17 @@ func Created(c *fiber.Ctx, data any) error {
 
 func Paginated(c *fiber.Ctx, data any, page *pagination.Page) error {
 	return Success(c, data, page)
+}
+
+// PaginatedWithMessage adds an optional, user-facing message to a paginated
+// response (for example, an informative empty-state text).
+func PaginatedWithMessage(c *fiber.Ctx, data any, page *pagination.Page, message string) error {
+	return c.JSON(APIResponse{
+		Success: true,
+		Data:    data,
+		Meta:    page,
+		Message: message,
+	})
 }
 
 func Cursor(c *fiber.Ctx, data any, cursor *pagination.Cursor) error {

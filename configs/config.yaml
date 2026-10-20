@@ -60,6 +60,9 @@ rate_limit:
   enabled: true
   max_requests: 100
   window_seconds: 60
+  identifier_check:
+    max_requests: 30
+    window_seconds: 60
 
 pagination:
   default_limit: 20

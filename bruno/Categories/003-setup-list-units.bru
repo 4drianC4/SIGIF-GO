@@ -1,0 +1,28 @@
+meta {
+  name: Setup - List Units Of Measure
+  type: http
+  seq: 3
+}
+
+get {
+  url: {{baseUrl}}/api/v1/units-of-measure
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{accessToken}}
+}
+
+script:post-response {
+  if (res.body && res.body.data && res.body.data.length) {
+    bru.setVar('unitId', res.body.data[0].id);
+  }
+}
+
+tests {
+  test("responde 200 con unidades", function() {
+    expect(res.status).to.equal(200);
+    expect(bru.getVar('unitId')).to.be.a('string');
+  });
+}

@@ -7,6 +7,7 @@ import (
 
 	"github.com/sigif/sigif-go/internal/modules/user/domain/entity"
 	sharedErrors "github.com/sigif/sigif-go/internal/shared/errors"
+	"github.com/sigif/sigif-go/internal/shared/middleware"
 )
 
 func (s *UserService) Activate(ctx context.Context, id uuid.UUID) error {
@@ -14,6 +15,9 @@ func (s *UserService) Activate(ctx context.Context, id uuid.UUID) error {
 }
 
 func (s *UserService) Deactivate(ctx context.Context, id uuid.UUID) error {
+	if actorID, ok := middleware.UserIDFromContext(ctx); ok && actorID == id {
+		return sharedErrors.New(sharedErrors.CodeConflict, "you cannot deactivate your own account", 409)
+	}
 	return s.changeStatus(ctx, id, entity.UserStatusInactive)
 }
 
@@ -30,6 +34,9 @@ func (s *UserService) changeStatus(ctx context.Context, id uuid.UUID, status ent
 	case entity.UserStatusActive:
 		user.Activate(s.clock)
 	case entity.UserStatusInactive:
+		if user.IsDeactivated() {
+			return sharedErrors.New(sharedErrors.CodeConflict, "user is already inactive", 409)
+		}
 		user.Deactivate(s.clock)
 	default:
 		return sharedErrors.New(sharedErrors.CodeBadRequest, "invalid status", 400)

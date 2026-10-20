@@ -1,0 +1,45 @@
+meta {
+  name: Duplicate Barcode (409)
+  type: http
+  seq: 27
+}
+
+post {
+  url: {{baseUrl}}/api/v1/products
+  body: json
+  auth: bearer
+}
+
+headers {
+  Content-Type: application/json
+}
+
+auth:bearer {
+  token: {{accessToken}}
+}
+
+body:json {
+  {
+    "name": "Otro 2 {{holderName}}",
+    "sku": "OTRO-{{holderBarcode}}",
+    "barcode": "{{holderBarcode}}",
+    "category_id": "{{categoryId}}",
+    "unit_of_measure_id": "{{unitId}}",
+    "cost": 1,
+    "sale_price": 2
+  }
+}
+
+tests {
+  test("rechaza el código de barras repetido con su propio código", function() {
+    expect(res.status).to.equal(409);
+    expect(res.body.error.message).to.equal('barcode already exists');
+    expect(res.body.error.details.conflicts).to.have.lengthOf(1);
+    expect(res.body.error.details.conflicts[0].code).to.equal('BARCODE_DUPLICATE');
+    expect(res.body.error.details.conflicts[0].value).to.equal(bru.getVar('holderBarcode'));
+    const c = res.body.error.details.conflicts;
+    expect(c[0].existing_product.id).to.equal(bru.getVar('holderId'));
+    expect(c[0].existing_product.name).to.equal(bru.getVar('holderName'));
+    expect(c[0].existing_product.deleted).to.equal(false);
+  });
+}

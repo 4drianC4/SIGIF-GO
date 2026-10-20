@@ -1,0 +1,36 @@
+meta {
+  name: Inventory - Out Within Stock
+  type: http
+  seq: 41
+}
+
+post {
+  url: {{baseUrl}}/api/v1/inventory/movements
+  body: json
+  auth: bearer
+}
+
+headers {
+  Content-Type: application/json
+}
+
+auth:bearer {
+  token: {{accessToken}}
+}
+
+body:json {
+  {
+    "product_id": "{{lowStockProductId}}",
+    "type": "out",
+    "quantity": 5,
+    "reason": "Venta de prueba"
+  }
+}
+
+tests {
+  test("registra la salida y descuenta del saldo", function() {
+    expect(res.status).to.equal(201);
+    expect(res.body.data.movement.type).to.equal('out');
+    expect(res.body.data.balance).to.equal('7');
+  });
+}

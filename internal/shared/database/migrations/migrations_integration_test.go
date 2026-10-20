@@ -161,11 +161,12 @@ func TestFreshDatabase(t *testing.T) {
 	e := newEnv(t)
 	e.up()
 	e.up()
-	e.assertVersion(2, false)
+	e.assertVersion(6, false)
 
 	status, err := migrations.Status(e.dsn)
-	if err != nil || len(status) != 2 || !status[0].Applied || !status[1].Applied ||
-		status[0].Name != "catalog_baseline" || status[1].Name != "catalog_contract" {
+	if err != nil || len(status) != 6 || !status[0].Applied || !status[1].Applied || !status[2].Applied || !status[3].Applied || !status[4].Applied || !status[5].Applied ||
+		status[0].Name != "catalog_baseline" || status[1].Name != "catalog_contract" || status[2].Name != "price_history_and_stock_balance" ||
+		status[3].Name != "product_reserved_codes" || status[4].Name != "inventory_branches_and_movements" || status[5].Name != "category_names_ignore_case" {
 		t.Fatalf("Status() = %+v, %v", status, err)
 	}
 
@@ -190,6 +191,9 @@ func TestFreshDatabase(t *testing.T) {
 	if err := e.db.Create(&model.CategoryModel{CompanyID: e.company, Name: "Mascotas"}).Error; !isPgError(err, "23505") {
 		t.Errorf("duplicate root category must be rejected, got %v", err)
 	}
+	if err := e.db.Create(&model.CategoryModel{CompanyID: e.company, Name: "MASCOTAS"}).Error; !isPgError(err, "23505") {
+		t.Errorf("root category differing only in case must be rejected, got %v", err)
+	}
 	for _, name := range []string{"Sin SKU 1", "Sin SKU 2"} {
 		if err := e.db.Create(e.newProduct(name, nil)).Error; err != nil {
 			t.Errorf("product without sku %q: %v", name, err)
@@ -211,7 +215,7 @@ func TestLegacyCatalogKeepsItsData(t *testing.T) {
 	e.exec(`UPDATE products SET deleted_at = now() WHERE id = ?`, deleted)
 
 	e.up()
-	e.assertVersion(2, false)
+	e.assertVersion(6, false)
 
 	type row struct {
 		Name         string
@@ -260,7 +264,7 @@ func TestLegacyCatalogKeepsItsData(t *testing.T) {
 		t.Errorf("same category name under a parent must be allowed: %v", err)
 	}
 	e.up()
-	e.assertVersion(2, false)
+	e.assertVersion(6, false)
 }
 
 func TestHybridSchemaLeftByAutoMigrate(t *testing.T) {
@@ -282,7 +286,7 @@ func TestHybridSchemaLeftByAutoMigrate(t *testing.T) {
 	if err := e.db.Create(e.newProduct("Wiskas Gato adulto", &sku)).Error; err != nil {
 		t.Fatalf("insert after migrating: %v", err)
 	}
-	e.assertVersion(2, false)
+	e.assertVersion(6, false)
 }
 
 func TestSchemaAlreadyCreatedByAutoMigrate(t *testing.T) {
@@ -303,7 +307,7 @@ func TestSchemaAlreadyCreatedByAutoMigrate(t *testing.T) {
 	}
 
 	e.up()
-	e.assertVersion(2, false)
+	e.assertVersion(6, false)
 
 	var got model.ProductModel
 	if err := e.db.First(&got, "id = ?", product.ID).Error; err != nil {
@@ -339,7 +343,7 @@ func TestFailedMigrationIsRolledBackAndCanBeRetried(t *testing.T) {
 
 	e.exec(`UPDATE products SET unit_of_measure = 'box' WHERE id = ?`, id)
 	e.up()
-	e.assertVersion(2, false)
+	e.assertVersion(6, false)
 	var unit string
 	e.db.Raw(`SELECT u.abbreviation FROM products p JOIN units_of_measure u ON u.id = p.unit_of_measure_id WHERE p.id = ?`, id).Scan(&unit)
 	if unit != "BOX" {
@@ -353,19 +357,28 @@ func TestDirtyDatabaseIsReportedAndCanBeForced(t *testing.T) {
 	e.exec(`UPDATE schema_migrations SET dirty = true`)
 
 	err := migrations.Up(e.dsn)
-	if err == nil || !strings.Contains(err.Error(), "dirty at version 2") {
+	if err == nil || !strings.Contains(err.Error(), "dirty at version 6") {
 		t.Fatalf("expected dirty database error, got %v", err)
 	}
-	if err := migrations.Force(e.dsn, 2); err != nil {
+	if err := migrations.Force(e.dsn, 6); err != nil {
 		t.Fatalf("Force() error = %v", err)
 	}
 	e.up()
-	e.assertVersion(2, false)
+	e.assertVersion(6, false)
 }
 
 func TestCatalogContractCannotBeRolledBack(t *testing.T) {
 	e := newEnv(t)
 	e.up()
+
+	// 000006 and 000004 only swap indexes, 000005 and 000003 only add tables, so
+	// all four can be rolled back; 000002 cannot.
+	for _, version := range []int{5, 4, 3, 2} {
+		if err := migrations.Down(e.dsn); err != nil {
+			t.Fatalf("rolling back to version %d: %v", version, err)
+		}
+		e.assertVersion(version, false)
+	}
 
 	err := migrations.Down(e.dsn)
 	if err == nil || !strings.Contains(err.Error(), "cannot be rolled back automatically") {
@@ -376,6 +389,215 @@ func TestCatalogContractCannotBeRolledBack(t *testing.T) {
 		t.Errorf("rejected rollback changed the schema")
 	}
 	e.up()
+	e.assertVersion(6, false)
+}
+
+func TestPriceHistoryAndStockBalanceMigration(t *testing.T) {
+	e := newEnv(t)
+	e.up()
+	e.assertVersion(6, false)
+	for _, table := range []string{"product_price_history", "stock_balance"} {
+		if !e.hasRelation(table) {
+			t.Fatalf("table %s was not created", table)
+		}
+	}
+
+	e.exec(`INSERT INTO categories (id, company_id, name, created_at) VALUES (?, ?, 'Bebidas', now())`, e.category, e.company)
+	product := e.newProduct("Producto con saldo", nil)
+	if err := e.db.Create(product).Error; err != nil {
+		t.Fatalf("seed product: %v", err)
+	}
+	insert := `INSERT INTO stock_balance (company_id, product_id, branch_id, location_id, quantity, reserved_quantity)
+		VALUES (?, ?, ?, ?, ?::numeric, ?::numeric)`
+	e.exec(insert, e.company, product.ID, 1, 1, "10", "4")
+	rejected := map[string][]any{
+		"reserved above quantity":  {e.company, product.ID, 1, 2, "5", "6"},
+		"negative quantity":        {e.company, product.ID, 1, 3, "-1", "0"},
+		"same branch and location": {e.company, product.ID, 1, 1, "1", "0"},
+	}
+	for name, args := range rejected {
+		if err := e.db.Exec(insert, args...).Error; err == nil {
+			t.Errorf("stock_balance accepted %s", name)
+		}
+	}
+
+	for _, version := range []int{5, 4, 3, 2} {
+		if err := migrations.Down(e.dsn); err != nil {
+			t.Fatalf("Down() to version %d error = %v", version, err)
+		}
+	}
+	e.assertVersion(2, false)
+	if e.hasRelation("product_price_history") || e.hasRelation("stock_balance") {
+		t.Errorf("rollback left the tables behind")
+	}
+	e.up()
+	e.assertVersion(6, false)
+}
+
+func TestPriceHistoryAndStockBalanceAlreadyCreatedByAutoMigrate(t *testing.T) {
+	e := newEnv(t)
+	if err := e.db.AutoMigrate(catalogModels...); err != nil {
+		t.Fatalf("automigrate catalog: %v", err)
+	}
+	if err := e.db.AutoMigrate(&model.ProductPriceHistoryModel{}, &model.StockBalanceModel{}); err != nil {
+		t.Fatalf("automigrate history and stock: %v", err)
+	}
+	e.exec(`INSERT INTO units_of_measure (id, name, abbreviation, sort_order) VALUES (gen_random_uuid(), 'Unit', 'UNIT', 1)`)
+
+	e.up()
+	e.assertVersion(6, false)
+	if !e.hasRelation("product_price_history") || !e.hasRelation("stock_balance") {
+		t.Errorf("the tables created by AutoMigrate disappeared")
+	}
+}
+
+// reservedCodesEnv leaves a database on version 3: deleted products still
+// free their SKU and barcode there.
+func reservedCodesEnv(t *testing.T) *env {
+	t.Helper()
+	e := newEnv(t)
+	e.up()
+	if err := migrations.Down(e.dsn); err != nil {
+		t.Fatalf("Down() to version 5: %v", err)
+	}
+	e.assertVersion(5, false)
+	if err := migrations.Down(e.dsn); err != nil {
+		t.Fatalf("Down() to version 4: %v", err)
+	}
+	e.assertVersion(4, false)
+	if err := migrations.Down(e.dsn); err != nil {
+		t.Fatalf("Down() to version 3: %v", err)
+	}
+	e.assertVersion(3, false)
+	e.exec(`INSERT INTO categories (id, company_id, name, created_at) VALUES (?, ?, 'Bebidas', now())`, e.category, e.company)
+	return e
+}
+
+func (e *env) product(name, sku, barcode string) *model.ProductModel {
+	e.t.Helper()
+	p := e.newProduct(name, &sku)
+	if barcode != "" {
+		p.Barcode = &barcode
+	}
+	if err := e.db.Create(p).Error; err != nil {
+		e.t.Fatalf("create %s: %v", name, err)
+	}
+	return p
+}
+
+func (e *env) softDelete(id uuid.UUID) {
+	e.exec(`UPDATE products SET deleted_at = now() WHERE id = ?`, id)
+}
+
+func TestReservedCodesKeepDeletedValuesTaken(t *testing.T) {
+	e := reservedCodesEnv(t)
+	deleted := e.product("Descontinuado", "RES-1", "7750000000001")
+	e.softDelete(deleted.ID)
+
+	e.up()
+	e.assertVersion(6, false)
+	for name, p := range map[string]*model.ProductModel{
+		"same SKU": e.newProduct("Nuevo 1", ptr("RES-1")),
+		"same barcode": func() *model.ProductModel {
+			p := e.newProduct("Nuevo 2", ptr("RES-2"))
+			p.Barcode = ptr("7750000000001")
+			return p
+		}(),
+	} {
+		if err := e.db.Create(p).Error; err == nil {
+			t.Errorf("%s of a deleted product was accepted", name)
+		}
+	}
+	for i, name := range []string{"Sin SKU 1", "Sin SKU 2"} {
+		p := e.newProduct(name, nil)
+		if err := e.db.Create(p).Error; err != nil {
+			t.Errorf("product %d without SKU and barcode: %v", i, err)
+		}
+	}
+
+	// Rolling back frees the values of deleted products again.
+	for _, version := range []int{5, 4, 3} {
+		if err := migrations.Down(e.dsn); err != nil {
+			t.Fatalf("Down() to version %d: %v", version, err)
+		}
+		e.assertVersion(version, false)
+	}
+	e.product("Reutiliza", "RES-1", "7750000000001")
+}
+
+func TestReservedCodesRefuseValuesAlreadyShared(t *testing.T) {
+	e := reservedCodesEnv(t)
+	deleted := e.product("Descontinuado", "DUP-1", "7750000000001")
+	e.softDelete(deleted.ID)
+	live := e.product("Vigente", "dup-1 ", "7750000000001")
+
+	err := migrations.Up(e.dsn)
+	if err == nil || !strings.Contains(err.Error(), "SKUs shared by several products") || !strings.Contains(err.Error(), "DUP-1 (2 products)") {
+		t.Fatalf("expected the list of shared SKUs, got %v", err)
+	}
+	e.assertVersion(3, false)
+	var sku string
+	e.db.Raw(`SELECT sku FROM products WHERE id = ?`, live.ID).Scan(&sku)
+	if sku != "dup-1 " {
+		t.Errorf("the failed migration changed data: sku = %q", sku)
+	}
+
+	e.exec(`UPDATE products SET sku = 'DUP-2' WHERE id = ?`, live.ID)
+	err = migrations.Up(e.dsn)
+	if err == nil || !strings.Contains(err.Error(), "barcodes shared by several products") {
+		t.Fatalf("expected the list of shared barcodes, got %v", err)
+	}
+	e.assertVersion(3, false)
+
+	e.exec(`UPDATE products SET barcode = '7750000000002' WHERE id = ?`, live.ID)
+	e.up()
+	e.assertVersion(6, false)
+}
+
+func TestReservedCodesNormalizeStoredValues(t *testing.T) {
+	e := reservedCodesEnv(t)
+	legacy := e.product("Antiguo", " abc-1 ", " 7750000000009 ")
+	blank := e.product("En blanco", "  ", "   ")
+
+	e.up()
+	var rows []struct {
+		ID      uuid.UUID
+		SKU     *string
+		Barcode *string
+	}
+	e.db.Raw(`SELECT id, sku, barcode FROM products WHERE id IN (?, ?)`, legacy.ID, blank.ID).Scan(&rows)
+	for _, r := range rows {
+		switch r.ID {
+		case legacy.ID:
+			if r.SKU == nil || *r.SKU != "ABC-1" || r.Barcode == nil || *r.Barcode != "7750000000009" {
+				t.Errorf("legacy row = %v / %v, want ABC-1 / 7750000000009", deref(r.SKU), deref(r.Barcode))
+			}
+		case blank.ID:
+			if r.SKU != nil || r.Barcode != nil {
+				t.Errorf("blank values must become NULL, got %q / %q", deref(r.SKU), deref(r.Barcode))
+			}
+		}
+	}
+}
+
+func ptr(s string) *string { return &s }
+
+func deref(s *string) string {
+	if s == nil {
+		return "<nil>"
+	}
+	return *s
+}
+
+func TestInventoryBranchesAndMovementsMigration(t *testing.T) {
+	e := newEnv(t)
+	e.up()
+	e.assertVersion(6, false)
+	for _, table := range []string{"branches", "locations", "stock_movements"} {
+		if !e.hasRelation(table) {
+			t.Fatalf("table %s was not created", table)
+		}
+	}
 }
 
 func TestDownWithoutMigrationsIsANoOp(t *testing.T) {
@@ -384,7 +606,82 @@ func TestDownWithoutMigrationsIsANoOp(t *testing.T) {
 		t.Fatalf("Down() on an empty database error = %v", err)
 	}
 	status, err := migrations.Status(e.dsn)
-	if err != nil || len(status) != 2 || status[0].Applied || status[1].Applied {
+	if err != nil || len(status) != 6 || status[0].Applied || status[1].Applied || status[2].Applied || status[3].Applied || status[4].Applied || status[5].Applied {
 		t.Fatalf("Status() = %+v, %v", status, err)
 	}
+}
+
+func TestCategoryNamesIgnoreCase(t *testing.T) {
+	e := newEnv(t)
+	e.up()
+	other := uuid.New()
+	root := model.CategoryModel{CompanyID: e.company, Name: "Mascotas"}
+	if err := e.db.Create(&root).Error; err != nil {
+		t.Fatal(err)
+	}
+	child := model.CategoryModel{CompanyID: e.company, ParentID: &root.ID, Name: "Perros"}
+	if err := e.db.Create(&child).Error; err != nil {
+		t.Fatal(err)
+	}
+
+	for name, category := range map[string]model.CategoryModel{
+		"root":  {CompanyID: e.company, Name: "mascotas"},
+		"child": {CompanyID: e.company, ParentID: &root.ID, Name: "PERROS"},
+	} {
+		if err := e.db.Create(&category).Error; !isPgError(err, "23505") {
+			t.Errorf("%s repeated with another case must be rejected, got %v", name, err)
+		}
+	}
+	// Other level, other company and deleted rows do not conflict.
+	for name, category := range map[string]model.CategoryModel{
+		"same name under another parent": {CompanyID: e.company, ParentID: &child.ID, Name: "MASCOTAS"},
+		"same name in another company":   {CompanyID: other, Name: "MASCOTAS"},
+	} {
+		if err := e.db.Create(&category).Error; err != nil {
+			t.Errorf("%s: %v", name, err)
+		}
+	}
+	e.exec(`UPDATE categories SET deleted_at = now() WHERE id = ?`, child.ID)
+	if err := e.db.Create(&model.CategoryModel{CompanyID: e.company, ParentID: &root.ID, Name: "PERROS"}).Error; err != nil {
+		t.Errorf("name of a deleted category must be free: %v", err)
+	}
+
+	// Rolling back compares the exact name again.
+	if err := migrations.Down(e.dsn); err != nil {
+		t.Fatal(err)
+	}
+	e.assertVersion(5, false)
+	if err := e.db.Create(&model.CategoryModel{CompanyID: e.company, Name: "MASCOTAS"}).Error; err != nil {
+		t.Errorf("after rolling back, a different case is a different name: %v", err)
+	}
+}
+
+func TestCategoryNamesRefuseDuplicatesAlreadyStored(t *testing.T) {
+	e := newEnv(t)
+	e.up()
+	if err := migrations.Down(e.dsn); err != nil {
+		t.Fatal(err)
+	}
+	e.assertVersion(5, false)
+
+	parent := uuid.New()
+	e.exec(`INSERT INTO categories (id, company_id, name, created_at) VALUES (?, ?, 'Padre', now())`, parent, e.company)
+	insert := `INSERT INTO categories (id, company_id, parent_id, name, deleted_at, created_at) VALUES (gen_random_uuid(), ?, ?, ?, ?, now())`
+	e.exec(insert, e.company, nil, "Bebidas", nil)
+	e.exec(insert, e.company, nil, "BEBIDAS", nil)
+	e.exec(insert, e.company, parent, "Aceites", nil)
+	e.exec(insert, e.company, nil, "bebidas", time.Now()) // deleted: does not count
+
+	err := migrations.Up(e.dsn)
+	if err == nil || !strings.Contains(err.Error(), "repeated at the same level ignoring case") || !strings.Contains(err.Error(), "BEBIDAS / Bebidas (company") {
+		t.Fatalf("expected the list of repeated names, got %v", err)
+	}
+	if strings.Contains(err.Error(), "Aceites") {
+		t.Errorf("a name used once under a parent must not be reported: %v", err)
+	}
+	e.assertVersion(5, false)
+
+	e.exec(`UPDATE categories SET name = 'Bebidas frías' WHERE name = 'BEBIDAS' AND deleted_at IS NULL`)
+	e.up()
+	e.assertVersion(6, false)
 }

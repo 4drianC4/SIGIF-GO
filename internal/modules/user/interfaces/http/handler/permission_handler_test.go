@@ -102,10 +102,11 @@ func newTestServer(t *testing.T) *testServer {
 	permRepo := testutil.NewMemoryPermissionRepository()
 	clk := clock.NewMockClock(time.Date(2026, 10, 5, 12, 0, 0, 0, time.UTC))
 	svc := service.NewUserService(users, roles, permRepo, clk, testutil.NewMemoryCompanyRepository())
+	history := service.NewHistoryService(testutil.NewMemoryHistoryRepository(), users, clk)
 
 	h := httpHandler.NewPermissionHTTPHandler(
-		appHandler.NewUserCommandHandler(svc),
-		appHandler.NewUserQueryHandler(svc),
+		appHandler.NewUserCommandHandler(svc, history, testutil.Transactor{}),
+		appHandler.NewUserQueryHandler(svc, history),
 		validator.New(),
 		cfg,
 	)
@@ -116,8 +117,8 @@ func newTestServer(t *testing.T) *testServer {
 	router.RegisterPermissionRoutes(app.Group("/api/v1"), h, stub)
 	router.RegisterRoleRoutes(app.Group("/api/v1"),
 		httpHandler.NewRoleHTTPHandler(
-			appHandler.NewUserQueryHandler(svc),
-			appHandler.NewUserCommandHandler(svc),
+			appHandler.NewUserQueryHandler(svc, history),
+			appHandler.NewUserCommandHandler(svc, history, testutil.Transactor{}),
 			validator.New(),
 			cfg,
 		), stub)
@@ -623,14 +624,14 @@ func TestDeletePermissionEndpoint(t *testing.T) {
 	})
 
 	t.Run("removes a free permission", func(t *testing.T) {
-		permission := s.seedPermissionEntity(t, "categories", "update", "Editar categorías")
+		permission := s.seedPermissionEntity(t, "categories", "export", "Exportar categorías")
 		status, _, _ := s.doRaw(t, fiber.MethodDelete, "/api/v1/permissions/"+permission.ID.String(), deleteToken)
 		if status != fiber.StatusNoContent {
 			t.Fatalf("got %d, want 204", status)
 		}
 		_, _, items := s.list(t, "module=categories", s.token(t, "permissions.read"))
 		for _, item := range items {
-			if item.Code == "categories.update" {
+			if item.Code == "categories.export" {
 				t.Fatalf("permission still listed after delete: %v", items)
 			}
 		}

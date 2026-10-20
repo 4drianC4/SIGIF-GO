@@ -144,6 +144,9 @@ func (s *AuthService) Me(ctx context.Context, userID uuid.UUID) (*userEntity.App
 	if user == nil {
 		return nil, nil, nil
 	}
+	if !user.IsActive() {
+		return user, []string{}, nil
+	}
 
 	permissions, err := s.userRepo.PermissionsByRole(ctx, user.RoleID)
 	if err != nil {

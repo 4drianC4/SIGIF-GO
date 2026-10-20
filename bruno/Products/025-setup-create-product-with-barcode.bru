@@ -1,0 +1,49 @@
+meta {
+  name: Setup - Create Product With Barcode
+  type: http
+  seq: 25
+}
+
+post {
+  url: {{baseUrl}}/api/v1/products
+  body: json
+  auth: bearer
+}
+
+headers {
+  Content-Type: application/json
+}
+
+auth:bearer {
+  token: {{accessToken}}
+}
+
+body:json {
+  {
+    "name": "{{holderName}}",
+    "sku": "{{holderSku}}",
+    "barcode": "{{holderBarcode}}",
+    "category_id": "{{categoryId}}",
+    "unit_of_measure_id": "{{unitId}}",
+    "cost": 1,
+    "sale_price": 2
+  }
+}
+
+script:pre-request {
+  const now = String(Date.now());
+  bru.setVar('holderName', 'Aceite Fino ' + now);
+  bru.setVar('holderSku', 'ACE-' + now);
+  bru.setVar('holderBarcode', now);
+}
+
+script:post-response {
+  bru.setVar('holderId', res.body && res.body.data ? res.body.data.id : '');
+}
+
+tests {
+  test("responde 201 con SKU y código de barras", function() {
+    expect(res.status).to.equal(201);
+    expect(res.body.data.barcode).to.equal(bru.getVar('holderBarcode'));
+  });
+}

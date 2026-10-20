@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -27,6 +28,8 @@ type CreateProductParams struct {
 	MinStock        decimal.Decimal
 }
 
+// CreateProduct registers a product. It runs in a transaction that locks the
+// category, so the category cannot be deleted while the product is created.
 func (s *CatalogService) CreateProduct(ctx context.Context, params CreateProductParams) (*repository.ProductListItem, error) {
 	if params.CompanyID == uuid.Nil {
 		return nil, ErrCompanyRequired
@@ -49,15 +52,24 @@ func (s *CatalogService) CreateProduct(ctx context.Context, params CreateProduct
 		return nil, err
 	}
 
-	category, err := s.checkProductReferences(ctx, product, uuid.Nil)
+	var item *repository.ProductListItem
+	err = s.products.WithinTransaction(ctx, func(txCtx context.Context) error {
+		category, err := s.checkProductReferences(txCtx, product, uuid.Nil)
+		if err != nil {
+			return err
+		}
+		if err := s.products.Create(txCtx, product); err != nil {
+			return err
+		}
+		item = &repository.ProductListItem{Product: product, CategoryName: category.Name}
+		return nil
+	})
 	if err != nil {
-		return nil, err
+		// A unique index violation aborts the transaction, so the product that
+		// won is looked up outside of it.
+		return nil, s.detailDuplicate(ctx, err, product.CompanyID, product.Name, product.SKU, product.Barcode, uuid.Nil)
 	}
-
-	if err := s.products.Create(ctx, product); err != nil {
-		return nil, err
-	}
-	return &repository.ProductListItem{Product: product, CategoryName: category.Name}, nil
+	return item, nil
 }
 
 type ListProductsParams struct {
@@ -89,9 +101,12 @@ type ValidateDuplicateParams struct {
 	ExcludeID uuid.UUID
 }
 
+// DuplicateResult tells whether any value is already held and by which
+// product. Field is the first duplicated field.
 type DuplicateResult struct {
-	Exists bool
-	Field  string
+	Exists    bool
+	Field     string
+	Conflicts []DuplicateConflict
 }
 
 func (s *CatalogService) ValidateDuplicate(ctx context.Context, params ValidateDuplicateParams) (*DuplicateResult, error) {
@@ -103,42 +118,15 @@ func (s *CatalogService) ValidateDuplicate(ctx context.Context, params ValidateD
 		return nil, ErrDuplicateCheckFields
 	}
 
-	field, err := s.duplicateField(ctx, params.CompanyID, name, sku, params.Barcode, params.ExcludeID)
+	conflicts, err := s.findConflicts(ctx, params.CompanyID, name, sku, strings.TrimSpace(params.Barcode), params.ExcludeID)
 	if err != nil {
 		return nil, err
 	}
-	return &DuplicateResult{Exists: field != "", Field: field}, nil
-}
-
-var duplicateErrors = map[string]error{
-	"name":    ErrProductNameTaken,
-	"sku":     ErrSKUTaken,
-	"barcode": ErrBarcodeTaken,
-}
-
-func (s *CatalogService) duplicateField(ctx context.Context, companyID uuid.UUID, name, sku, barcode string, excludeID uuid.UUID) (string, error) {
-	checks := []struct {
-		field  string
-		value  string
-		exists func(context.Context, uuid.UUID, string, uuid.UUID) (bool, error)
-	}{
-		{"name", name, s.products.ExistsByName},
-		{"sku", sku, s.products.ExistsBySKU},
-		{"barcode", barcode, s.products.ExistsByBarcode},
+	result := &DuplicateResult{Exists: len(conflicts) > 0, Conflicts: conflicts}
+	if result.Exists {
+		result.Field = conflicts[0].Field
 	}
-	for _, check := range checks {
-		if check.value == "" {
-			continue
-		}
-		taken, err := check.exists(ctx, companyID, check.value, excludeID)
-		if err != nil {
-			return "", err
-		}
-		if taken {
-			return check.field, nil
-		}
-	}
-	return "", nil
+	return result, nil
 }
 
 func (s *CatalogService) checkProductReferences(ctx context.Context, product *entity.Product, excludeID uuid.UUID) (*entity.Category, error) {
@@ -161,12 +149,12 @@ func (s *CatalogService) checkProductReferences(ctx context.Context, product *en
 		return nil, ErrUnitNotFound
 	}
 
-	field, err := s.duplicateField(ctx, product.CompanyID, product.Name, product.SKU, product.Barcode, excludeID)
+	conflicts, err := s.findConflicts(ctx, product.CompanyID, product.Name, product.SKU, product.Barcode, excludeID)
 	if err != nil {
 		return nil, err
 	}
-	if field != "" {
-		return nil, duplicateErrors[field]
+	if len(conflicts) > 0 {
+		return nil, newDuplicateError(conflicts)
 	}
 	return category, nil
 }

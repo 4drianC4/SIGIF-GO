@@ -97,11 +97,16 @@ const (
 	PermUsersChangePassword = "users.change_password"
 	PermCategoriesCreate    = "categories.create"
 	PermCategoriesList      = "categories.list"
+	PermCategoriesUpdate    = "categories.update"
+	PermCategoriesDelete    = "categories.delete"
 	PermProductsCreate      = "products.create"
 	PermProductsList        = "products.list"
 	PermProductsRead        = "products.read"
 	PermProductsUpdate      = "products.update"
 	PermProductsDelete      = "products.delete"
+	PermInventoryCreate     = "inventory.create"
+	PermInventoryList       = "inventory.list"
+	PermInventoryRead       = "inventory.read"
 	PermCustomersCreate     = "customers.create"
 	PermCustomersList       = "customers.list"
 	PermCustomersRead       = "customers.read"
@@ -115,6 +120,11 @@ const (
 	PermPermissionsUpdate   = "permissions.update"
 	PermPermissionsDelete   = "permissions.delete"
 	PermPermissionsExport   = "permissions.export"
+	PermSuppliersCreate     = "suppliers.create"
+	PermSuppliersList       = "suppliers.list"
+	PermSuppliersRead       = "suppliers.read"
+	PermSuppliersUpdate     = "suppliers.update"
+	PermSuppliersDeactivate = "suppliers.deactivate"
 )
 
 // Cash register permissions (RF-10).
@@ -175,6 +185,8 @@ func AllPermissions() []Permission {
 			ops: []struct{ op, desc string }{
 				{"create", "Registrar categorías de productos"},
 				{"list", "Listar categorías de productos"},
+				{"update", "Editar categorías de productos"},
+				{"delete", "Eliminar categorías de productos"},
 			},
 		},
 		{
@@ -188,6 +200,14 @@ func AllPermissions() []Permission {
 			},
 		},
 		{
+			module: "inventory",
+			ops: []struct{ op, desc string }{
+				{"create", "Registrar movimientos de inventario"},
+				{"list", "Listar movimientos y sucursales"},
+				{"read", "Consultar el stock por sucursal"},
+			},
+		},
+		{
 			module: "customers",
 			ops: []struct{ op, desc string }{
 				{"create", "Registrar clientes"},
@@ -196,6 +216,16 @@ func AllPermissions() []Permission {
 				{"update", "Actualizar clientes"},
 				{"status", "Cambiar estado de clientes"},
 				{"delete", "Eliminar clientes"},
+			},
+		},
+		{
+			module: "suppliers",
+			ops: []struct{ op, desc string }{
+				{"create", "Registrar proveedores"},
+				{"list", "Listar proveedores y ver su resumen"},
+				{"read", "Ver proveedores y sus productos"},
+				{"update", "Editar proveedores"},
+				{"deactivate", "Desactivar proveedores"},
 			},
 		},
 		{

@@ -27,12 +27,17 @@ type MemoryStore struct {
 	Products   map[uuid.UUID]*entity.Product
 	Units      []*entity.UnitOfMeasure
 	Taxes      []*entity.Tax
+
+	PriceHistory *MemoryPriceHistoryRepository
+	Stock        *MemoryStockRepository
 }
 
 func NewMemoryStore() *MemoryStore {
 	return &MemoryStore{
-		Categories: map[uuid.UUID]*entity.Category{},
-		Products:   map[uuid.UUID]*entity.Product{},
+		PriceHistory: NewMemoryPriceHistoryRepository(),
+		Stock:        &MemoryStockRepository{},
+		Categories:   map[uuid.UUID]*entity.Category{},
+		Products:     map[uuid.UUID]*entity.Product{},
 		Units: []*entity.UnitOfMeasure{
 			{ID: UnitID, Name: "Unit", Abbreviation: "UNIT"},
 			{ID: KilogramID, Name: "Kilogram", Abbreviation: "KG"},
@@ -49,15 +54,42 @@ func (s *MemoryStore) ProductRepository() repository.ProductRepository    { retu
 func (s *MemoryStore) UnitRepository() repository.UnitOfMeasureRepository { return memoryUnits{s} }
 func (s *MemoryStore) TaxRepository() repository.TaxRepository            { return memoryTaxes{s} }
 
+func (s *MemoryStore) PriceHistoryRepository() repository.PriceHistoryRepository {
+	return s.PriceHistory
+}
+
+func (s *MemoryStore) StockRepository() repository.StockRepository { return s.Stock }
+
+// ProductCount returns how many products are not deleted.
 func (s *MemoryStore) ProductCount() int {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	return len(s.Products)
+	count := 0
+	for _, p := range s.Products {
+		if p.DeletedAt == nil {
+			count++
+		}
+	}
+	return count
 }
 
 type memoryCategories struct{ s *MemoryStore }
 
+// WithinTransaction has nothing to undo: the checks of every use case run
+// before its single write.
+func (r memoryCategories) WithinTransaction(ctx context.Context, fn func(context.Context) error) error {
+	return fn(ctx)
+}
+
 func (r memoryCategories) Create(_ context.Context, category *entity.Category) error {
+	r.s.mu.Lock()
+	defer r.s.mu.Unlock()
+	copied := *category
+	r.s.Categories[category.ID] = &copied
+	return nil
+}
+
+func (r memoryCategories) Update(_ context.Context, category *entity.Category) error {
 	r.s.mu.Lock()
 	defer r.s.mu.Unlock()
 	copied := *category
@@ -69,22 +101,91 @@ func (r memoryCategories) GetByID(_ context.Context, companyID, id uuid.UUID) (*
 	r.s.mu.Lock()
 	defer r.s.mu.Unlock()
 	category, ok := r.s.Categories[id]
-	if !ok || category.CompanyID != companyID {
+	if !ok || category.CompanyID != companyID || category.DeletedAt != nil {
 		return nil, nil
 	}
 	copied := *category
 	return &copied, nil
 }
 
-func (r memoryCategories) ExistsByName(_ context.Context, companyID uuid.UUID, parentID *uuid.UUID, name string) (bool, error) {
+func (r memoryCategories) GetByIDForUpdate(ctx context.Context, companyID, id uuid.UUID) (*entity.Category, error) {
+	return r.GetByID(ctx, companyID, id)
+}
+
+func (r memoryCategories) ExistsByName(_ context.Context, companyID uuid.UUID, parentID *uuid.UUID, name string, excludeID uuid.UUID) (bool, error) {
 	r.s.mu.Lock()
 	defer r.s.mu.Unlock()
 	for _, c := range r.s.Categories {
-		if c.CompanyID == companyID && sameParent(c.ParentID, parentID) && strings.EqualFold(c.Name, name) {
+		if c.CompanyID == companyID && c.DeletedAt == nil && c.ID != excludeID && sameParent(c.ParentID, parentID) && strings.EqualFold(c.Name, name) {
 			return true, nil
 		}
 	}
 	return false, nil
+}
+
+func (r memoryCategories) CountSubcategories(_ context.Context, companyID, id uuid.UUID) (int64, error) {
+	r.s.mu.Lock()
+	defer r.s.mu.Unlock()
+	var count int64
+	for _, c := range r.s.Categories {
+		if c.CompanyID == companyID && c.DeletedAt == nil && c.ParentID != nil && *c.ParentID == id {
+			count++
+		}
+	}
+	return count, nil
+}
+
+func (r memoryCategories) CountProducts(_ context.Context, companyID, id uuid.UUID) (int64, error) {
+	r.s.mu.Lock()
+	defer r.s.mu.Unlock()
+	return r.countProducts(companyID, id), nil
+}
+
+func (r memoryCategories) countProducts(companyID, id uuid.UUID) int64 {
+	var count int64
+	for _, p := range r.s.Products {
+		if p.CompanyID == companyID && p.CategoryID == id && p.DeletedAt == nil {
+			count++
+		}
+	}
+	return count
+}
+
+// SoftDelete marks the category as deleted, as the GORM repository does: the
+// row stays and frees its name.
+func (r memoryCategories) SoftDelete(_ context.Context, companyID, id uuid.UUID) (bool, error) {
+	r.s.mu.Lock()
+	defer r.s.mu.Unlock()
+	category, ok := r.s.Categories[id]
+	if !ok || category.CompanyID != companyID || category.DeletedAt != nil {
+		return false, nil
+	}
+	now := time.Now().UTC()
+	category.DeletedAt = &now
+	return true, nil
+}
+
+func (r memoryCategories) GetListItem(_ context.Context, companyID, id uuid.UUID) (*repository.CategoryListItem, error) {
+	r.s.mu.Lock()
+	defer r.s.mu.Unlock()
+	c, ok := r.s.Categories[id]
+	if !ok || c.CompanyID != companyID || c.DeletedAt != nil {
+		return nil, nil
+	}
+	item := r.listItem(c)
+	return &item, nil
+}
+
+func (r memoryCategories) listItem(c *entity.Category) repository.CategoryListItem {
+	var taxName *string
+	for _, t := range r.s.Taxes {
+		if c.DefaultTaxID != nil && t.ID == *c.DefaultTaxID {
+			name := t.Name
+			taxName = &name
+		}
+	}
+	copied := *c
+	return repository.CategoryListItem{Category: &copied, ProductsCount: r.countProducts(c.CompanyID, c.ID), DefaultTaxName: taxName}
 }
 
 func (r memoryCategories) List(_ context.Context, companyID uuid.UUID) ([]repository.CategoryListItem, error) {
@@ -92,24 +193,9 @@ func (r memoryCategories) List(_ context.Context, companyID uuid.UUID) ([]reposi
 	defer r.s.mu.Unlock()
 	var items []repository.CategoryListItem
 	for _, c := range r.s.Categories {
-		if c.CompanyID != companyID {
-			continue
+		if c.CompanyID == companyID && c.DeletedAt == nil {
+			items = append(items, r.listItem(c))
 		}
-		var count int64
-		for _, p := range r.s.Products {
-			if p.CategoryID == c.ID {
-				count++
-			}
-		}
-		var taxName *string
-		for _, t := range r.s.Taxes {
-			if c.DefaultTaxID != nil && t.ID == *c.DefaultTaxID {
-				name := t.Name
-				taxName = &name
-			}
-		}
-		copied := *c
-		items = append(items, repository.CategoryListItem{Category: &copied, ProductsCount: count, DefaultTaxName: taxName})
 	}
 	sort.Slice(items, func(i, j int) bool { return items[i].Category.Name < items[j].Category.Name })
 	return items, nil
@@ -133,11 +219,30 @@ func (r memoryProducts) Update(_ context.Context, product *entity.Product) error
 	return nil
 }
 
+// WithinTransaction restores the products as they were when fn fails, which is
+// what rolling back the database transaction does.
+func (r memoryProducts) WithinTransaction(ctx context.Context, fn func(context.Context) error) error {
+	r.s.mu.Lock()
+	before := make(map[uuid.UUID]*entity.Product, len(r.s.Products))
+	for id, product := range r.s.Products {
+		copied := *product
+		before[id] = &copied
+	}
+	r.s.mu.Unlock()
+	if err := fn(ctx); err != nil {
+		r.s.mu.Lock()
+		r.s.Products = before
+		r.s.mu.Unlock()
+		return err
+	}
+	return nil
+}
+
 func (r memoryProducts) GetByID(_ context.Context, companyID, id uuid.UUID) (*entity.Product, error) {
 	r.s.mu.Lock()
 	defer r.s.mu.Unlock()
 	product, ok := r.s.Products[id]
-	if !ok || product.CompanyID != companyID {
+	if !ok || product.CompanyID != companyID || product.DeletedAt != nil {
 		return nil, nil
 	}
 	copied := *product
@@ -156,33 +261,64 @@ func (r memoryProducts) SetStatus(_ context.Context, companyID, id uuid.UUID, st
 func (r memoryProducts) Delete(_ context.Context, companyID, id uuid.UUID) error {
 	r.s.mu.Lock()
 	defer r.s.mu.Unlock()
-	if product, ok := r.s.Products[id]; ok && product.CompanyID == companyID {
-		delete(r.s.Products, id)
+	// Soft delete, as the GORM repository does: the row keeps its SKU and
+	// barcode reserved (HU-06-01).
+	if product, ok := r.s.Products[id]; ok && product.CompanyID == companyID && product.DeletedAt == nil {
+		now := time.Now().UTC()
+		product.DeletedAt = &now
 	}
 	return nil
 }
 
-func (r memoryProducts) ExistsByName(_ context.Context, companyID uuid.UUID, name string, excludeID uuid.UUID) (bool, error) {
-	return r.any(companyID, excludeID, func(p *entity.Product) bool { return strings.EqualFold(p.Name, name) }), nil
+func (r memoryProducts) FindByName(_ context.Context, companyID uuid.UUID, name string, excludeID uuid.UUID) (*entity.Product, error) {
+	return r.holder(companyID, excludeID, false, func(p *entity.Product) bool { return strings.EqualFold(p.Name, name) }), nil
 }
 
-func (r memoryProducts) ExistsBySKU(_ context.Context, companyID uuid.UUID, sku string, excludeID uuid.UUID) (bool, error) {
-	return r.any(companyID, excludeID, func(p *entity.Product) bool { return p.SKU == sku }), nil
+func (r memoryProducts) FindBySKU(_ context.Context, companyID uuid.UUID, sku string, excludeID uuid.UUID) (*entity.Product, error) {
+	return r.holder(companyID, excludeID, true, func(p *entity.Product) bool { return p.SKU == sku }), nil
 }
 
-func (r memoryProducts) ExistsByBarcode(_ context.Context, companyID uuid.UUID, barcode string, excludeID uuid.UUID) (bool, error) {
-	return r.any(companyID, excludeID, func(p *entity.Product) bool { return p.Barcode == barcode }), nil
+func (r memoryProducts) FindByBarcode(_ context.Context, companyID uuid.UUID, barcode string, excludeID uuid.UUID) (*entity.Product, error) {
+	return r.holder(companyID, excludeID, true, func(p *entity.Product) bool { return p.Barcode == barcode }), nil
 }
 
-func (r memoryProducts) any(companyID, excludeID uuid.UUID, match func(*entity.Product) bool) bool {
+// holder returns a copy of the product of the company that matches, skipping
+// excludeID. Deleted products only count when withDeleted is set, and a live
+// product is preferred over a deleted one.
+func (r memoryProducts) holder(companyID, excludeID uuid.UUID, withDeleted bool, match func(*entity.Product) bool) *entity.Product {
 	r.s.mu.Lock()
 	defer r.s.mu.Unlock()
+	var found *entity.Product
 	for _, p := range r.s.Products {
-		if p.CompanyID == companyID && p.ID != excludeID && match(p) {
-			return true
+		if p.CompanyID != companyID || p.ID == excludeID || !match(p) {
+			continue
+		}
+		if p.DeletedAt != nil && (!withDeleted || found != nil) {
+			continue
+		}
+		if found == nil || found.DeletedAt != nil {
+			copied := *p
+			found = &copied
 		}
 	}
-	return false
+	return found
+}
+
+// effectiveStock mirrors the repository query: the sum of the stock_balance rows
+// of the product, falling back to the product row while it has no inventory.
+func (r memoryProducts) effectiveStock(companyID uuid.UUID, p *entity.Product) decimal.Decimal {
+	total := decimal.Zero
+	hasBalance := false
+	for _, b := range r.s.Stock.Balances {
+		if b.CompanyID == companyID && b.ProductID == p.ID {
+			total = total.Add(b.Quantity)
+			hasBalance = true
+		}
+	}
+	if !hasBalance {
+		return p.Stock
+	}
+	return total
 }
 
 func (r memoryProducts) List(_ context.Context, companyID uuid.UUID, filter repository.ProductFilter, offset, limit int) ([]repository.ProductListItem, int64, error) {
@@ -191,7 +327,7 @@ func (r memoryProducts) List(_ context.Context, companyID uuid.UUID, filter repo
 	search := strings.ToLower(strings.TrimSpace(filter.Search))
 	var items []repository.ProductListItem
 	for _, p := range r.s.Products {
-		if p.CompanyID != companyID {
+		if p.CompanyID != companyID || p.DeletedAt != nil {
 			continue
 		}
 		if search != "" && !strings.Contains(strings.ToLower(p.Name), search) &&
@@ -205,6 +341,10 @@ func (r memoryProducts) List(_ context.Context, companyID uuid.UUID, filter repo
 			continue
 		}
 		copied := *p
+		copied.Stock = r.effectiveStock(companyID, p)
+		if filter.StockStatus != nil && copied.StockStatus() != *filter.StockStatus {
+			continue
+		}
 		items = append(items, repository.ProductListItem{Product: &copied, CategoryName: r.s.Categories[p.CategoryID].Name})
 	}
 	sort.Slice(items, func(i, j int) bool { return items[i].Product.Name < items[j].Product.Name })
@@ -225,12 +365,13 @@ func (r memoryProducts) Summary(_ context.Context, companyID uuid.UUID, noMoveme
 	defer r.s.mu.Unlock()
 	summary := repository.ProductSummary{InventoryValue: decimal.Zero}
 	for _, p := range r.s.Products {
-		if p.CompanyID != companyID || p.Status != entity.StatusActive {
+		if p.CompanyID != companyID || p.DeletedAt != nil || p.Status != entity.StatusActive {
 			continue
 		}
 		summary.ActiveProducts++
-		summary.InventoryValue = summary.InventoryValue.Add(p.Stock.Mul(p.Cost))
-		if p.Stock.IsPositive() && p.Stock.LessThanOrEqual(p.MinStock) {
+		stock := r.effectiveStock(companyID, p)
+		summary.InventoryValue = summary.InventoryValue.Add(stock.Mul(p.Cost))
+		if stock.IsPositive() && stock.LessThanOrEqual(p.MinStock) {
 			summary.LowStock++
 		}
 		if p.LastMovementAt.Before(noMovementSince) {
@@ -275,4 +416,65 @@ func sameParent(a, b *uuid.UUID) bool {
 		return a == nil && b == nil
 	}
 	return *a == *b
+}
+
+type MemoryPriceHistoryRepository struct {
+	mu          sync.Mutex
+	Entries     map[uuid.UUID][]*entity.PriceHistoryEntry
+	RecordError error
+}
+
+func NewMemoryPriceHistoryRepository() *MemoryPriceHistoryRepository {
+	return &MemoryPriceHistoryRepository{Entries: map[uuid.UUID][]*entity.PriceHistoryEntry{}}
+}
+
+func (r *MemoryPriceHistoryRepository) Record(_ context.Context, productID, userID uuid.UUID, previousCost, newCost, previousPrice, newPrice decimal.Decimal, reason string) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if r.RecordError != nil {
+		return r.RecordError
+	}
+	r.Entries[productID] = append(r.Entries[productID], &entity.PriceHistoryEntry{
+		ID: uuid.New(), UserID: userID, PreviousCost: previousCost, NewCost: newCost,
+		PreviousPrice: previousPrice, NewPrice: newPrice, Reason: reason, CreatedAt: time.Now().UTC(),
+	})
+	return nil
+}
+
+func (r *MemoryPriceHistoryRepository) GetByProduct(_ context.Context, productID uuid.UUID, page, limit int) ([]*entity.PriceHistoryEntry, int64, error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	entries := r.Entries[productID]
+	result := make([]*entity.PriceHistoryEntry, 0)
+	for i := (page - 1) * limit; i < len(entries) && i < page*limit; i++ {
+		copied := *entries[len(entries)-1-i]
+		result = append(result, &copied)
+	}
+	return result, int64(len(entries)), nil
+}
+
+type StockBalance struct {
+	CompanyID  uuid.UUID
+	ProductID  uuid.UUID
+	BranchID   int64
+	LocationID int64
+	Quantity   decimal.Decimal
+}
+
+type MemoryStockRepository struct {
+	Balances []StockBalance
+	GetError error
+}
+
+func (r *MemoryStockRepository) GetTotalByProduct(_ context.Context, companyID, productID uuid.UUID) (decimal.Decimal, error) {
+	if r.GetError != nil {
+		return decimal.Zero, r.GetError
+	}
+	total := decimal.Zero
+	for _, balance := range r.Balances {
+		if balance.CompanyID == companyID && balance.ProductID == productID {
+			total = total.Add(balance.Quantity)
+		}
+	}
+	return total, nil
 }

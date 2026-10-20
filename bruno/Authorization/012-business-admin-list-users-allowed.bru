@@ -1,0 +1,23 @@
+meta {
+  name: Business Admin Lists Users (200)
+  type: http
+  seq: 12
+}
+
+get {
+  url: {{baseUrl}}/api/v1/users
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{readerToken}}
+}
+
+tests {
+  test("an operation covered by the role continues", function() {
+    expect(res.status).to.equal(200);
+    expect(res.body.success).to.equal(true);
+    expect(res.body.data).to.be.an('array');
+  });
+}

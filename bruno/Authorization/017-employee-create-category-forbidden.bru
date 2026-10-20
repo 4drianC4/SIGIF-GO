@@ -1,0 +1,40 @@
+meta {
+  name: Employee Creates Category (403)
+  type: http
+  seq: 17
+}
+
+post {
+  url: {{baseUrl}}/api/v1/categories
+  body: json
+  auth: bearer
+}
+
+headers {
+  Content-Type: application/json
+}
+
+auth:bearer {
+  token: {{employeeToken}}
+}
+
+body:json {
+  {
+    "name": "{{rejectedCategory}}",
+    "description": "Must not be created"
+  }
+}
+
+script:pre-request {
+  bru.setVar('rejectedCategory', 'hu08206-rejected-' + Date.now());
+}
+
+tests {
+  test("returns 403 FORBIDDEN without categories.create", function() {
+    expect(res.status).to.equal(403);
+    expect(res.body.success).to.equal(false);
+    expect(res.body.error.code).to.equal('FORBIDDEN');
+    expect(res.body.error.message).to.be.a('string');
+    expect(Object.keys(res.body).includes('data')).to.equal(false);
+  });
+}
